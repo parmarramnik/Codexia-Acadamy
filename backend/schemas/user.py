@@ -1,0 +1,119 @@
+"""
+User Pydantic schemas for request validation and response serialization.
+"""
+
+from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, EmailStr, Field, field_validator
+import re
+
+
+class UserBase(BaseModel):
+    email: EmailStr
+    username: str = Field(..., min_length=3, max_length=100)
+    full_name: str = Field(..., min_length=2, max_length=200)
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, value: str) -> str:
+        if not re.match(r"^[a-zA-Z0-9_-]+$", value):
+            raise ValueError("Username can only contain letters, numbers, underscores, and hyphens")
+        return value.lower()
+
+
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=12, max_length=128)
+    role: Optional[str] = "student"
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        if not re.search(r"[A-Z]", value):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"[a-z]", value):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r"\d", value):
+            raise ValueError("Password must contain at least one digit")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", value):
+            raise ValueError("Password must contain at least one special character")
+        return value
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, value: Optional[str]) -> Optional[str]:
+        if value and value not in ["student", "instructor", "admin", "super_admin"]:
+            raise ValueError("Role must be 'student', 'instructor', 'admin', or 'super_admin'")
+        return value or "student"
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+    remember_me: bool = False
+
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = Field(None, min_length=2, max_length=200)
+    bio: Optional[str] = Field(None, max_length=1000)
+    avatar_url: Optional[str] = None
+
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    username: str
+    full_name: str
+    avatar_url: Optional[str] = None
+    bio: Optional[str] = None
+    role: str
+    is_active: bool
+    is_verified: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UserListResponse(BaseModel):
+    id: int
+    email: str
+    username: str
+    full_name: str
+    role: str
+    is_active: bool
+    is_verified: bool
+    password_hash: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PasswordReset(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=12, max_length=128)
+
+
+class ChangePassword(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=12, max_length=128)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
+class MessageResponse(BaseModel):
+    message: str

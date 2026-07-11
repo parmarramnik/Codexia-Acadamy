@@ -1,0 +1,48 @@
+# Dependency Directories
+node_modules/
+venv/
+.venv/
+env/
+ENV/
+
+# Build and Output Directories
+dist/
+build/
+out/
+.next/
+
+# Environment Configurations & Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+!*.env.example
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Python Caches & Compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.cache/
+
+# User Upload Assets
+backend/static/
+!backend/static/.gitkeep
+
+# IDEs & System Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
