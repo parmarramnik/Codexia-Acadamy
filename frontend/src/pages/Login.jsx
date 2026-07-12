@@ -25,7 +25,15 @@ export default function Login() {
       toast.success('Successfully logged in!');
       navigate('/dashboard');
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || 'Invalid email or password';
+      let errorMsg = 'Invalid email or password';
+      const detail = err.response?.data?.detail;
+      if (detail) {
+        if (Array.isArray(detail)) {
+          errorMsg = detail.map(d => `${d.loc[d.loc.length - 1]}: ${d.msg}`).join(', ');
+        } else if (typeof detail === 'string') {
+          errorMsg = detail;
+        }
+      }
       toast.error(errorMsg);
     } finally {
       setIsLoading(false);

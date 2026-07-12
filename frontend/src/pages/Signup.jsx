@@ -18,7 +18,7 @@ export default function Signup() {
   const [isLoading, setIsLoading] = useState(false);
 
   const validatePassword = (pwd) => {
-    const minLength = pwd.length >= 8;
+    const minLength = pwd.length >= 12;
     const hasUpper = /[A-Z]/.test(pwd);
     const hasLower = /[a-z]/.test(pwd);
     const hasDigit = /\d/.test(pwd);
@@ -45,7 +45,7 @@ export default function Signup() {
     }
 
     if (!validatePassword(password)) {
-      toast.error('Password must be 8+ chars with uppercase, lowercase, digit, and special char');
+      toast.error('Password must be 12+ chars with uppercase, lowercase, digit, and special char');
       return;
     }
 
@@ -61,7 +61,15 @@ export default function Signup() {
       toast.success('Account created successfully! Please verify your email and sign in.');
       navigate('/login');
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || 'Registration failed';
+      let errorMsg = 'Registration failed';
+      const detail = err.response?.data?.detail;
+      if (detail) {
+        if (Array.isArray(detail)) {
+          errorMsg = detail.map(d => `${d.loc[d.loc.length - 1]}: ${d.msg}`).join(', ');
+        } else if (typeof detail === 'string') {
+          errorMsg = detail;
+        }
+      }
       toast.error(errorMsg);
     } finally {
       setIsLoading(false);
