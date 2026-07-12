@@ -21,6 +21,13 @@ export default function Profile() {
   const [certificates, setCertificates] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const getFullCertUrl = (relativeUrl) => {
+    if (!relativeUrl) return '';
+    if (relativeUrl.startsWith('http')) return relativeUrl;
+    const backendHost = api.defaults.baseURL.replace(/\/api$/, '');
+    return `${backendHost}${relativeUrl}`;
+  };
+
   useEffect(() => {
     async function loadProfileData() {
       try {
@@ -136,7 +143,7 @@ export default function Profile() {
                       </p>
                     </div>
                     <a
-                      href={cert.certificate_url}
+                      href={getFullCertUrl(cert.certificate_url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={styles.viewCertLink}

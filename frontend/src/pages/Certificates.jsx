@@ -11,6 +11,13 @@ export default function Certificates() {
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  const getFullCertUrl = (relativeUrl) => {
+    if (!relativeUrl) return '';
+    if (relativeUrl.startsWith('http')) return relativeUrl;
+    const backendHost = api.defaults.baseURL.replace(/\/api$/, '');
+    return `${backendHost}${relativeUrl}`;
+  };
+
   async function loadData() {
     setIsLoading(true);
     try {
@@ -135,7 +142,7 @@ export default function Certificates() {
                     <span style={styles.certDate}>Issued on: {new Date(cert.completion_date).toLocaleDateString()}</span>
                   </div>
                   <a
-                    href={cert.certificate_url}
+                    href={getFullCertUrl(cert.certificate_url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={styles.downloadLink}
