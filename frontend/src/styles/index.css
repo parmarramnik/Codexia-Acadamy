@@ -1,6 +1,6 @@
 /* ============================================================
    Codexia Design System
-   Professional dark theme inspired by LeetCode, GitHub, VS Code
+   Professional dark theme inspired by modern developer workspaces
    ============================================================ */
 
 /* --- CSS Variables --- */
@@ -289,4 +289,20 @@ code, pre {
 
 @media (max-width: 480px) {
   html { font-size: 13px; }
+}
+
+/* Diff Word Highlighting */
+.diff-word-deleted {
+  background-color: rgba(231, 76, 60, 0.3);
+  text-decoration: line-through;
+  padding: 1px 3px;
+  border-radius: var(--radius-sm);
+  color: #ffb3b3;
+}
+
+.diff-word-added {
+  background-color: rgba(46, 204, 113, 0.3);
+  padding: 1px 3px;
+  border-radius: var(--radius-sm);
+  color: #b3ffb3;
 }

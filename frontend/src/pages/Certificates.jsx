@@ -3,6 +3,7 @@ import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import { FiAward, FiDownload, FiCheckCircle } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
+import LoadingButton from '../components/common/LoadingButton';
 
 export default function Certificates() {
   const { user } = useAuth();
@@ -57,7 +58,7 @@ export default function Certificates() {
     return (
       <div style={styles.container}>
         <div style={styles.header}>
-          <h1 style={styles.title}>Certificates & Achievements</h1>
+          <h1 style={styles.title}>Verified Certificates</h1>
           <p style={styles.subtitle}>Verified course completion certificates.</p>
         </div>
         <div style={styles.roleNoticeContainer}>
@@ -82,7 +83,7 @@ export default function Certificates() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={styles.title}>Certificates & Achievements</h1>
+        <h1 style={styles.title}>Verified Certificates</h1>
         <p style={styles.subtitle}>Claim and download your verified course completion certificates.</p>
       </div>
 
@@ -106,13 +107,14 @@ export default function Certificates() {
                     {hasCert ? (
                       <span style={styles.claimedText}><FiCheckCircle /> Claimed</span>
                     ) : (
-                      <button
+                      <LoadingButton
                         onClick={() => handleGenerateCertificate(enrollment.course_id)}
-                        disabled={isGenerating}
+                        loading={isGenerating}
+                        loadingText="Claiming..."
                         style={styles.claimBtn}
                       >
                         Claim Certificate
-                      </button>
+                      </LoadingButton>
                     )}
                   </div>
                 );

@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import { FiUser, FiLock, FiSliders, FiSave, FiCheckCircle } from 'react-icons/fi';
+import LoadingButton from '../components/common/LoadingButton';
 
 const PRESET_AVATARS = [
   { name: 'Developer Orange', url: 'https://ui-avatars.com/api/?background=FFA116&color=1A1A1A&bold=true&name=Dev' },
@@ -37,6 +38,14 @@ export default function Settings() {
     emailAlerts: true,
     aiStudyPrompts: true,
     weeklyReports: false,
+    // Admin preferences
+    auditAlerts: true,
+    maintenanceAlerts: false,
+    securityReminders: true,
+    // Instructor preferences
+    enrollmentAlerts: true,
+    submissionAlerts: true,
+    courseDigests: false,
   });
 
   // Handle Profile Update
@@ -72,12 +81,7 @@ export default function Settings() {
 
   // Validate Password Policy (12+ characters, upper, lower, digit, special)
   const validateNewPassword = (pwd) => {
-    const minLength = pwd.length >= 12;
-    const hasUpper = /[A-Z]/.test(pwd);
-    const hasLower = /[a-z]/.test(pwd);
-    const hasDigit = /\d/.test(pwd);
-    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(pwd);
-    return minLength && hasUpper && hasLower && hasDigit && hasSpecial;
+    return pwd.length >= 6;
   };
 
   // Handle Password Update
@@ -96,7 +100,7 @@ export default function Settings() {
     }
 
     if (!validateNewPassword(newPassword)) {
-      toast.error('New password must be 12+ characters and contain uppercase, lowercase, digit, and special characters.');
+      toast.error('New password must be at least 6 characters.');
       return;
     }
 
@@ -217,9 +221,9 @@ export default function Settings() {
                 />
               </div>
 
-              <button type="submit" disabled={isSaving} style={styles.submitBtn}>
-                <FiSave /> {isSaving ? 'Saving Changes...' : 'Save Settings'}
-              </button>
+              <LoadingButton type="submit" loading={isSaving} loadingText="Saving Changes..." style={styles.submitBtn}>
+                <FiSave /> Save Settings
+              </LoadingButton>
             </form>
           )}
 
@@ -266,58 +270,151 @@ export default function Settings() {
                 />
               </div>
 
-              <button type="submit" disabled={isSaving} style={styles.submitBtn}>
-                <FiSave /> {isSaving ? 'Modifying Password...' : 'Change Password'}
-              </button>
+              <LoadingButton type="submit" loading={isSaving} loadingText="Modifying Password..." style={styles.submitBtn}>
+                <FiSave /> Change Password
+              </LoadingButton>
             </form>
           )}
 
           {activeTab === 'preferences' && (
             <form onSubmit={handlePrefsSubmit} style={styles.form}>
-              <h2 style={styles.sectionTitle}>Notification & AI Preferences</h2>
+              <h2 style={styles.sectionTitle}>Notification & Role Preferences</h2>
 
-              <div style={styles.toggleRow}>
-                <div>
-                  <h4 style={styles.toggleTitle}>Email Notifications</h4>
-                  <p style={styles.toggleDesc}>Receive announcements and system alerts directly in your inbox.</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={prefsForm.emailAlerts}
-                  onChange={(e) => setPrefsForm({ ...prefsForm, emailAlerts: e.target.checked })}
-                  style={styles.checkbox}
-                />
-              </div>
+              {/* Student Preferences */}
+              {(user?.role === 'student' || !user?.role) && (
+                <>
+                  <div style={styles.toggleRow}>
+                    <div>
+                      <h4 style={styles.toggleTitle}>Email Notifications</h4>
+                      <p style={styles.toggleDesc}>Receive announcements and system alerts directly in your inbox.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={prefsForm.emailAlerts}
+                      onChange={(e) => setPrefsForm({ ...prefsForm, emailAlerts: e.target.checked })}
+                      style={styles.checkbox}
+                    />
+                  </div>
 
-              <div style={styles.toggleRow}>
-                <div>
-                  <h4 style={styles.toggleTitle}>Proactive AI Study Toggles</h4>
-                  <p style={styles.toggleDesc}>Enable the context-aware AI tutor to recommend topics based on performance.</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={prefsForm.aiStudyPrompts}
-                  onChange={(e) => setPrefsForm({ ...prefsForm, aiStudyPrompts: e.target.checked })}
-                  style={styles.checkbox}
-                />
-              </div>
+                  <div style={styles.toggleRow}>
+                    <div>
+                      <h4 style={styles.toggleTitle}>Proactive AI Study Toggles</h4>
+                      <p style={styles.toggleDesc}>Enable the context-aware AI tutor to recommend topics based on performance.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={prefsForm.aiStudyPrompts}
+                      onChange={(e) => setPrefsForm({ ...prefsForm, aiStudyPrompts: e.target.checked })}
+                      style={styles.checkbox}
+                    />
+                  </div>
 
-              <div style={styles.toggleRow}>
-                <div>
-                  <h4 style={styles.toggleTitle}>Weekly Performance Analytics Reports</h4>
-                  <p style={styles.toggleDesc}>Get email summaries of streaks, solved coding problems, and quiz results.</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={prefsForm.weeklyReports}
-                  onChange={(e) => setPrefsForm({ ...prefsForm, weeklyReports: e.target.checked })}
-                  style={styles.checkbox}
-                />
-              </div>
+                  <div style={styles.toggleRow}>
+                    <div>
+                      <h4 style={styles.toggleTitle}>Weekly Performance Analytics Reports</h4>
+                      <p style={styles.toggleDesc}>Get email summaries of streaks, solved coding problems, and quiz results.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={prefsForm.weeklyReports}
+                      onChange={(e) => setPrefsForm({ ...prefsForm, weeklyReports: e.target.checked })}
+                      style={styles.checkbox}
+                    />
+                  </div>
+                </>
+              )}
 
-              <button type="submit" style={styles.submitBtn}>
+              {/* Instructor Preferences */}
+              {user?.role === 'instructor' && (
+                <>
+                  <div style={styles.toggleRow}>
+                    <div>
+                      <h4 style={styles.toggleTitle}>Student Enrollment Notifications</h4>
+                      <p style={styles.toggleDesc}>Receive alerts when students enroll in your authored courses.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={prefsForm.enrollmentAlerts}
+                      onChange={(e) => setPrefsForm({ ...prefsForm, enrollmentAlerts: e.target.checked })}
+                      style={styles.checkbox}
+                    />
+                  </div>
+
+                  <div style={styles.toggleRow}>
+                    <div>
+                      <h4 style={styles.toggleTitle}>Submission & Review Alerts</h4>
+                      <p style={styles.toggleDesc}>Emailed when a student requests assignment grading or quiz reviews.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={prefsForm.submissionAlerts}
+                      onChange={(e) => setPrefsForm({ ...prefsForm, submissionAlerts: e.target.checked })}
+                      style={styles.checkbox}
+                    />
+                  </div>
+
+                  <div style={styles.toggleRow}>
+                    <div>
+                      <h4 style={styles.toggleTitle}>Course Analytics Digests</h4>
+                      <p style={styles.toggleDesc}>Receive weekly reports on your authored course ratings, enrollments, and reviews.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={prefsForm.courseDigests}
+                      onChange={(e) => setPrefsForm({ ...prefsForm, courseDigests: e.target.checked })}
+                      style={styles.checkbox}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Admin/Super Admin Preferences */}
+              {(user?.role === 'admin' || user?.role === 'super_admin') && (
+                <>
+                  <div style={styles.toggleRow}>
+                    <div>
+                      <h4 style={styles.toggleTitle}>System Audit Log Alerts</h4>
+                      <p style={styles.toggleDesc}>Get emailed when critical security events or authentication failures occur.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={prefsForm.auditAlerts}
+                      onChange={(e) => setPrefsForm({ ...prefsForm, auditAlerts: e.target.checked })}
+                      style={styles.checkbox}
+                    />
+                  </div>
+
+                  <div style={styles.toggleRow}>
+                    <div>
+                      <h4 style={styles.toggleTitle}>System Maintenance Notices</h4>
+                      <p style={styles.toggleDesc}>Receive system alerts, database backup logs, and server performance reports.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={prefsForm.maintenanceAlerts}
+                      onChange={(e) => setPrefsForm({ ...prefsForm, maintenanceAlerts: e.target.checked })}
+                      style={styles.checkbox}
+                    />
+                  </div>
+
+                  <div style={styles.toggleRow}>
+                    <div>
+                      <h4 style={styles.toggleTitle}>Enable Administrative 2FA Prompts</h4>
+                      <p style={styles.toggleDesc}>Force two-factor reminder screens for administrative accounts weekly.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={prefsForm.securityReminders}
+                      onChange={(e) => setPrefsForm({ ...prefsForm, securityReminders: e.target.checked })}
+                      style={styles.checkbox}
+                    />
+                  </div>
+                </>
+              )}
+
+              <LoadingButton type="submit" loading={isSaving} loadingText="Saving Preferences..." style={styles.submitBtn}>
                 <FiSave /> Save Preferences
-              </button>
+              </LoadingButton>
             </form>
           )}
         </div>

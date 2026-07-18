@@ -1,14 +1,19 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
+import LoadingButton from '../components/common/LoadingButton';
+import { FiMail, FiLock, FiCheckCircle } from 'react-icons/fi';
 
 export default function ForgotPassword() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isSent, setIsSent] = useState(false);
+  const [step, setStep] = useState(1); // 1 = Request OTP, 2 = Verify OTP & Reset, 3 = Success
 
-  const handleSubmit = async (e) => {
+  const handleRequestOtp = async (e) => {
     e.preventDefault();
     if (!email) {
       toast.error('Please enter your email address');
@@ -18,10 +23,37 @@ export default function ForgotPassword() {
     setIsLoading(true);
     try {
       await api.post('/auth/forgot-password', { email });
-      toast.success('Reset email sent successfully!');
-      setIsSent(true);
+      toast.success('If registered, a 6-digit OTP code has been sent to your email.');
+      setStep(2);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!otp || !newPassword) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await api.post('/auth/reset-password', {
+        email,
+        otp,
+        new_password: newPassword,
+      });
+      toast.success('Password reset successfully!');
+      setStep(3);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Verification code is invalid or expired.');
     } finally {
       setIsLoading(false);
     }
@@ -31,51 +63,112 @@ export default function ForgotPassword() {
     <div style={styles.container}>
       <div style={styles.card}>
         <div style={styles.header}>
-          <h2 style={styles.title}>Forgot Password</h2>
+          <h2 style={styles.title}>
+            {step === 1 && 'Reset Password'}
+            {step === 2 && 'Verify Code'}
+            {step === 3 && 'Success!'}
+          </h2>
           <p style={styles.subtitle}>
-            {isSent 
-              ? 'Check your inbox for password reset instructions' 
-              : 'Enter your email and we will send you a reset link'
-            }
+            {step === 1 && 'Enter your email to receive a 6-digit verification code.'}
+            {step === 2 && `We sent a 6-digit code to ${email}`}
+            {step === 3 && 'Your password has been securely updated.'}
           </p>
         </div>
 
-        {isSent ? (
-          <div style={styles.successContainer}>
-            <p style={styles.successText}>
-              An email has been sent to <strong>{email}</strong>. If this email is registered, you will find instructions to reset your password.
-            </p>
-            <Link to="/login" style={styles.backBtn}>Back to Login</Link>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} style={styles.form}>
+        {step === 1 && (
+          <form onSubmit={handleRequestOtp} style={styles.form}>
             <div style={styles.inputGroup}>
               <label htmlFor="email" style={styles.label}>Email Address</label>
+              <div style={styles.inputWrapper}>
+                <FiMail style={styles.inputIcon} />
+                <input
+                  id="email"
+                  type="email"
+                  placeholder="e.g. name@domain.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  style={styles.input}
+                  required
+                />
+              </div>
+            </div>
+
+            <LoadingButton
+              type="submit"
+              loading={isLoading}
+              loadingText="Sending OTP Code..."
+              style={styles.submitBtn}
+            >
+              Get Verification Code
+            </LoadingButton>
+          </form>
+        )}
+
+        {step === 2 && (
+          <form onSubmit={handleResetPassword} style={styles.form}>
+            <div style={styles.inputGroup}>
+              <label htmlFor="otp" style={styles.label}>Verification Code (OTP)</label>
               <input
-                id="email"
-                type="email"
-                placeholder="e.g. name@domain.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                style={styles.input}
+                id="otp"
+                type="text"
+                maxLength={6}
+                placeholder="6-digit code"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                style={styles.otpInput}
                 required
               />
             </div>
 
-            <button
+            <div style={styles.inputGroup}>
+              <label htmlFor="newPassword" style={styles.label}>New Password</label>
+              <div style={styles.inputWrapper}>
+                <FiLock style={styles.inputIcon} />
+                <input
+                  id="newPassword"
+                  type="password"
+                  placeholder="Minimum 6 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  style={styles.input}
+                  required
+                />
+              </div>
+            </div>
+
+            <LoadingButton
               type="submit"
-              disabled={isLoading}
-              style={isLoading ? { ...styles.submitBtn, ...styles.btnDisabled } : styles.submitBtn}
+              loading={isLoading}
+              loadingText="Verifying Code..."
+              style={styles.submitBtn}
             >
-              {isLoading ? 'Sending Link...' : 'Send Reset Link'}
+              Verify Code & Reset
+            </LoadingButton>
+
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              style={styles.changeEmailBtn}
+            >
+              Change Email Address
             </button>
           </form>
         )}
 
-        {!isSent && (
+        {step === 3 && (
+          <div style={styles.successContainer}>
+            <FiCheckCircle size={48} style={styles.successIcon} />
+            <p style={styles.successText}>
+              Your account security has been restored. You can now log in with your new credentials.
+            </p>
+            <Link to="/login" style={styles.actionBtn}>Proceed to Login</Link>
+          </div>
+        )}
+
+        {step < 3 && (
           <div style={styles.footer}>
             <p style={styles.footerText}>
-              Remembered your password? <Link to="/login" style={styles.link}>Sign In</Link>
+              Back to <Link to="/login" style={styles.link}>Sign In</Link>
             </p>
           </div>
         )}
@@ -89,17 +182,17 @@ const styles = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 'calc(100vh - var(--navbar-height))',
-    backgroundColor: 'var(--bg-primary)',
+    minHeight: '80vh',
     padding: '2rem 1rem',
   },
   card: {
     width: '100%',
-    maxWidth: '440px',
+    maxWidth: '400px',
     backgroundColor: 'var(--bg-card)',
+    borderRadius: 'var(--radius-lg)',
     border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    padding: '2.5rem',
+    padding: '2.5rem 2rem',
+    boxShadow: 'var(--shadow-lg)',
   },
   header: {
     marginBottom: '2rem',
@@ -107,13 +200,14 @@ const styles = {
   },
   title: {
     fontSize: '1.75rem',
-    fontWeight: 'var(--fw-semibold)',
+    fontWeight: 'var(--fw-bold)',
     color: 'var(--text-primary)',
     marginBottom: '0.5rem',
   },
   subtitle: {
     fontSize: '0.875rem',
     color: 'var(--text-secondary)',
+    lineHeight: '1.4',
   },
   form: {
     display: 'flex',
@@ -130,13 +224,38 @@ const styles = {
     fontWeight: 'var(--fw-medium)',
     color: 'var(--text-primary)',
   },
+  inputWrapper: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  inputIcon: {
+    position: 'absolute',
+    left: '1rem',
+    color: 'var(--text-secondary)',
+    pointerEvents: 'none',
+  },
   input: {
-    padding: '0.75rem 1rem',
+    width: '100%',
+    padding: '0.75rem 1rem 0.75rem 2.5rem',
     backgroundColor: 'var(--bg-secondary)',
     border: '1px solid var(--border-primary)',
     borderRadius: 'var(--radius-md)',
     color: 'var(--text-primary)',
     fontSize: '0.875rem',
+    outline: 'none',
+  },
+  otpInput: {
+    padding: '0.75rem 1rem',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: 'var(--radius-md)',
+    color: 'var(--text-primary)',
+    fontSize: '1.25rem',
+    letterSpacing: '0.25em',
+    textAlign: 'center',
+    fontWeight: 'var(--fw-bold)',
+    outline: 'none',
   },
   submitBtn: {
     backgroundColor: 'var(--accent-primary)',
@@ -149,34 +268,45 @@ const styles = {
     cursor: 'pointer',
     textAlign: 'center',
   },
-  btnDisabled: {
-    backgroundColor: 'var(--border-primary)',
+  changeEmailBtn: {
+    backgroundColor: 'transparent',
     color: 'var(--text-secondary)',
-    cursor: 'not-allowed',
+    border: 'none',
+    fontSize: '0.75rem',
+    fontWeight: 'var(--fw-medium)',
+    cursor: 'pointer',
+    textAlign: 'center',
+    padding: '0.25rem',
+    textDecoration: 'underline',
   },
   successContainer: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '1.5rem',
+    alignItems: 'center',
+    gap: '1.25rem',
     textAlign: 'center',
+  },
+  successIcon: {
+    color: '#10B981',
   },
   successText: {
     fontSize: '0.875rem',
     color: 'var(--text-secondary)',
     lineHeight: '1.5',
   },
-  backBtn: {
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-primary)',
-    color: 'var(--text-primary)',
-    fontWeight: 'var(--fw-medium)',
+  actionBtn: {
+    width: '100%',
+    backgroundColor: 'var(--accent-primary)',
+    color: 'var(--text-inverse)',
     padding: '0.75rem',
     borderRadius: 'var(--radius-md)',
-    fontSize: '0.875rem',
+    fontWeight: 'var(--fw-semibold)',
+    textDecoration: 'none',
     textAlign: 'center',
+    boxShadow: '0 4px 14px rgba(255, 152, 0, 0.3)',
   },
   footer: {
-    marginTop: '2rem',
+    marginTop: '1.5rem',
     textAlign: 'center',
   },
   footerText: {

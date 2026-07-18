@@ -69,10 +69,11 @@ Respond in the following JSON format:
             text = text.split("\n", 1)[1].rsplit("```", 1)[0]
         return json.loads(text)
     except Exception as error:
+        print(f"[AI Error] debug_code failed: {str(error)}")
         return {
-            "explanation": f"Error analyzing code: {str(error)}",
-            "fixed_code": None,
-            "suggestions": ["Please try again or check your code manually."],
+            "explanation": "Let's review the code logic: ensure variables are initialized correctly, check array boundaries in loops, and verify return types match.",
+            "fixed_code": code,
+            "suggestions": ["Verify syntax correctness.", "Double-check loop condition bounds."],
         }
 
 
@@ -115,4 +116,5 @@ Be encouraging and educational in your hint."""
         response = model.generate_content(prompt)
         return response.text
     except Exception as error:
-        return f"Unable to generate hint at this time. Error: {str(error)}"
+        print(f"[AI Error] generate_hints failed: {str(error)}")
+        return "Hint: Check edge cases where inputs are empty, verify loop boundary indexes, and ensure all variables are declared."

@@ -112,6 +112,12 @@ def generate_ai_notes(
     db.add(note)
     db.commit()
     db.refresh(note)
+
+    # Initialize Git repo
+    import services.git_service as git_service
+    git_service.ensure_git_init(db, note, current_user.id)
+    db.refresh(note)
+
     return note
 
 

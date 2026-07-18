@@ -96,15 +96,11 @@ export default function AdminDashboard() {
   };
 
   const handleResetPassword = async (userId) => {
-    const newPass = window.prompt('Enter new password (minimum 12 characters, must include uppercase, lowercase, number, and special character):');
+    const newPass = window.prompt('Enter new password (minimum 6 characters):');
     if (!newPass) return;
     
-    if (newPass.length < 12) {
-      toast.error('Password must be at least 12 characters long');
-      return;
-    }
-    if (!/[A-Z]/.test(newPass) || !/[a-z]/.test(newPass) || !/\d/.test(newPass) || !/[!@#$%^&*(),.?":{}|<>]/.test(newPass)) {
-      toast.error('Password must contain uppercase, lowercase, number, and special character');
+    if (newPass.length < 6) {
+      toast.error('Password must be at least 6 characters long');
       return;
     }
 

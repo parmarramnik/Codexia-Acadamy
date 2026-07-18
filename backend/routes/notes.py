@@ -12,6 +12,7 @@ from models.user import User
 from models.content import Note
 from schemas.analytics import NoteCreate, NoteUpdate, NoteResponse
 from schemas.user import MessageResponse
+import services.git_service as git_service
 
 router = APIRouter()
 
@@ -34,7 +35,13 @@ def get_notes(
         query = query.filter(
             Note.title.ilike(f"%{search}%") | Note.content.ilike(f"%{search}%")
         )
-    return query.order_by(Note.updated_at.desc()).all()
+    notes_list = query.order_by(Note.updated_at.desc()).all()
+    
+    # Proactively ensure git is initialized for any note loaded
+    for note in notes_list:
+        git_service.ensure_git_init(db, note, current_user.id)
+        
+    return notes_list
 
 
 @router.post("", response_model=NoteResponse)
@@ -55,6 +62,10 @@ def create_note(
     db.add(note)
     db.commit()
     db.refresh(note)
+    
+    # Initialize Git repo
+    git_service.ensure_git_init(db, note, current_user.id)
+    db.refresh(note)
     return note
 
 
@@ -69,10 +80,15 @@ def update_note(
     note = db.query(Note).filter(Note.id == note_id, Note.user_id == current_user.id).first()
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
+        
     update_dict = data.model_dump(exclude_unset=True)
     for field, value in update_dict.items():
         setattr(note, field, value)
     db.commit()
+    
+    # Run auto-commit analysis on working copy modifications
+    git_service.maybe_auto_commit(db, note, current_user.id)
+    
     db.refresh(note)
     return note
 

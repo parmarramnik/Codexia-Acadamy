@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: codexia_db
+    environment:
+      POSTGRES_DB: codexia_lms
+      POSTGRES_USER: codexia_admin
+      POSTGRES_PASSWORD: admin_secure_pwd
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U codexia_admin -d codexia_lms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: codexia_cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: codexia_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://codexia_admin:admin_secure_pwd@postgres:5432/codexia_lms
+      - REDIS_URL=redis://redis:6379/0
+      - APP_NAME=Codexia Academy
+      - DEBUG=true
+    volumes:
+      - ./backend/uploads:/app/uploads
+
+volumes:
+  postgres_data:
+  redis_data:

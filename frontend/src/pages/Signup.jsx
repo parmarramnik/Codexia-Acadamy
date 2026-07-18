@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
+import LoadingButton from '../components/common/LoadingButton';
+import api from '../services/api';
+import { FaGoogle, FaGithub } from 'react-icons/fa';
 
 export default function Signup() {
   const { signup } = useAuth();
@@ -16,14 +19,42 @@ export default function Signup() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [oauthConfig, setOauthConfig] = useState({ google_client_id: '', github_client_id: '' });
+
+  useEffect(() => {
+    async function loadOauthConfig() {
+      try {
+        const res = await api.get('/auth/oauth/config');
+        setOauthConfig(res.data);
+      } catch (err) {
+        console.error('Failed to load OAuth configurations', err);
+      }
+    }
+    loadOauthConfig();
+  }, []);
+
+  const handleGoogleLogin = () => {
+    if (oauthConfig.google_client_id) {
+      const redirectUri = encodeURIComponent(`${window.location.origin}/oauth/callback/google`);
+      window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${oauthConfig.google_client_id}&redirect_uri=${redirectUri}&response_type=code&scope=email%20profile`;
+    } else {
+      toast.success('Bypassing credentials check (Developer Fallback Mode)!');
+      navigate('/oauth/callback/google?code=mock_google_code');
+    }
+  };
+
+  const handleGithubLogin = () => {
+    if (oauthConfig.github_client_id) {
+      const redirectUri = encodeURIComponent(`${window.location.origin}/oauth/callback/github`);
+      window.location.href = `https://github.com/login/oauth/authorize?client_id=${oauthConfig.github_client_id}&redirect_uri=${redirectUri}&scope=user:email`;
+    } else {
+      toast.success('Bypassing credentials check (Developer Fallback Mode)!');
+      navigate('/oauth/callback/github?code=mock_github_code');
+    }
+  };
 
   const validatePassword = (pwd) => {
-    const minLength = pwd.length >= 12;
-    const hasUpper = /[A-Z]/.test(pwd);
-    const hasLower = /[a-z]/.test(pwd);
-    const hasDigit = /\d/.test(pwd);
-    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(pwd);
-    return minLength && hasUpper && hasLower && hasDigit && hasSpecial;
+    return pwd.length >= 6;
   };
 
   const handleChange = (e) => {
@@ -45,7 +76,7 @@ export default function Signup() {
     }
 
     if (!validatePassword(password)) {
-      toast.error('Password must be 12+ chars with uppercase, lowercase, digit, and special char');
+      toast.error('Password must be at least 6 characters');
       return;
     }
 
@@ -181,14 +212,30 @@ export default function Signup() {
             />
           </div>
 
-          <button
+          <LoadingButton
             type="submit"
-            disabled={isLoading}
-            style={isLoading ? { ...styles.submitBtn, ...styles.btnDisabled } : styles.submitBtn}
+            loading={isLoading}
+            loadingText="Creating Account..."
+            style={styles.submitBtn}
           >
-            {isLoading ? 'Creating Account...' : 'Sign Up'}
-          </button>
+            Sign Up
+          </LoadingButton>
         </form>
+
+        <div style={styles.dividerContainer}>
+          <div style={styles.dividerLine} />
+          <span style={styles.dividerText}>or continue with</span>
+          <div style={styles.dividerLine} />
+        </div>
+
+        <div style={styles.oauthGrid}>
+          <button type="button" onClick={handleGoogleLogin} style={styles.oauthBtn}>
+            <FaGoogle style={{ marginRight: '8px', color: '#EA4335' }} /> Google
+          </button>
+          <button type="button" onClick={handleGithubLogin} style={styles.oauthBtn}>
+            <FaGithub style={{ marginRight: '8px', color: '#F5F5F5' }} /> GitHub
+          </button>
+        </div>
 
         <div style={styles.footer}>
           <p style={styles.footerText}>
@@ -273,12 +320,13 @@ const styles = {
   },
   inputPassword: {
     width: '100%',
-    padding: '0.75rem 3rem 0.75rem 1rem',
+    padding: '0.75rem 3.5rem 0.75rem 1rem',
     backgroundColor: 'var(--bg-secondary)',
     border: '1px solid var(--border-primary)',
     borderRadius: 'var(--radius-md)',
     color: 'var(--text-primary)',
     fontSize: '0.875rem',
+    transition: 'border-color var(--transition-fast)',
   },
   showButton: {
     position: 'absolute',
@@ -306,7 +354,7 @@ const styles = {
     cursor: 'not-allowed',
   },
   footer: {
-    marginTop: '2rem',
+    marginTop: '1rem',
     textAlign: 'center',
   },
   footerText: {
@@ -316,5 +364,43 @@ const styles = {
   link: {
     color: 'var(--color-link)',
     fontWeight: 'var(--fw-medium)',
+  },
+  dividerContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '1.5rem 0',
+    gap: '0.75rem',
+  },
+  dividerLine: {
+    flex: 1,
+    height: '1px',
+    backgroundColor: 'var(--border-primary)',
+  },
+  dividerText: {
+    fontSize: '0.75rem',
+    color: 'var(--text-secondary)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  },
+  oauthGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '1rem',
+    marginBottom: '1.5rem',
+  },
+  oauthBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: 'var(--radius-md)',
+    padding: '0.75rem',
+    fontSize: '0.875rem',
+    color: 'var(--text-primary)',
+    fontWeight: 'var(--fw-medium)',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s ease',
   },
 };

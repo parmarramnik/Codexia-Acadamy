@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
+import LoadingButton from '../components/common/LoadingButton';
+import api from '../services/api';
+import { FaGoogle, FaGithub } from 'react-icons/fa';
 
 export default function Login() {
   const { login } = useAuth();
@@ -11,6 +14,59 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [oauthConfig, setOauthConfig] = useState({ google_client_id: '', github_client_id: '' });
+
+  useEffect(() => {
+    async function loadOauthConfig() {
+      try {
+        const res = await api.get('/auth/oauth/config');
+        setOauthConfig(res.data);
+      } catch (err) {
+        console.error('Failed to load OAuth configurations', err);
+      }
+    }
+    loadOauthConfig();
+  }, []);
+
+  const handleGoogleLogin = () => {
+    if (oauthConfig.google_client_id) {
+      const redirectUri = encodeURIComponent(`${window.location.origin}/oauth/callback/google`);
+      window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${oauthConfig.google_client_id}&redirect_uri=${redirectUri}&response_type=code&scope=email%20profile`;
+    } else {
+      toast.success('Bypassing credentials check (Developer Fallback Mode)!');
+      navigate('/oauth/callback/google?code=mock_google_code');
+    }
+  };
+
+  const handleGithubLogin = () => {
+    if (oauthConfig.github_client_id) {
+      const redirectUri = encodeURIComponent(`${window.location.origin}/oauth/callback/github`);
+      window.location.href = `https://github.com/login/oauth/authorize?client_id=${oauthConfig.github_client_id}&redirect_uri=${redirectUri}&scope=user:email`;
+    } else {
+      toast.success('Bypassing credentials check (Developer Fallback Mode)!');
+      navigate('/oauth/callback/github?code=mock_github_code');
+    }
+  };
+
+  const [showResend, setShowResend] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+
+  const handleResendVerification = async () => {
+    if (!email) {
+      toast.error('Please enter your email address first.');
+      return;
+    }
+    setIsResending(true);
+    try {
+      await api.post('/auth/resend-verification', { email });
+      toast.success('Verification link has been resent to your inbox!');
+      setShowResend(false);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to resend verification link.');
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,6 +91,9 @@ export default function Login() {
         }
       }
       toast.error(errorMsg);
+      if (errorMsg.toLowerCase().includes('not verified')) {
+        setShowResend(true);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -47,6 +106,20 @@ export default function Login() {
           <h2 style={styles.title}>Sign In</h2>
           <p style={styles.subtitle}>Welcome back to Codexia Academy</p>
         </div>
+
+        {showResend && (
+          <div style={styles.resendContainer}>
+            <p style={styles.resendText}>Your email address is not verified.</p>
+            <button
+              type="button"
+              onClick={handleResendVerification}
+              disabled={isResending}
+              style={styles.resendBtn}
+            >
+              {isResending ? 'Resending...' : 'Resend Verification Email'}
+            </button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.inputGroup}>
@@ -98,14 +171,30 @@ export default function Login() {
             <label htmlFor="remember_me" style={styles.checkboxLabel}>Remember me for 7 days</label>
           </div>
 
-          <button
+          <LoadingButton
             type="submit"
-            disabled={isLoading}
-            style={isLoading ? { ...styles.submitBtn, ...styles.btnDisabled } : styles.submitBtn}
+            loading={isLoading}
+            loadingText="Signing In..."
+            style={styles.submitBtn}
           >
-            {isLoading ? 'Signing In...' : 'Sign In'}
-          </button>
+            Sign In
+          </LoadingButton>
         </form>
+
+        <div style={styles.dividerContainer}>
+          <div style={styles.dividerLine} />
+          <span style={styles.dividerText}>or continue with</span>
+          <div style={styles.dividerLine} />
+        </div>
+
+        <div style={styles.oauthGrid}>
+          <button type="button" onClick={handleGoogleLogin} style={styles.oauthBtn}>
+            <FaGoogle style={{ marginRight: '8px', color: '#EA4335' }} /> Google
+          </button>
+          <button type="button" onClick={handleGithubLogin} style={styles.oauthBtn}>
+            <FaGithub style={{ marginRight: '8px', color: '#F5F5F5' }} /> GitHub
+          </button>
+        </div>
 
         <div style={styles.footer}>
           <p style={styles.footerText}>
@@ -122,17 +211,17 @@ const styles = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 'calc(100vh - var(--navbar-height))',
-    backgroundColor: 'var(--bg-primary)',
+    minHeight: '80vh',
     padding: '2rem 1rem',
   },
   card: {
     width: '100%',
-    maxWidth: '440px',
+    maxWidth: '400px',
     backgroundColor: 'var(--bg-card)',
+    borderRadius: 'var(--radius-lg)',
     border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    padding: '2.5rem',
+    padding: '2.5rem 2rem',
+    boxShadow: 'var(--shadow-lg)',
   },
   header: {
     marginBottom: '2rem',
@@ -140,13 +229,13 @@ const styles = {
   },
   title: {
     fontSize: '1.75rem',
-    fontWeight: 'var(--fw-semibold)',
+    fontWeight: 'var(--fw-bold)',
     color: 'var(--text-primary)',
     marginBottom: '0.5rem',
   },
   subtitle: {
-    fontSize: '0.875rem',
     color: 'var(--text-secondary)',
+    fontSize: '0.875rem',
   },
   form: {
     display: 'flex',
@@ -158,10 +247,20 @@ const styles = {
     flexDirection: 'column',
     gap: '0.5rem',
   },
+  passwordHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   label: {
     fontSize: '0.875rem',
     fontWeight: 'var(--fw-medium)',
     color: 'var(--text-primary)',
+  },
+  forgotLink: {
+    fontSize: '0.75rem',
+    color: 'var(--accent-primary)',
+    fontWeight: 'var(--fw-medium)',
   },
   input: {
     padding: '0.75rem 1rem',
@@ -170,16 +269,7 @@ const styles = {
     borderRadius: 'var(--radius-md)',
     color: 'var(--text-primary)',
     fontSize: '0.875rem',
-    transition: 'border-color var(--transition-fast)',
-  },
-  passwordHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  forgotLink: {
-    fontSize: '0.75rem',
-    color: 'var(--color-link)',
+    outline: 'none',
   },
   passwordWrapper: {
     position: 'relative',
@@ -235,7 +325,7 @@ const styles = {
     cursor: 'not-allowed',
   },
   footer: {
-    marginTop: '2rem',
+    marginTop: '1rem',
     textAlign: 'center',
   },
   footerText: {
@@ -245,5 +335,67 @@ const styles = {
   link: {
     color: 'var(--color-link)',
     fontWeight: 'var(--fw-medium)',
+  },
+  dividerContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '1.5rem 0',
+    gap: '0.75rem',
+  },
+  dividerLine: {
+    flex: 1,
+    height: '1px',
+    backgroundColor: 'var(--border-primary)',
+  },
+  dividerText: {
+    fontSize: '0.75rem',
+    color: 'var(--text-secondary)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  },
+  oauthGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '1rem',
+    marginBottom: '1.5rem',
+  },
+  oauthBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: 'var(--radius-md)',
+    padding: '0.75rem',
+    fontSize: '0.875rem',
+    color: 'var(--text-primary)',
+    fontWeight: 'var(--fw-medium)',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s ease',
+  },
+  resendContainer: {
+    backgroundColor: 'rgba(231, 76, 60, 0.08)',
+    border: '1px solid rgba(231, 76, 60, 0.2)',
+    borderRadius: 'var(--radius-md)',
+    padding: '1rem',
+    marginBottom: '1.5rem',
+    textAlign: 'center',
+  },
+  resendText: {
+    color: '#e74c3c',
+    fontSize: '0.875rem',
+    marginBottom: '0.5rem',
+  },
+  resendBtn: {
+    backgroundColor: 'transparent',
+    border: '1px solid #e74c3c',
+    borderRadius: 'var(--radius-md)',
+    color: '#e74c3c',
+    padding: '0.5rem 1rem',
+    fontSize: '0.75rem',
+    fontWeight: 'var(--fw-medium)',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
 };

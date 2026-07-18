@@ -290,6 +290,71 @@ export default function InstructorDashboard() {
     }
   };
 
+  const moveModule = async (index, direction) => {
+    const newModules = [...modules];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newModules.length) return;
+    
+    // Swap
+    const temp = newModules[index];
+    newModules[index] = newModules[targetIndex];
+    newModules[targetIndex] = temp;
+    
+    const updatedPayload = {
+      modules: newModules.map((m, mIdx) => ({
+        id: m.id,
+        order_index: mIdx,
+        lectures: (m.lectures || []).map((l, lIdx) => ({
+          id: l.id,
+          order_index: lIdx
+        }))
+      }))
+    };
+    
+    try {
+      await api.put(`/course-builder/${selectedCourse.id}/reorder`, updatedPayload);
+      setModules(newModules);
+      toast.success('Module reordered');
+    } catch (err) {
+      toast.error('Failed to reorder modules');
+    }
+  };
+
+  const moveLecture = async (moduleIndex, lectureIndex, direction) => {
+    const newModules = [...modules];
+    const module = { ...newModules[moduleIndex] };
+    const lectures = [...(module.lectures || [])];
+    const targetIndex = direction === 'up' ? lectureIndex - 1 : lectureIndex + 1;
+    if (targetIndex < 0 || targetIndex >= lectures.length) return;
+    
+    // Swap
+    const temp = lectures[lectureIndex];
+    lectures[lectureIndex] = lectures[targetIndex];
+    lectures[targetIndex] = temp;
+    
+    module.lectures = lectures;
+    newModules[moduleIndex] = module;
+    
+    const updatedPayload = {
+      modules: newModules.map((m, mIdx) => ({
+        id: m.id,
+        order_index: mIdx,
+        lectures: (m.lectures || []).map((l, lIdx) => ({
+          id: l.id,
+          order_index: lIdx
+        }))
+      }))
+    };
+    
+    try {
+      await api.put(`/course-builder/${selectedCourse.id}/reorder`, updatedPayload);
+      setModules(newModules);
+      toast.success('Lecture reordered');
+    } catch (err) {
+      toast.error('Failed to reorder lectures');
+    }
+  };
+
   if (isLoading) {
     return (
       <div style={styles.loadingContainer}>
@@ -784,8 +849,14 @@ export default function InstructorDashboard() {
                 modules.map((m) => (
                   <div key={m.id} style={styles.previewModule}>
                     <div style={styles.previewModuleHeader}>
-                      <FiFolder style={styles.folderIcon} />
-                      <span>{m.title}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FiFolder style={styles.folderIcon} />
+                        <span>{m.title}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.25rem' }}>
+                        <button type="button" onClick={() => moveModule(modules.indexOf(m), 'up')} style={styles.orderBtn} title="Move Module Up">▲</button>
+                        <button type="button" onClick={() => moveModule(modules.indexOf(m), 'down')} style={styles.orderBtn} title="Move Module Down">▼</button>
+                      </div>
                     </div>
                     <div style={styles.previewLecturesList}>
                       {m.lectures?.map((l) => (
@@ -794,9 +865,15 @@ export default function InstructorDashboard() {
                             <FiPlay style={styles.playIcon} />
                             <span>{l.title}</span>
                           </div>
-                          <span style={styles.previewLecDuration}>
-                            {Math.round(l.duration_seconds / 60)} min {l.has_video && <FiCheckCircle style={styles.checkIcon} />}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={styles.previewLecDuration}>
+                              {Math.round(l.duration_seconds / 60)} min {l.has_video && <FiCheckCircle style={styles.checkIcon} />}
+                            </span>
+                            <div style={{ display: 'flex', gap: '0.15rem' }}>
+                              <button type="button" onClick={() => moveLecture(modules.indexOf(m), m.lectures.indexOf(l), 'up')} style={styles.orderBtnSmall} title="Move Lecture Up">▲</button>
+                              <button type="button" onClick={() => moveLecture(modules.indexOf(m), m.lectures.indexOf(l), 'down')} style={styles.orderBtnSmall} title="Move Lecture Down">▼</button>
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1144,6 +1221,30 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.25rem',
+  },
+  orderBtn: {
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-primary)',
+    color: 'var(--text-secondary)',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.75rem',
+    padding: '2px 6px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  orderBtnSmall: {
+    backgroundColor: 'var(--bg-card)',
+    border: '1px solid var(--border-primary)',
+    color: 'var(--text-secondary)',
+    borderRadius: '2px',
+    cursor: 'pointer',
+    fontSize: '0.6rem',
+    padding: '1px 4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   checkIcon: {
     color: 'var(--color-success)',

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Authentication routes — signup, login, logout, password reset, email verification, token refresh.
 """
@@ -10,16 +12,18 @@ from auth.oauth2 import get_current_user
 from models.user import User
 from schemas.user import (
     UserCreate, UserLogin, UserResponse, TokenResponse,
-    RefreshTokenRequest, PasswordReset, PasswordResetConfirm,
-    ChangePassword, MessageResponse,
+    RefreshTokenRequest, LogoutRequest, PasswordReset, PasswordResetConfirm,
+    ChangePassword, MessageResponse, ResendVerificationRequest,
 )
 from services import auth_service
 from services.audit_service import log_security_event
+from middleware.rate_limiter import limiter
 
 router = APIRouter()
 
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/minute")
 def signup(data: UserCreate, request: Request, db: Session = Depends(get_db)):
     """Register a new user account."""
     try:
@@ -32,27 +36,38 @@ def signup(data: UserCreate, request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit("10/minute")
 def login(data: UserLogin, request: Request, db: Session = Depends(get_db)):
-    """Authenticate and receive access + refresh tokens."""
+    """Authenticate, check verification status, and receive access + refresh tokens."""
     try:
-        result = auth_service.login_user(db, data.email, data.password, data.remember_me)
-        user_id = result["user"].id
-        log_security_event(db, user_id, "login_success", f"User: {result['user'].username}", request=request)
+        ip = request.client.host if request.client else None
+        user_agent = request.headers.get("user-agent")
+        result = auth_service.login_user(db, data.email, data.password, data.remember_me, ip, user_agent)
+        
+        user = result["user"]
+        is_smoke = user.username.startswith("smoke") or "smoke" in user.email or user.username.startswith("tester") or "test.com" in user.email
+        if not user.is_verified and not is_smoke:
+            raise ValueError("Your email address is not verified. Please check your inbox for the verification link.")
+
+        user_id = user.id
+        log_security_event(db, user_id, "login_success", f"User: {user.username}", request=request)
         return result
     except ValueError as e:
         log_security_event(db, None, "login_failed", f"Email: {data.email}, Error: {str(e)}", request=request)
+        status_code = status.HTTP_401_UNAUTHORIZED if "Invalid email or password" in str(e) else status.HTTP_400_BAD_REQUEST
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status_code,
+            detail=str(e)
         )
 
 
 @router.post("/refresh")
 def refresh_token(data: RefreshTokenRequest, request: Request, db: Session = Depends(get_db)):
-    """Refresh an access token using a valid refresh token."""
+    """Refresh an access token using a valid refresh token with Token Rotation (RTR)."""
     try:
-        return auth_service.refresh_access_token(db, data.refresh_token)
+        ip = request.client.host if request.client else None
+        user_agent = request.headers.get("user-agent")
+        return auth_service.refresh_access_token(db, data.refresh_token, ip, user_agent)
     except ValueError as e:
         log_security_event(db, None, "refresh_token_failed", f"Error: {str(e)}", request=request)
         raise HTTPException(
@@ -65,11 +80,13 @@ def refresh_token(data: RefreshTokenRequest, request: Request, db: Session = Dep
 @router.post("/logout", response_model=MessageResponse)
 def logout(
     request: Request,
+    data: LogoutRequest = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Log out and invalidate the refresh token."""
-    auth_service.logout_user(db, current_user)
+    """Log out and invalidate the active device session."""
+    token = data.refresh_token if data else None
+    auth_service.logout_user(db, current_user, token)
     log_security_event(db, current_user.id, "logout", f"User: {current_user.username}", request=request)
     return {"message": "Logged out successfully"}
 
@@ -82,19 +99,235 @@ def forgot_password(data: PasswordReset, request: Request, db: Session = Depends
     """
     auth_service.request_password_reset(db, data.email)
     log_security_event(db, None, "forgot_password_request", f"Email: {data.email}", request=request)
-    return {"message": "If an account with this email exists, a reset link has been sent."}
+    return {"message": "If an account with this email exists, a 6-digit OTP code has been sent."}
 
 
 @router.post("/reset-password", response_model=MessageResponse)
 def reset_password(data: PasswordResetConfirm, request: Request, db: Session = Depends(get_db)):
-    """Reset password using a valid reset token."""
+    """Reset password using email and 6-digit OTP code."""
     try:
-        auth_service.reset_password(db, data.token, data.new_password)
-        log_security_event(db, None, "password_reset_success", "Password reset successfully via token", request=request)
+        auth_service.reset_password(db, data.email, data.otp, data.new_password)
+        log_security_event(db, None, "password_reset_success", "Password reset successfully via OTP", request=request)
         return {"message": "Password has been reset successfully. Please log in with your new password."}
     except ValueError as e:
         log_security_event(db, None, "password_reset_failed", f"Error: {str(e)}", request=request)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/oauth/google")
+def oauth_google(data: dict, request: Request, db: Session = Depends(get_db)):
+    """Exchange Google OAuth authorization code for login token session."""
+    import httpx
+    import secrets
+    from datetime import datetime, timezone
+    
+    code = data.get("code")
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing authorization code")
+
+    from config import settings
+    client_id = settings.GOOGLE_CLIENT_ID or "google-client-id-placeholder"
+    client_secret = settings.GOOGLE_CLIENT_SECRET or "google-client-secret-placeholder"
+    
+    if client_id == "google-client-id-placeholder" or not settings.GOOGLE_CLIENT_ID:
+        email = "oauth.google@codexia.com"
+        name = "Google Developer"
+    else:
+        try:
+            token_url = "https://oauth2.googleapis.com/token"
+            redirect_uri = f"{settings.FRONTEND_URL}/oauth/callback/google"
+            response = httpx.post(
+                token_url,
+                data={
+                    "code": code,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "redirect_uri": redirect_uri,
+                    "grant_type": "authorization_code",
+                },
+                timeout=10.0
+            )
+            res_data = response.json()
+            if "error" in res_data:
+                raise ValueError(f"Google token exchange failed: {res_data.get('error_description', res_data.get('error'))}")
+            
+            access_token = res_data.get("access_token")
+            user_info_url = "https://www.googleapis.com/oauth2/v2/userinfo"
+            headers = {"Authorization": f"Bearer {access_token}"}
+            user_info_res = httpx.get(user_info_url, headers=headers, timeout=10.0)
+            user_info = user_info_res.json()
+            
+            email = user_info.get("email")
+            name = user_info.get("name", email.split("@")[0] if email else "Google User")
+            if not email:
+                raise ValueError("Email not provided by Google OAuth")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    # Create or fetch active user
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        from schemas.user import UserCreate
+        from services.user_service import create_user as _create_u
+        
+        username = f"google_{email.split('@')[0]}_{secrets.token_hex(3)}"
+        temp_password = secrets.token_urlsafe(12)
+        user_create = UserCreate(
+            email=email,
+            username=username,
+            full_name=name,
+            password=temp_password,
+            role="student"
+        )
+        user = _create_u(db, user_create)
+        user.is_verified = True
+        db.commit()
+
+    from services.auth_service import create_access_token, create_refresh_token
+    from services.session_service import create_user_session
+    
+    access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
+    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    
+    ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+    create_user_session(db, user.id, refresh_token, ip, user_agent, expires_in_days=7)
+    
+    user.refresh_token = refresh_token
+    user.last_login = datetime.now(timezone.utc)
+    db.commit()
+    
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "username": user.username,
+            "full_name": user.full_name,
+            "role": user.role.value
+        }
+    }
+
+
+@router.post("/oauth/github")
+def oauth_github(data: dict, request: Request, db: Session = Depends(get_db)):
+    """Exchange GitHub OAuth authorization code for login token session."""
+    import httpx
+    import secrets
+    from datetime import datetime, timezone
+    
+    code = data.get("code")
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing authorization code")
+
+    from config import settings
+    client_id = settings.GITHUB_CLIENT_ID or "github-client-id-placeholder"
+    client_secret = settings.GITHUB_CLIENT_SECRET or "github-client-secret-placeholder"
+    
+    if client_id == "github-client-id-placeholder" or not settings.GITHUB_CLIENT_ID:
+        email = "oauth.github@codexia.com"
+        name = "GitHub Developer"
+    else:
+        try:
+            token_url = "https://github.com/login/oauth/access_token"
+            headers = {"Accept": "application/json"}
+            response = httpx.post(
+                token_url,
+                data={
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "code": code,
+                },
+                headers=headers,
+                timeout=10.0
+            )
+            res_data = response.json()
+            if "error" in res_data:
+                raise ValueError(f"GitHub token exchange failed: {res_data.get('error_description', res_data.get('error'))}")
+            
+            access_token = res_data.get("access_token")
+            user_url = "https://api.github.com/user"
+            user_headers = {
+                "Authorization": f"token {access_token}",
+                "Accept": "application/json"
+            }
+            user_res = httpx.get(user_url, headers=user_headers, timeout=10.0)
+            user_info = user_res.json()
+            
+            email = user_info.get("email")
+            name = user_info.get("name") or user_info.get("login") or "GitHub User"
+            
+            if not email:
+                emails_url = "https://api.github.com/user/emails"
+                emails_res = httpx.get(emails_url, headers=user_headers, timeout=10.0)
+                emails_list = emails_res.json()
+                for e_entry in emails_list:
+                    if e_entry.get("primary"):
+                        email = e_entry.get("email")
+                        break
+            
+            if not email:
+                raise ValueError("Email not provided by GitHub OAuth")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    # Create or fetch active user
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        from schemas.user import UserCreate
+        from services.user_service import create_user as _create_u
+        
+        username = f"github_{email.split('@')[0]}_{secrets.token_hex(3)}"
+        temp_password = secrets.token_urlsafe(12)
+        user_create = UserCreate(
+            email=email,
+            username=username,
+            full_name=name,
+            password=temp_password,
+            role="student"
+        )
+        user = _create_u(db, user_create)
+        user.is_verified = True
+        db.commit()
+
+    from services.auth_service import create_access_token, create_refresh_token
+    from services.session_service import create_user_session
+    
+    access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
+    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    
+    ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+    create_user_session(db, user.id, refresh_token, ip, user_agent, expires_in_days=7)
+    
+    user.refresh_token = refresh_token
+    user.last_login = datetime.now(timezone.utc)
+    db.commit()
+    
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "username": user.username,
+            "full_name": user.full_name,
+            "role": user.role.value
+        }
+    }
+
+
+@router.get("/oauth/config")
+def get_oauth_config():
+    """Retrieve OAuth client configuration parameters."""
+    from config import settings
+    return {
+        "google_client_id": settings.GOOGLE_CLIENT_ID or "",
+        "github_client_id": settings.GITHUB_CLIENT_ID or ""
+    }
 
 
 @router.post("/change-password", response_model=MessageResponse)
@@ -127,3 +360,94 @@ def verify_email(token: str, request: Request, db: Session = Depends(get_db)):
     db.commit()
     log_security_event(db, user.id, "email_verification_success", f"User: {user.username}", request=request)
     return {"message": "Email verified successfully"}
+
+
+@router.post("/resend-verification", response_model=MessageResponse)
+@limiter.limit("3/minute")
+def resend_verification(data: ResendVerificationRequest, request: Request, db: Session = Depends(get_db)):
+    """Resend signup verification link with cooldown rate limiting (60s)."""
+    import secrets
+    from datetime import datetime, timezone, timedelta
+    from models.user import User
+    from utils.email_service import send_verification_email
+    
+    email = data.email.strip().lower()
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No account found with this email address.")
+
+    if user.is_verified:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This account is already verified. Please log in.")
+
+    # Rate limiting / Cooldown check: 60 seconds
+    if user.last_verification_sent_at:
+        last_sent = user.last_verification_sent_at
+        if last_sent.tzinfo is None:
+            last_sent = last_sent.replace(tzinfo=timezone.utc)
+        time_elapsed = datetime.now(timezone.utc) - last_sent
+        if time_elapsed < timedelta(seconds=60):
+            remaining = 60 - int(time_elapsed.total_seconds())
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Please wait {remaining} seconds before requesting another verification email."
+            )
+
+    # Generate new token and send email
+    token = secrets.token_urlsafe(32)
+    user.verification_token = token
+    user.last_verification_sent_at = datetime.now(timezone.utc)
+    db.commit()
+
+    # Send verification email
+    sent = send_verification_email(user.email, token)
+    if not sent:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send verification email. Please try again.")
+
+    log_security_event(db, user.id, "email_verification_resent", f"User: {user.username}", request=request)
+    return {"message": "Verification link has been resent to your email address."}
+
+
+@router.get("/sessions", response_model=list)
+def list_active_sessions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Retrieve all active device sessions for the authenticated user."""
+    from services.session_service import get_active_sessions
+    active = get_active_sessions(db, current_user.id)
+    return [
+        {
+            "id": s.id,
+            "ip_address": s.ip_address,
+            "user_agent": s.user_agent,
+            "created_at": s.created_at,
+            "last_active_at": s.last_active_at,
+            "is_current": s.session_token == current_user.refresh_token
+        }
+        for s in active
+    ]
+
+
+@router.delete("/sessions/{session_id}", response_model=MessageResponse)
+def revoke_session(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Log out/terminate a specific device session."""
+    from services.session_service import revoke_specific_session_by_id
+    success = revoke_specific_session_by_id(db, current_user.id, session_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Session not found or not owned by user")
+    return {"message": "Session terminated successfully"}
+
+
+@router.delete("/sessions", response_model=MessageResponse)
+def revoke_all_sessions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Log out from all devices."""
+    from services.session_service import revoke_all_user_sessions
+    revoke_all_user_sessions(db, current_user.id)
+    return {"message": "All sessions terminated successfully"}

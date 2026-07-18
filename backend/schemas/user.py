@@ -23,21 +23,8 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=12, max_length=128)
+    password: str = Field(..., min_length=6, max_length=128)
     role: Optional[str] = "student"
-
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, value: str) -> str:
-        if not re.search(r"[A-Z]", value):
-            raise ValueError("Password must contain at least one uppercase letter")
-        if not re.search(r"[a-z]", value):
-            raise ValueError("Password must contain at least one lowercase letter")
-        if not re.search(r"\d", value):
-            raise ValueError("Password must contain at least one digit")
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", value):
-            raise ValueError("Password must contain at least one special character")
-        return value
 
     @field_validator("role")
     @classmethod
@@ -51,6 +38,10 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
     remember_me: bool = False
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
 
 
 class UserUpdate(BaseModel):
@@ -95,13 +86,14 @@ class PasswordReset(BaseModel):
 
 
 class PasswordResetConfirm(BaseModel):
-    token: str
-    new_password: str = Field(..., min_length=12, max_length=128)
+    email: EmailStr
+    otp: str = Field(..., min_length=6, max_length=6)
+    new_password: str = Field(..., min_length=6, max_length=128)
 
 
 class ChangePassword(BaseModel):
     current_password: str
-    new_password: str = Field(..., min_length=12, max_length=128)
+    new_password: str = Field(..., min_length=6, max_length=128)
 
 
 class TokenResponse(BaseModel):
@@ -113,6 +105,10 @@ class TokenResponse(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: Optional[str] = None
 
 
 class MessageResponse(BaseModel):

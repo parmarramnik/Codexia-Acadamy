@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import { FiPlus, FiStar, FiCheck, FiRefreshCw, FiBookOpen, FiArrowRight, FiCheckCircle } from 'react-icons/fi';
+import LoadingButton from '../components/common/LoadingButton';
 
 export default function Flashcards() {
   const [cards, setCards] = useState([]);
@@ -14,6 +15,7 @@ export default function Flashcards() {
   // Form state
   const [showCreate, setShowCreate] = useState(false);
   const [newCard, setNewCard] = useState({ question: '', answer: '', course_id: '' });
+  const [isSaving, setIsSaving] = useState(false);
 
   async function loadData() {
     setIsLoading(true);
@@ -51,6 +53,7 @@ export default function Flashcards() {
       return;
     }
 
+    setIsSaving(true);
     try {
       await api.post('/flashcards', {
         question: newCard.question,
@@ -63,6 +66,8 @@ export default function Flashcards() {
       loadData();
     } catch (err) {
       toast.error('Failed to add flashcard');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -178,7 +183,7 @@ export default function Flashcards() {
               />
             </div>
             <div style={styles.btnRow}>
-              <button type="submit" style={styles.saveBtn}>Save Card</button>
+              <LoadingButton type="submit" loading={isSaving} loadingText="Saving..." style={styles.saveBtn}>Save Card</LoadingButton>
               <button type="button" onClick={() => setShowCreate(false)} style={styles.cancelBtn}>Cancel</button>
             </div>
           </form>

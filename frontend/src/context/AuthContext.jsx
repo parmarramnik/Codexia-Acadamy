@@ -45,6 +45,14 @@ export function AuthProvider({ children }) {
     return userData;
   };
 
+  const loginWithTokens = (accessToken, refreshToken, userData) => {
+    localStorage.setItem('access_token', accessToken);
+    localStorage.setItem('refresh_token', refreshToken);
+    setUser(userData);
+    setIsAuthenticated(true);
+    return userData;
+  };
+
   const signup = async (userData) => {
     const response = await api.post('/auth/signup', userData);
     return response.data;
@@ -71,6 +79,7 @@ export function AuthProvider({ children }) {
     loading,
     isAuthenticated,
     login,
+    loginWithTokens,
     signup,
     logout,
     updateUser,

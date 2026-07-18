@@ -189,7 +189,7 @@ def delete_user(
 def admin_reset_password(
     user_id: int,
     request: Request,
-    new_password: str = Query(..., min_length=12),
+    new_password: str = Query(..., min_length=6),
     current_user: User = Depends(require_role(UserRole.ADMIN)),
     db: Session = Depends(get_db),
 ):

@@ -1,0 +1,28 @@
+name: Codexia Continuous Integration
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f backend/requirements.txt ]; then pip install -r backend/requirements.txt; fi
+
+      - name: Run Syntax Linter Check
+        run: |
+          python -m py_compile backend/main.py

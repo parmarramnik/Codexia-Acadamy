@@ -7,9 +7,46 @@ from functools import wraps
 from typing import List
 
 from fastapi import Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
 from auth.oauth2 import get_current_user
 from models.user import User, UserRole
+from database import get_db
+
+
+def require_permission(permission_name: str):
+    """
+    Dependency factory: restrict endpoint to users whose role possesses the specified permission.
+    Super Admin always has access.
+    """
+    def permission_checker(
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ) -> User:
+        if current_user.role == UserRole.SUPER_ADMIN:
+            return current_user
+
+        from models.user import Role, Permission, RolePermission
+        
+        # Validate permission mapping dynamically via database
+        has_perm = (
+            db.query(RolePermission)
+            .join(Role)
+            .join(Permission)
+            .filter(
+                Role.name == current_user.role.value,
+                Permission.name == permission_name
+            )
+            .first()
+        )
+
+        if not has_perm:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Missing permission: '{permission_name}'",
+            )
+        return current_user
+    return permission_checker
 
 
 def require_role(*allowed_roles: UserRole):

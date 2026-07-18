@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = None
     FROM_EMAIL: str = "noreply@codexia.com"
 
+    # Social Login (OAuth2)
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GITHUB_CLIENT_ID: Optional[str] = None
+    GITHUB_CLIENT_SECRET: Optional[str] = None
+
     # Frontend URL (for email links)
     FRONTEND_URL: str = "http://localhost:3000"
 

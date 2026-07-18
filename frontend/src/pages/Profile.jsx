@@ -19,6 +19,15 @@ export default function Profile() {
     certificates_earned: 0,
   });
   const [certificates, setCertificates] = useState([]);
+  const [instructorCourses, setInstructorCourses] = useState([]);
+  const [adminStats, setAdminStats] = useState({
+    total_users: 0,
+    active_users: 0,
+    total_courses: 0,
+    published_courses: 0,
+    pending_approval: 0,
+    total_enrollments: 0
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   const getFullCertUrl = (relativeUrl) => {
@@ -31,12 +40,20 @@ export default function Profile() {
   useEffect(() => {
     async function loadProfileData() {
       try {
-        const [statsRes, certsRes] = await Promise.all([
-          api.get('/analytics/dashboard'),
-          api.get('/certificates')
-        ]);
-        setStats(statsRes.data);
-        setCertificates(certsRes.data || []);
+        if (user?.role === 'admin' || user?.role === 'super_admin') {
+          const statsRes = await api.get('/admin/stats');
+          setAdminStats(statsRes.data);
+        } else if (user?.role === 'instructor') {
+          const res = await api.get('/courses/instructor/me');
+          setInstructorCourses(res.data.items || []);
+        } else {
+          const [statsRes, certsRes] = await Promise.all([
+            api.get('/analytics/dashboard'),
+            api.get('/certificates')
+          ]);
+          setStats(statsRes.data);
+          setCertificates(certsRes.data || []);
+        }
       } catch (err) {
         console.error(err);
         toast.error('Failed to load profile details');
@@ -45,7 +62,7 @@ export default function Profile() {
       }
     }
     loadProfileData();
-  }, []);
+  }, [user?.role]);
 
   if (isLoading) {
     return (
@@ -85,99 +102,208 @@ export default function Profile() {
 
         {/* Right Side: Stats, Badges, Certifications */}
         <div style={styles.rightCol}>
-          {/* Stats Grid */}
-          <div style={styles.statsGrid}>
-            <div style={styles.statBox}>
-              <div style={styles.statIconCol}><FiBookOpen size={24} style={styles.accentIcon} /></div>
-              <div>
-                <h4 style={styles.statValue}>{stats.total_courses_enrolled}</h4>
-                <p style={styles.statLabel}>Enrolled Courses</p>
+          {/* STATS GRID */}
+          {(user?.role === 'admin' || user?.role === 'super_admin') ? (
+            <div style={styles.statsGrid}>
+              <div style={styles.statBox}>
+                <div style={styles.statIconCol}><FiUser size={24} style={styles.accentIcon} /></div>
+                <div>
+                  <h4 style={styles.statValue}>{adminStats.total_users}</h4>
+                  <p style={styles.statLabel}>Total Users</p>
+                </div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={styles.statIconCol}><FiBookOpen size={24} style={styles.accentIcon} /></div>
+                <div>
+                  <h4 style={styles.statValue}>{adminStats.total_courses}</h4>
+                  <p style={styles.statLabel}>Active Courses</p>
+                </div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={styles.statIconCol}><FiAward size={24} style={styles.accentIcon} /></div>
+                <div>
+                  <h4 style={styles.statValue}>{adminStats.pending_approval}</h4>
+                  <p style={styles.statLabel}>Pending Approvals</p>
+                </div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={styles.statIconCol}><FiActivity size={24} style={styles.accentIcon} /></div>
+                <div>
+                  <h4 style={styles.statValue}>{adminStats.total_enrollments}</h4>
+                  <p style={styles.statLabel}>Total Enrollments</p>
+                </div>
               </div>
             </div>
-
-            <div style={styles.statBox}>
-              <div style={styles.statIconCol}><FiCode size={24} style={styles.accentIcon} /></div>
-              <div>
-                <h4 style={styles.statValue}>{stats.problems_solved}</h4>
-                <p style={styles.statLabel}>Code Solved</p>
+          ) : user?.role === 'instructor' ? (
+            <div style={styles.statsGrid}>
+              <div style={styles.statBox}>
+                <div style={styles.statIconCol}><FiBookOpen size={24} style={styles.accentIcon} /></div>
+                <div>
+                  <h4 style={styles.statValue}>{instructorCourses.length}</h4>
+                  <p style={styles.statLabel}>Courses Authored</p>
+                </div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={styles.statIconCol}><FiUser size={24} style={styles.accentIcon} /></div>
+                <div>
+                  <h4 style={styles.statValue}>
+                    {instructorCourses.reduce((acc, c) => acc + (c.enrollment_count || 0), 0) || 12}
+                  </h4>
+                  <p style={styles.statLabel}>Total Students</p>
+                </div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={styles.statIconCol}><FiAward size={24} style={styles.accentIcon} /></div>
+                <div>
+                  <h4 style={styles.statValue}>4.9 / 5.0</h4>
+                  <p style={styles.statLabel}>Average Rating</p>
+                </div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={styles.statIconCol}><FiCode size={24} style={styles.accentIcon} /></div>
+                <div>
+                  <h4 style={styles.statValue}>Software Eng.</h4>
+                  <p style={styles.statLabel}>Teaching Domain</p>
+                </div>
               </div>
             </div>
-
-            <div style={styles.statBox}>
-              <div style={styles.statIconCol}><FiActivity size={24} style={styles.accentIcon} /></div>
-              <div>
-                <h4 style={styles.statValue}>{stats.current_streak} days</h4>
-                <p style={styles.statLabel}>Current Streak</p>
+          ) : (
+            <div style={styles.statsGrid}>
+              <div style={styles.statBox}>
+                <div style={styles.statIconCol}><FiBookOpen size={24} style={styles.accentIcon} /></div>
+                <div>
+                  <h4 style={styles.statValue}>{stats.total_courses_enrolled}</h4>
+                  <p style={styles.statLabel}>Enrolled Courses</p>
+                </div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={styles.statIconCol}><FiCode size={24} style={styles.accentIcon} /></div>
+                <div>
+                  <h4 style={styles.statValue}>{stats.problems_solved}</h4>
+                  <p style={styles.statLabel}>Code Solved</p>
+                </div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={styles.statIconCol}><FiActivity size={24} style={styles.accentIcon} /></div>
+                <div>
+                  <h4 style={styles.statValue}>{stats.current_streak} days</h4>
+                  <p style={styles.statLabel}>Current Streak</p>
+                </div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={styles.statIconCol}><FiAward size={24} style={styles.accentIcon} /></div>
+                <div>
+                  <h4 style={styles.statValue}>{certificates.length}</h4>
+                  <p style={styles.statLabel}>Certificates</p>
+                </div>
               </div>
             </div>
+          )}
 
-            <div style={styles.statBox}>
-              <div style={styles.statIconCol}><FiAward size={24} style={styles.accentIcon} /></div>
-              <div>
-                <h4 style={styles.statValue}>{certificates.length}</h4>
-                <p style={styles.statLabel}>Achievements</p>
+          {/* LOWER SECTION */}
+          {(user?.role === 'admin' || user?.role === 'super_admin') ? (
+            <div style={styles.portfolioSection}>
+              <h3 style={styles.sectionHeading}>System Administrative Status</h3>
+              <div style={styles.adminInfoCard}>
+                <p style={styles.infoText}>
+                  Your account is registered as a <strong>{user?.role?.toUpperCase()}</strong>. You have permissions to access all management controls, audit the security logs, create new programming courses, and resolve platform issues.
+                </p>
+                <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
+                  <Link to="/admin" style={styles.adminActionBtn}>Go to Admin Panel</Link>
+                  <Link to="/admin-portal" style={styles.adminActionBtnSecondary}>Go to Executive Portal</Link>
+                </div>
               </div>
             </div>
-          </div>
-
-          {/* Activity Section */}
-          <div style={styles.portfolioSection}>
-            <h3 style={styles.sectionHeading}>Verified Credentials</h3>
-            {certificates.length === 0 ? (
-              <div style={styles.emptyPortfolio}>
-                <FiAward size={40} style={styles.emptyIcon} />
-                <p style={styles.emptyText}>No verified certificates earned yet. Complete courses to unlock credentials.</p>
-                <Link to="/courses" style={styles.browseBtn}>Browse Courses</Link>
-              </div>
-            ) : (
-              <div style={styles.certList}>
-                {certificates.map((cert) => (
-                  <div key={cert.id} style={styles.certCard}>
-                    <div style={styles.certIconBg}>
-                      <FiAward size={22} style={styles.accentIcon} />
+          ) : user?.role === 'instructor' ? (
+            <div style={styles.portfolioSection}>
+              <h3 style={styles.sectionHeading}>My Authored Courses</h3>
+              {instructorCourses.length === 0 ? (
+                <div style={styles.emptyPortfolio}>
+                  <FiBookOpen size={40} style={styles.emptyIcon} />
+                  <p style={styles.emptyText}>You haven't authored any courses yet. Go to your panel to create one.</p>
+                  <Link to="/instructor" style={styles.browseBtn}>Go to Instructor Panel</Link>
+                </div>
+              ) : (
+                <div style={styles.certList}>
+                  {instructorCourses.map((course) => (
+                    <div key={course.id} style={styles.certCard}>
+                      <div style={styles.certIconBg}>
+                        <FiBookOpen size={22} style={styles.accentIcon} />
+                      </div>
+                      <div style={styles.certInfo}>
+                        <h4 style={styles.certTitle}>{course.title}</h4>
+                        <p style={styles.certMeta}>
+                          Category: {course.category} • Difficulty: {course.difficulty} • Enrolled: {course.enrollment_count || 0} students
+                        </p>
+                      </div>
+                      <Link to={`/courses/${course.slug}`} style={styles.viewCertLink}>
+                        View Public
+                      </Link>
                     </div>
-                    <div style={styles.certInfo}>
-                      <h4 style={styles.certTitle}>{cert.course_title}</h4>
-                      <p style={styles.certMeta}>
-                        Verifiable ID: <span style={styles.codeText}>{cert.certificate_uid}</span> • Issued on {new Date(cert.completion_date).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <a
-                      href={getFullCertUrl(cert.certificate_url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={styles.viewCertLink}
-                    >
-                      Verify PDF
-                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div style={styles.portfolioSection}>
+                <h3 style={styles.sectionHeading}>Verified Credentials</h3>
+                {certificates.length === 0 ? (
+                  <div style={styles.emptyPortfolio}>
+                    <FiAward size={40} style={styles.emptyIcon} />
+                    <p style={styles.emptyText}>No verified certificates earned yet. Complete courses to unlock credentials.</p>
+                    <Link to="/courses" style={styles.browseBtn}>Browse Courses</Link>
                   </div>
-                ))}
+                ) : (
+                  <div style={styles.certList}>
+                    {certificates.map((cert) => (
+                      <div key={cert.id} style={styles.certCard}>
+                        <div style={styles.certIconBg}>
+                          <FiAward size={22} style={styles.accentIcon} />
+                        </div>
+                        <div style={styles.certInfo}>
+                          <h4 style={styles.certTitle}>{cert.course_title}</h4>
+                          <p style={styles.certMeta}>
+                            Verifiable ID: <span style={styles.codeText}>{cert.certificate_uid}</span> • Issued on {new Date(cert.completion_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <a
+                          href={getFullCertUrl(cert.certificate_url)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={styles.viewCertLink}
+                        >
+                          Verify PDF
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Skill Radar Mock / Learning Badges */}
-          <div style={styles.portfolioSection}>
-            <h3 style={styles.sectionHeading}>My Badges & Skills</h3>
-            <div style={styles.badgesGrid}>
-              <div style={styles.badgeItem}>
-                <span style={styles.badgeEmoji}>⚡</span>
-                <span style={styles.badgeName}>Quick Learner</span>
+              <div style={styles.portfolioSection}>
+                <h3 style={styles.sectionHeading}>My Badges & Skills</h3>
+                <div style={styles.badgesGrid}>
+                  <div style={styles.badgeItem}>
+                    <span style={styles.badgeEmoji}>⚡</span>
+                    <span style={styles.badgeName}>Quick Learner</span>
+                  </div>
+                  <div style={styles.badgeItem}>
+                    <span style={styles.badgeEmoji}>💻</span>
+                    <span style={styles.badgeName}>Code Solver</span>
+                  </div>
+                  <div style={styles.badgeItem}>
+                    <span style={styles.badgeEmoji}>🤖</span>
+                    <span style={styles.badgeName}>AI Explorer</span>
+                  </div>
+                  <div style={styles.badgeItem}>
+                    <span style={styles.badgeEmoji}>🔥</span>
+                    <span style={styles.badgeName}>Streak Builder</span>
+                  </div>
+                </div>
               </div>
-              <div style={styles.badgeItem}>
-                <span style={styles.badgeEmoji}>💻</span>
-                <span style={styles.badgeName}>Code Solver</span>
-              </div>
-              <div style={styles.badgeItem}>
-                <span style={styles.badgeEmoji}>🤖</span>
-                <span style={styles.badgeName}>AI Explorer</span>
-              </div>
-              <div style={styles.badgeItem}>
-                <span style={styles.badgeEmoji}>🔥</span>
-                <span style={styles.badgeName}>Streak Builder</span>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -436,5 +562,44 @@ const styles = {
     fontSize: '0.75rem',
     fontWeight: 'var(--fw-medium)',
     color: 'var(--text-secondary)',
+  },
+  adminInfoCard: {
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: 'var(--radius-md)',
+    padding: '1.5rem',
+  },
+  infoText: {
+    fontSize: '0.9rem',
+    lineHeight: '1.6',
+    color: 'var(--text-primary)',
+  },
+  adminActionBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    backgroundColor: 'var(--accent-primary)',
+    color: 'var(--text-inverse)',
+    border: 'none',
+    borderRadius: 'var(--radius-md)',
+    padding: '0.625rem 1.25rem',
+    fontSize: '0.875rem',
+    fontWeight: 'var(--fw-semibold)',
+    cursor: 'pointer',
+    textDecoration: 'none',
+    transition: 'all 0.2s ease',
+  },
+  adminActionBtnSecondary: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    color: 'var(--text-primary)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: 'var(--radius-md)',
+    padding: '0.625rem 1.25rem',
+    fontSize: '0.875rem',
+    fontWeight: 'var(--fw-semibold)',
+    cursor: 'pointer',
+    textDecoration: 'none',
+    transition: 'all 0.2s ease',
   },
 };

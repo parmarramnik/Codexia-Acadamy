@@ -35,10 +35,13 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     is_verified = Column(Boolean, default=False, nullable=False)
     verification_token = Column(String(255), nullable=True)
+    last_verification_sent_at = Column(DateTime, nullable=True)
     reset_token = Column(String(255), nullable=True)
     reset_token_expires = Column(DateTime, nullable=True)
     refresh_token = Column(String(500), nullable=True)
     last_login = Column(DateTime, nullable=True)
+    failed_login_attempts = Column(Integer, default=0, nullable=False)
+    lockout_until = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime,

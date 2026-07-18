@@ -4,6 +4,7 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { FiBookOpen, FiClock, FiCpu, FiCheck, FiFolder, FiPlay, FiCheckCircle } from 'react-icons/fi';
+import LoadingButton from '../components/common/LoadingButton';
 
 export default function CourseDetails() {
   const { slug } = useParams();
@@ -163,24 +164,26 @@ export default function CourseDetails() {
                       </Link>
                     ) : (
                       completionPercentage >= 80 && (
-                        <button
+                        <LoadingButton
                           onClick={handleClaimCertificate}
-                          disabled={isClaiming}
+                          loading={isClaiming}
+                          loadingText="Claiming..."
                           style={styles.claimCertBtn}
                         >
-                          {isClaiming ? 'Claiming...' : '🏆 Claim Certificate'}
-                        </button>
+                          🏆 Claim Certificate
+                        </LoadingButton>
                       )
                     )}
                   </div>
                 ) : (
-                  <button
+                  <LoadingButton
                     onClick={handleEnroll}
-                    disabled={isEnrolling}
-                    style={isEnrolling ? { ...styles.enrollBtn, ...styles.btnDisabled } : styles.enrollBtn}
+                    loading={isEnrolling}
+                    loadingText="Enrolling..."
+                    style={styles.enrollBtn}
                   >
-                    {isEnrolling ? 'Enrolling...' : 'Enroll Now'}
-                  </button>
+                    Enroll Now
+                  </LoadingButton>
                 )}
               </>
             ) : (

@@ -21,6 +21,10 @@ class NoteUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=300)
     content: Optional[str] = Field(None, min_length=1)
     is_bookmarked: Optional[bool] = None
+    auto_commit_enabled: Optional[bool] = None
+    auto_commit_interval: Optional[int] = None
+    auto_commit_on_major_edit: Optional[bool] = None
+    auto_commit_before_ai: Optional[bool] = None
 
 
 class NoteResponse(BaseModel):
@@ -32,6 +36,11 @@ class NoteResponse(BaseModel):
     content: str
     is_ai_generated: bool
     is_bookmarked: bool
+    current_branch_id: Optional[int] = None
+    auto_commit_enabled: bool
+    auto_commit_interval: int
+    auto_commit_on_major_edit: bool
+    auto_commit_before_ai: bool
     created_at: datetime
     updated_at: datetime
 

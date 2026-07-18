@@ -10,6 +10,10 @@ from models.coding import CodingProblem, TestCase, Submission
 from models.analytics import Progress, StudySession, Notification, Announcement, ChatHistory
 from models.certificate import Certificate
 from models.audit import AuditLog, SecurityLog
+from models.session import Session, LoginHistory
+from models.schedule import Reminder, StudyPlan
+from models.career import Portfolio, Resume
+from models.git import GitBranch, GitCommit, GitTag, GitMergeHistory
 
 __all__ = [
     "User", "Role", "Permission", "RolePermission",
@@ -19,4 +23,7 @@ __all__ = [
     "CodingProblem", "TestCase", "Submission",
     "Progress", "StudySession", "Notification", "Announcement", "ChatHistory",
     "Certificate", "AuditLog", "SecurityLog",
+    "Session", "LoginHistory", "Reminder", "StudyPlan",
+    "Portfolio", "Resume",
+    "GitBranch", "GitCommit", "GitTag", "GitMergeHistory",
 ]

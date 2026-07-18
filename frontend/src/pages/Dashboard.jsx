@@ -3,20 +3,12 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
-import { FiBookOpen, FiClock, FiTarget, FiActivity, FiAward, FiCode, FiCpu } from 'react-icons/fi';
-import InstructorDashboard from './InstructorDashboard';
+import { FiBookOpen, FiClock, FiTarget, FiActivity, FiAward, FiCode, FiCpu, FiCalendar, FiBriefcase, FiShield, FiArrowRight } from 'react-icons/fi';
 import AdminDashboard from './AdminDashboard';
+import InstructorDashboard from './InstructorDashboard';
 
 export default function Dashboard() {
   const { user } = useAuth();
-
-  // Dynamically render dashboard based on user role
-  if (user?.role === 'instructor') {
-    return <InstructorDashboard />;
-  }
-  if (user?.role === 'admin' || user?.role === 'super_admin') {
-    return <AdminDashboard />;
-  }
   const [stats, setStats] = useState({
     total_courses_enrolled: 0,
     completed_courses: 0,
@@ -58,6 +50,13 @@ export default function Dashboard() {
     fetchDashboardData();
   }, []);
 
+  if (user?.role === 'admin' || user?.role === 'super_admin') {
+    return <AdminDashboard />;
+  }
+  if (user?.role === 'instructor') {
+    return <InstructorDashboard />;
+  }
+
   if (isLoading) {
     return (
       <div style={styles.loadingContainer}>
@@ -84,6 +83,29 @@ export default function Dashboard() {
         </div>
         <div style={styles.roleBadge}>{user?.role?.toUpperCase() || 'STUDENT'}</div>
       </div>
+
+      {/* Role Management Portal Banner */}
+      {(user?.role === 'instructor' || user?.role === 'admin' || user?.role === 'super_admin') && (
+        <div style={styles.roleBanner}>
+          <div style={styles.roleBannerLeft}>
+            <FiShield size={24} style={styles.roleBannerIcon} />
+            <div>
+              <h3 style={styles.roleBannerTitle}>
+                {user.role === 'instructor' ? 'Instructor Dashboard Access' : 'Administration Access'}
+              </h3>
+              <p style={styles.roleBannerText}>
+                You are currently viewing the student learning area. Jump to your management panel to update courses, approve content, or manage users.
+              </p>
+            </div>
+          </div>
+          <Link 
+            to={user.role === 'instructor' ? '/instructor' : '/admin'} 
+            style={styles.roleBannerBtn}
+          >
+            Go to Management Panel <FiArrowRight size={16} style={{ marginLeft: '6px' }} />
+          </Link>
+        </div>
+      )}
 
       {/* Stats Section */}
       <div style={styles.statsGrid}>
@@ -120,6 +142,20 @@ export default function Dashboard() {
           <div>
             <h3 style={styles.actionTitle}>AI Tutor Chat</h3>
             <p style={styles.actionDesc}>Get direct assistance or concept breakdowns.</p>
+          </div>
+        </Link>
+        <Link to="/planner" style={styles.actionCard}>
+          <FiCalendar size={24} style={styles.actionIcon} />
+          <div>
+            <h3 style={styles.actionTitle}>Study Planner</h3>
+            <p style={styles.actionDesc}>Track streaking, reminders, and target weekly goals.</p>
+          </div>
+        </Link>
+        <Link to="/career" style={styles.actionCard}>
+          <FiBriefcase size={24} style={styles.actionIcon} />
+          <div>
+            <h3 style={styles.actionTitle}>Career & Resume</h3>
+            <p style={styles.actionDesc}>Verify skill gaps and present your projects portfolio.</p>
           </div>
         </Link>
       </div>
@@ -362,5 +398,57 @@ const styles = {
     fontSize: '0.875rem',
     textAlign: 'center',
     marginTop: '0.5rem',
+  },
+  roleBanner: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 161, 22, 0.05)',
+    border: '1px solid rgba(255, 161, 22, 0.2)',
+    borderRadius: 'var(--radius-md)',
+    padding: '1.25rem 1.5rem',
+    marginBottom: '2rem',
+    gap: '1.5rem',
+    flexWrap: 'wrap',
+  },
+  roleBannerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
+    flex: 1,
+    minWidth: '280px',
+  },
+  roleBannerIcon: {
+    color: 'var(--accent-primary)',
+    flexShrink: 0,
+  },
+  roleBannerTitle: {
+    margin: 0,
+    fontSize: '1rem',
+    fontWeight: 'var(--fw-semibold)',
+    color: 'var(--text-primary)',
+    marginBottom: '0.25rem',
+  },
+  roleBannerText: {
+    margin: 0,
+    fontSize: '0.85rem',
+    color: 'var(--text-secondary)',
+    lineHeight: '1.4',
+  },
+  roleBannerBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'var(--accent-primary)',
+    color: '#1A1A1A',
+    fontWeight: 'var(--fw-bold)',
+    fontSize: '0.875rem',
+    padding: '0.65rem 1.25rem',
+    borderRadius: 'var(--radius-sm)',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+    textDecoration: 'none',
+    whiteSpace: 'nowrap',
   },
 };

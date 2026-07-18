@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   FiHome, FiBook, FiCode, FiFileText, FiLayers,
   FiMessageSquare, FiAward, FiBarChart2, FiTrendingUp,
-  FiUser, FiSettings, FiShield, FiEdit3,
+  FiUser, FiSettings, FiShield, FiEdit3, FiCpu,
 } from 'react-icons/fi';
 import './Sidebar.css';
 
@@ -13,10 +13,24 @@ const studentLinks = [
   { to: '/coding', icon: FiCode, label: 'Coding Practice' },
   { to: '/notes', icon: FiFileText, label: 'Notes' },
   { to: '/flashcards', icon: FiLayers, label: 'Flashcards' },
-  { to: '/ai-tutor', icon: FiMessageSquare, label: 'AI Tutor' },
+  { to: '/ai-workspace', icon: FiCpu, label: 'Enterprise AI' },
+  { to: '/discussion', icon: FiMessageSquare, label: 'Collaboration Hub' },
   { to: '/certificates', icon: FiAward, label: 'Certificates' },
   { to: '/analytics', icon: FiBarChart2, label: 'Analytics' },
   { to: '/leaderboard', icon: FiTrendingUp, label: 'Leaderboard' },
+];
+
+const instructorLinks = [
+  { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
+  { to: '/instructor', icon: FiEdit3, label: 'Instructor Panel' },
+  { to: '/discussion', icon: FiMessageSquare, label: 'Collaboration Hub' },
+];
+
+const adminLinks = [
+  { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
+  { to: '/admin', icon: FiShield, label: 'Admin Panel' },
+  { to: '/admin-portal', icon: FiShield, label: 'Executive Portal' },
+  { to: '/discussion', icon: FiMessageSquare, label: 'Collaboration Hub' },
 ];
 
 const bottomLinks = [
@@ -28,16 +42,20 @@ export default function Sidebar() {
   const { user } = useAuth();
   const location = useLocation();
 
-  const showAdminLink = user?.role === 'admin' || user?.role === 'super_admin';
-  const showInstructorLink = user?.role === 'instructor' || showAdminLink;
-  const isStudent = user?.role === 'student' || !user?.role; // Default fallback to student
+  const isStudent = user?.role === 'student' || !user?.role;
+  const isInstructor = user?.role === 'instructor';
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
-  // Filter links: non-students only get Dashboard and Coding Practice from the main section
-  const visibleLinks = studentLinks.filter((link) => {
-    if (isStudent) return true;
-    // For admin/instructor, only show Dashboard and Coding Practice
-    return link.to === '/dashboard' || link.to === '/coding';
-  });
+  let visibleLinks = studentLinks;
+  let sectionLabel = 'Learning';
+
+  if (isAdmin) {
+    visibleLinks = adminLinks;
+    sectionLabel = 'Administration';
+  } else if (isInstructor) {
+    visibleLinks = instructorLinks;
+    sectionLabel = 'Instructor';
+  }
 
   return (
     <aside className="sidebar" id="sidebar">
@@ -48,7 +66,7 @@ export default function Sidebar() {
       <nav className="sidebar-nav">
         <div className="sidebar-section">
           <span className="sidebar-section-label">
-            {isStudent ? 'Learning' : 'Workspace'}
+            {sectionLabel}
           </span>
           {visibleLinks.map((link) => (
             <NavLink
@@ -63,26 +81,6 @@ export default function Sidebar() {
             </NavLink>
           ))}
         </div>
-
-        {showInstructorLink && (
-          <div className="sidebar-section">
-            <span className="sidebar-section-label">Instructor</span>
-            <NavLink to="/instructor" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-              <FiEdit3 className="sidebar-icon" />
-              <span>Instructor Panel</span>
-            </NavLink>
-          </div>
-        )}
-
-        {showAdminLink && (
-          <div className="sidebar-section">
-            <span className="sidebar-section-label">Administration</span>
-            <NavLink to="/admin" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-              <FiShield className="sidebar-icon" />
-              <span>Admin Panel</span>
-            </NavLink>
-          </div>
-        )}
       </nav>
 
       <div className="sidebar-bottom">

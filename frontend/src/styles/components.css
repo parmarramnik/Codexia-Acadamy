@@ -429,3 +429,16 @@
   background-color: var(--border-primary);
   margin: var(--space-4) 0;
 }
+
+/* --- Loading Button Spinner --- */
+.loading-btn {
+  transition: opacity 0.2s ease, transform 0.1s ease;
+}
+.loading-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.loading-btn-spinner {
+  display: inline-flex;
+  align-items: center;
+  animation: spin 0.8s linear infinite;
+}

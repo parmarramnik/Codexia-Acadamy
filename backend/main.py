@@ -29,6 +29,8 @@ def create_app() -> FastAPI:
     setup_cors(app)
     setup_rate_limiter(app)
     setup_error_handlers(app)
+    from middleware.security_headers import SecurityHeadersMiddleware
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # Static file serving
     static_dir = os.path.join(os.path.dirname(__file__), settings.UPLOAD_DIR)
@@ -68,7 +70,8 @@ def create_app() -> FastAPI:
 
 def register_routes(app: FastAPI) -> None:
     """Register all API route modules."""
-    from routes import auth, users, courses, lectures, quizzes, coding, notes, flashcards, certificates, analytics, admin, ai, logs
+    from routes import auth, users, courses, lectures, quizzes, coding, notes, flashcards, certificates, analytics, admin, ai, logs, course_builder, study_planner, career, git
+    from routes import v3_search, v3_comms, v3_certificates, v3_ai, v3_analytics, v3_coding
 
     prefix = settings.API_PREFIX
 
@@ -77,14 +80,30 @@ def register_routes(app: FastAPI) -> None:
     app.include_router(courses.router, prefix=f"{prefix}/courses", tags=["Courses"])
     app.include_router(lectures.router, prefix=f"{prefix}/lectures", tags=["Lectures"])
     app.include_router(quizzes.router, prefix=f"{prefix}/quizzes", tags=["Quizzes"])
+    app.include_router(v3_coding.router, prefix=prefix)
     app.include_router(coding.router, prefix=f"{prefix}/coding", tags=["Coding Practice"])
     app.include_router(notes.router, prefix=f"{prefix}/notes", tags=["Notes"])
+    app.include_router(git.router, prefix=f"{prefix}/git", tags=["Git Version Control"])
     app.include_router(flashcards.router, prefix=f"{prefix}/flashcards", tags=["Flashcards"])
     app.include_router(certificates.router, prefix=f"{prefix}/certificates", tags=["Certificates"])
     app.include_router(analytics.router, prefix=f"{prefix}/analytics", tags=["Analytics"])
     app.include_router(admin.router, prefix=f"{prefix}/admin", tags=["Admin"])
     app.include_router(ai.router, prefix=f"{prefix}/ai", tags=["AI"])
     app.include_router(logs.router, prefix=f"{prefix}/logs", tags=["Logs"])
+    app.include_router(course_builder.router, prefix=f"{prefix}/course-builder", tags=["Course Builder"])
+    app.include_router(study_planner.router, prefix=f"{prefix}/study-planner", tags=["Study Planner"])
+    app.include_router(career.router, prefix=f"{prefix}/career", tags=["Career Development"])
+
+    # Include Version 3.0 Routers
+    app.include_router(v3_search.router, prefix=prefix)
+    app.include_router(v3_comms.router, prefix=prefix)
+    app.include_router(v3_certificates.router, prefix=prefix)
+    app.include_router(v3_ai.router, prefix=prefix)
+    app.include_router(v3_analytics.router, prefix=prefix)
+
+    # Include Version 4.0 Routers
+    from routes import v4_admin
+    app.include_router(v4_admin.router, prefix=prefix)
 
 
 app = create_app()

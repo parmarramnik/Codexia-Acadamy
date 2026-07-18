@@ -22,10 +22,20 @@ export default function Analytics() {
       setIsLoading(true);
       try {
         const [statsRes, sessionsRes] = await Promise.all([
-          api.get('/analytics/dashboard'),
-          api.get('/analytics/sessions?days=30')
+          api.get('/analytics/student'),
+          api.get('/analytics/sessions?days=30').catch(() => ({ data: [] }))
         ]);
-        setStats(statsRes.data);
+        setStats({
+          total_courses_enrolled: statsRes.data.course_progress?.length || 0,
+          completed_courses: (statsRes.data.course_progress || []).filter(c => c.progress_percent === 100).length,
+          total_study_hours: statsRes.data.study_hours || 0,
+          quizzes_taken: statsRes.data.quizzes_taken || 0,
+          average_quiz_score: statsRes.data.avg_quiz_score || 0,
+          problems_solved: statsRes.data.problems_solved || 0,
+          current_streak: statsRes.data.streak_days || 0,
+          certificates_earned: statsRes.data.certificates_earned || 0,
+          skills_radar: statsRes.data.skills_radar || []
+        });
         setSessions(sessionsRes.data || []);
       } catch (err) {
         toast.error('Failed to load analytics');

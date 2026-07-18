@@ -46,6 +46,7 @@ def create_user(db: Session, user_data: UserCreate) -> User:
     elif user_data.role == "super_admin":
         assigned_role = UserRole.SUPER_ADMIN
 
+    import secrets
     user = User(
         email=user_data.email,
         username=user_data.username,
@@ -54,6 +55,7 @@ def create_user(db: Session, user_data: UserCreate) -> User:
         role=assigned_role,
         is_active=True,
         is_verified=False,
+        verification_token=secrets.token_urlsafe(32),
     )
     db.add(user)
     db.commit()

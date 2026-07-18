@@ -52,12 +52,19 @@ export default function Leaderboard() {
           </div>
 
           <div style={styles.list}>
-            {leaderboard.map((row) => {
+            {leaderboard.map((row, index) => {
               const isTop3 = row.rank <= 3;
               const medalColor = row.rank === 1 ? '#ffd700' : row.rank === 2 ? '#c0c0c0' : '#cd7f32';
+              const isLast = index === leaderboard.length - 1;
 
               return (
-                <div key={row.user_id} style={styles.row}>
+                <div
+                  key={row.user_id}
+                  style={{
+                    ...styles.row,
+                    borderBottom: isLast ? 'none' : '1px solid var(--border-primary)',
+                  }}
+                >
                   <div style={styles.colRank}>
                     {isTop3 ? (
                       <span style={{ ...styles.medal, backgroundColor: medalColor }}>
@@ -197,12 +204,8 @@ const styles = {
   row: {
     display: 'flex',
     padding: '1.25rem 1.5rem',
-    borderBottom: '1px solid var(--border-primary)',
     alignItems: 'center',
     transition: 'background-color var(--transition-fast)',
-    ':last-child': {
-      borderBottom: 'none',
-    },
   },
   medal: {
     display: 'inline-flex',

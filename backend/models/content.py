@@ -72,6 +72,11 @@ class Note(Base):
     content = Column(Text, nullable=False)
     is_ai_generated = Column(Boolean, default=False, nullable=False)
     is_bookmarked = Column(Boolean, default=False, nullable=False)
+    current_branch_id = Column(Integer, ForeignKey("git_branches.id", ondelete="SET NULL"), nullable=True)
+    auto_commit_enabled = Column(Boolean, default=False, nullable=False)
+    auto_commit_interval = Column(Integer, default=30, nullable=False)
+    auto_commit_on_major_edit = Column(Boolean, default=True, nullable=False)
+    auto_commit_before_ai = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime,
