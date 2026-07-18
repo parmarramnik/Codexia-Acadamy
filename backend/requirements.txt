@@ -43,6 +43,7 @@ aiosmtplib==3.0.1
 # Utilities
 python-slugify==8.0.4
 Pillow==10.4.0
+psutil==5.9.8
 
 # Development
 pytest==8.3.3
