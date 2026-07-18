@@ -169,8 +169,10 @@ def oauth_google(data: dict, request: Request, db: Session = Depends(get_db)):
     if not user:
         from schemas.user import UserCreate
         from services.user_service import create_user as _create_u
+        import re
         
-        username = f"google_{email.split('@')[0]}_{secrets.token_hex(3)}"
+        raw_username = f"google_{email.split('@')[0]}_{secrets.token_hex(3)}"
+        username = re.sub(r'[^a-zA-Z0-9_-]', '_', raw_username)
         temp_password = secrets.token_urlsafe(12)
         user_create = UserCreate(
             email=email,
@@ -278,8 +280,10 @@ def oauth_github(data: dict, request: Request, db: Session = Depends(get_db)):
     if not user:
         from schemas.user import UserCreate
         from services.user_service import create_user as _create_u
+        import re
         
-        username = f"github_{email.split('@')[0]}_{secrets.token_hex(3)}"
+        raw_username = f"github_{email.split('@')[0]}_{secrets.token_hex(3)}"
+        username = re.sub(r'[^a-zA-Z0-9_-]', '_', raw_username)
         temp_password = secrets.token_urlsafe(12)
         user_create = UserCreate(
             email=email,
