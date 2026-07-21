@@ -39,6 +39,18 @@ class ResumeAnalyzeRequest(BaseModel):
     resume_text: str
 
 
+def safe_json_loads(data_str, default=None):
+    if default is None:
+        default = []
+    if not data_str:
+        return default
+    try:
+        res = json.loads(data_str)
+        return res if res is not None else default
+    except Exception:
+        return default
+
+
 @router.get("/portfolio/{user_id}")
 def get_user_public_portfolio(
     user_id: int,
@@ -74,12 +86,12 @@ def get_user_public_portfolio(
         "owner_email": user.email,
         "avatar_url": getattr(user, "avatar_url", None),
         "title": portfolio.title or f"{user.full_name or user.username}'s Portfolio",
-        "bio": portfolio.bio,
-        "github_url": portfolio.github_url,
-        "linkedin_url": portfolio.linkedin_url,
-        "website_url": portfolio.website_url,
-        "projects": json.loads(portfolio.projects_json) if portfolio.projects_json else [],
-        "skills": json.loads(portfolio.skills_json) if portfolio.skills_json else [],
+        "bio": portfolio.bio or "",
+        "github_url": portfolio.github_url or "",
+        "linkedin_url": portfolio.linkedin_url or "",
+        "website_url": portfolio.website_url or "",
+        "projects": safe_json_loads(portfolio.projects_json),
+        "skills": safe_json_loads(portfolio.skills_json),
     }
 
 
@@ -99,13 +111,13 @@ def get_portfolio(
         
     return {
         "id": portfolio.id,
-        "title": portfolio.title,
-        "bio": portfolio.bio,
-        "github_url": portfolio.github_url,
-        "linkedin_url": portfolio.linkedin_url,
-        "website_url": portfolio.website_url,
-        "projects": json.loads(portfolio.projects_json) if portfolio.projects_json else [],
-        "skills": json.loads(portfolio.skills_json) if portfolio.skills_json else [],
+        "title": portfolio.title or "My Learning Portfolio",
+        "bio": portfolio.bio or "",
+        "github_url": portfolio.github_url or "",
+        "linkedin_url": portfolio.linkedin_url or "",
+        "website_url": portfolio.website_url or "",
+        "projects": safe_json_loads(portfolio.projects_json),
+        "skills": safe_json_loads(portfolio.skills_json),
     }
 
 

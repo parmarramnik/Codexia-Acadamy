@@ -4,6 +4,7 @@ Collaborative Forums & Direct Messaging routes v3.0
 
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -52,22 +53,43 @@ def list_discussions(
     return results
 
 
+class DiscussionCreate(BaseModel):
+    title: str
+    content: str
+    course_id: Optional[int] = None
+    is_doubt: Optional[bool] = False
+
+
+class DiscussionReplyCreate(BaseModel):
+    content: str
+    parent_reply_id: Optional[int] = None
+
+
 @router.post("/discussions")
 def create_discussion(
-    title: str,
-    content: str,
+    data: Optional[DiscussionCreate] = None,
+    title: Optional[str] = None,
+    content: Optional[str] = None,
     course_id: Optional[int] = None,
     is_doubt: bool = False,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Create a new discussion thread or doubt resolution ticket."""
+    disc_title = data.title if data else title
+    disc_content = data.content if data else content
+    disc_course_id = data.course_id if data else course_id
+    disc_is_doubt = data.is_doubt if data else is_doubt
+
+    if not disc_title or not disc_content:
+        raise HTTPException(status_code=400, detail="Title and Content are required")
+
     discussion = Discussion(
-        course_id=course_id,
+        course_id=disc_course_id,
         user_id=current_user.id,
-        title=title,
-        content=content,
-        is_doubt=is_doubt
+        title=disc_title,
+        content=disc_content,
+        is_doubt=disc_is_doubt
     )
     db.add(discussion)
     db.commit()
@@ -78,12 +100,19 @@ def create_discussion(
 @router.post("/discussions/{discussion_id}/replies")
 def reply_to_discussion(
     discussion_id: int,
-    content: str,
+    data: Optional[DiscussionReplyCreate] = None,
+    content: Optional[str] = None,
     parent_reply_id: Optional[int] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Post a reply to a discussion thread."""
+    reply_content = data.content if data else content
+    reply_parent_id = data.parent_reply_id if data else parent_reply_id
+
+    if not reply_content:
+        raise HTTPException(status_code=400, detail="Reply content is required")
+
     discussion = db.query(Discussion).filter(Discussion.id == discussion_id).first()
     if not discussion:
         raise HTTPException(status_code=404, detail="Thread not found")
@@ -91,8 +120,8 @@ def reply_to_discussion(
     reply = DiscussionReply(
         discussion_id=discussion_id,
         user_id=current_user.id,
-        content=content,
-        parent_reply_id=parent_reply_id
+        content=reply_content,
+        parent_reply_id=reply_parent_id
     )
     db.add(reply)
     
@@ -100,11 +129,11 @@ def reply_to_discussion(
     if discussion.user_id != current_user.id:
         notif = Notification(
             user_id=discussion.user_id,
-            notification_type=NotificationType.FORUM,
+            notification_type=NotificationType.INFO,
             title="New reply on your thread",
-            message=f"{current_user.full_name} replied to '{discussion.title}'",
+            message=f"{current_user.full_name or current_user.username} replied to '{discussion.title}'",
             is_read=False,
-            link=f"/discussions/{discussion.id}"
+            link=f"/discussion"
         )
         db.add(notif)
         
