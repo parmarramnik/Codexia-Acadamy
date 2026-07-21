@@ -423,7 +423,9 @@ const styles = {
   flashCard: {
     height: '280px',
     backgroundColor: 'var(--bg-card)',
-    border: '1px solid var(--border-primary)',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: 'var(--border-primary)',
     borderRadius: 'var(--radius-md)',
     padding: '2rem',
     display: 'flex',

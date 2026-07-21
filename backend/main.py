@@ -72,7 +72,7 @@ def create_app() -> FastAPI:
 
 def register_routes(app: FastAPI) -> None:
     """Register all API route modules."""
-    from routes import auth, users, courses, lectures, quizzes, coding, notes, flashcards, certificates, analytics, admin, ai, logs, course_builder, study_planner, career, git
+    from routes import auth, users, courses, lectures, quizzes, coding, notes, flashcards, certificates, analytics, admin, ai, logs, course_builder, study_planner, git
     from routes import v3_search, v3_comms, v3_certificates, v3_ai, v3_analytics, v3_coding
 
     prefix = settings.API_PREFIX
@@ -94,7 +94,6 @@ def register_routes(app: FastAPI) -> None:
     app.include_router(logs.router, prefix=f"{prefix}/logs", tags=["Logs"])
     app.include_router(course_builder.router, prefix=f"{prefix}/course-builder", tags=["Course Builder"])
     app.include_router(study_planner.router, prefix=f"{prefix}/study-planner", tags=["Study Planner"])
-    app.include_router(career.router, prefix=f"{prefix}/career", tags=["Career Development"])
 
     # Include Version 3.0 Routers
     app.include_router(v3_search.router, prefix=prefix)

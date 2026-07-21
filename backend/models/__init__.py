@@ -12,7 +12,6 @@ from models.certificate import Certificate
 from models.audit import AuditLog, SecurityLog
 from models.session import Session, LoginHistory
 from models.schedule import Reminder, StudyPlan
-from models.career import Portfolio, Resume
 from models.git import GitBranch, GitCommit, GitTag, GitMergeHistory
 
 __all__ = [
@@ -24,6 +23,5 @@ __all__ = [
     "Progress", "StudySession", "Notification", "Announcement", "ChatHistory",
     "Certificate", "AuditLog", "SecurityLog",
     "Session", "LoginHistory", "Reminder", "StudyPlan",
-    "Portfolio", "Resume",
     "GitBranch", "GitCommit", "GitTag", "GitMergeHistory",
 ]

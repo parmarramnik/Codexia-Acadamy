@@ -330,9 +330,6 @@ export default function EnterpriseAI() {
             <button onClick={() => setActiveTab('tutor')} style={activeTab === 'tutor' ? { ...styles.sidebarTab, ...styles.sidebarTabActive } : styles.sidebarTab}>
               <FiMessageSquare size={16} /> <span>AI Tutor Chat</span>
             </button>
-            <button onClick={() => setActiveTab('resume')} style={activeTab === 'resume' ? { ...styles.sidebarTab, ...styles.sidebarTabActive } : styles.sidebarTab}>
-              <FiFileText size={16} /> <span>Resume Auditor</span>
-            </button>
             <button onClick={() => setActiveTab('planner')} style={activeTab === 'planner' ? { ...styles.sidebarTab, ...styles.sidebarTabActive } : styles.sidebarTab}>
               <FiCalendar size={16} /> <span>Roadmap Planner</span>
             </button>

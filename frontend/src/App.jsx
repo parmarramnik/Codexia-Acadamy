@@ -34,14 +34,12 @@ import Settings from './pages/Settings';
 import AdminDashboard from './pages/AdminDashboard';
 import InstructorDashboard from './pages/InstructorDashboard';
 import VerifyCertificate from './pages/VerifyCertificate';
-import CareerDashboard from './pages/CareerDashboard';
 import StudyPlanner from './pages/StudyPlanner';
 import DiscussionForum from './pages/DiscussionForum';
 import VerifyCertificatePublic from './pages/VerifyCertificatePublic';
 import EnterpriseAI from './pages/EnterpriseAI';
 import AdminPortal from './pages/AdminPortal';
 import VerifyEmail from './pages/VerifyEmail';
-import PublicPortfolio from './pages/PublicPortfolio';
 
 
 function App() {
@@ -73,11 +71,10 @@ function App() {
           <Route path="/courses/:slug" element={<CourseDetails />} />
         </Route>
 
-        {/* Public standalone verification & portfolio pages */}
+        {/* Public standalone verification pages */}
         <Route path="/verify/:uid" element={<VerifyCertificate />} />
         <Route path="/verify-public/:uid" element={<VerifyCertificatePublic />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/portfolio/:userId" element={<PublicPortfolio />} />
 
         {/* Protected routes with dashboard layout */}
         <Route element={<ProtectedRoute />}>
@@ -96,7 +93,6 @@ function App() {
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/career" element={<CareerDashboard />} />
             <Route path="/planner" element={<StudyPlanner />} />
             <Route path="/discussion" element={<DiscussionForum />} />
             <Route path="/ai-workspace" element={<EnterpriseAI />} />

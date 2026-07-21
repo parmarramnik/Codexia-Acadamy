@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
-import { FiBookOpen, FiClock, FiTarget, FiActivity, FiAward, FiCode, FiCpu, FiCalendar, FiBriefcase, FiShield, FiArrowRight } from 'react-icons/fi';
+import { FiBookOpen, FiClock, FiTarget, FiActivity, FiAward, FiCode, FiCpu, FiCalendar, FiShield, FiArrowRight } from 'react-icons/fi';
 import AdminDashboard from './AdminDashboard';
 import InstructorDashboard from './InstructorDashboard';
 
@@ -149,13 +149,6 @@ export default function Dashboard() {
           <div>
             <h3 style={styles.actionTitle}>Study Planner</h3>
             <p style={styles.actionDesc}>Track streaking, reminders, and target weekly goals.</p>
-          </div>
-        </Link>
-        <Link to="/career" style={styles.actionCard}>
-          <FiBriefcase size={24} style={styles.actionIcon} />
-          <div>
-            <h3 style={styles.actionTitle}>Career & Resume</h3>
-            <p style={styles.actionDesc}>Verify skill gaps and present your projects portfolio.</p>
           </div>
         </Link>
       </div>
