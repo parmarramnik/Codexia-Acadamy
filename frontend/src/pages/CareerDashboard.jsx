@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { FiGithub, FiLinkedin, FiGlobe, FiBriefcase, FiCpu, FiAward, FiPlus, FiTrash2, FiFileText } from 'react-icons/fi';
+import { FiGithub, FiLinkedin, FiGlobe, FiBriefcase, FiCpu, FiAward, FiPlus, FiTrash2, FiFileText, FiShare2, FiEye } from 'react-icons/fi';
 
 export default function CareerDashboard() {
+  const { user } = useAuth();
   const [portfolio, setPortfolio] = useState({
     title: '',
     bio: '',
@@ -15,7 +17,6 @@ export default function CareerDashboard() {
     skills: [],
   });
 
-
   const [resumeText, setResumeText] = useState('');
   const [analysisResult, setAnalysisResult] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -24,6 +25,13 @@ export default function CareerDashboard() {
   // Form input helper states
   const [newProject, setNewProject] = useState({ name: '', description: '', url: '' });
   const [newSkill, setNewSkill] = useState('');
+
+  const handleCopyShareLink = () => {
+    if (!user?.id) return;
+    const shareUrl = `${window.location.origin}/portfolio/${user.id}`;
+    navigator.clipboard.writeText(shareUrl);
+    toast.success('Public Portfolio Link copied to clipboard!');
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -349,6 +357,20 @@ const styles = {
     display: 'flex',
     gap: '0.75rem',
   },
+  actionBtnPrimary: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.625rem 1.25rem',
+    backgroundColor: 'var(--accent-primary)',
+    color: 'var(--text-inverse)',
+    fontWeight: 'var(--fw-semibold)',
+    borderRadius: 'var(--radius-md)',
+    textDecoration: 'none',
+    fontSize: '0.875rem',
+    boxShadow: 'var(--shadow-sm)',
+    transition: 'all 0.2s ease',
+  },
   actionBtnSecondary: {
     display: 'inline-flex',
     alignItems: 'center',
@@ -361,6 +383,7 @@ const styles = {
     fontWeight: 'var(--fw-medium)',
     fontSize: '0.875rem',
     textDecoration: 'none',
+    cursor: 'pointer',
     transition: 'all 0.2s ease',
   },
   pageTitle: {

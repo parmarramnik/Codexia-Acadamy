@@ -39,6 +39,50 @@ class ResumeAnalyzeRequest(BaseModel):
     resume_text: str
 
 
+@router.get("/portfolio/{user_id}")
+def get_user_public_portfolio(
+    user_id: int,
+    db: Session = Depends(get_db),
+):
+    """Retrieve any user's public portfolio by user_id."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    portfolio = db.query(Portfolio).filter(Portfolio.user_id == user_id).first()
+    if not portfolio:
+        portfolio_title = f"{user.full_name or user.username}'s Learning Portfolio"
+        return {
+            "id": None,
+            "user_id": user.id,
+            "owner_name": user.full_name or user.username,
+            "owner_email": user.email,
+            "avatar_url": getattr(user, "avatar_url", None),
+            "title": portfolio_title,
+            "bio": "Software Engineer & Lifelong Learner",
+            "github_url": "",
+            "linkedin_url": "",
+            "website_url": "",
+            "projects": [],
+            "skills": [],
+        }
+
+    return {
+        "id": portfolio.id,
+        "user_id": user.id,
+        "owner_name": user.full_name or user.username,
+        "owner_email": user.email,
+        "avatar_url": getattr(user, "avatar_url", None),
+        "title": portfolio.title or f"{user.full_name or user.username}'s Portfolio",
+        "bio": portfolio.bio,
+        "github_url": portfolio.github_url,
+        "linkedin_url": portfolio.linkedin_url,
+        "website_url": portfolio.website_url,
+        "projects": json.loads(portfolio.projects_json) if portfolio.projects_json else [],
+        "skills": json.loads(portfolio.skills_json) if portfolio.skills_json else [],
+    }
+
+
 @router.get("/portfolio")
 def get_portfolio(
     current_user: User = Depends(get_current_user),

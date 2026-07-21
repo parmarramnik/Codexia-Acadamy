@@ -41,6 +41,7 @@ import VerifyCertificatePublic from './pages/VerifyCertificatePublic';
 import EnterpriseAI from './pages/EnterpriseAI';
 import AdminPortal from './pages/AdminPortal';
 import VerifyEmail from './pages/VerifyEmail';
+import PublicPortfolio from './pages/PublicPortfolio';
 
 
 function App() {
@@ -72,10 +73,11 @@ function App() {
           <Route path="/courses/:slug" element={<CourseDetails />} />
         </Route>
 
-        {/* Public standalone verification page */}
+        {/* Public standalone verification & portfolio pages */}
         <Route path="/verify/:uid" element={<VerifyCertificate />} />
         <Route path="/verify-public/:uid" element={<VerifyCertificatePublic />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/portfolio/:userId" element={<PublicPortfolio />} />
 
         {/* Protected routes with dashboard layout */}
         <Route element={<ProtectedRoute />}>
