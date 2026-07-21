@@ -30,7 +30,9 @@ def create_app() -> FastAPI:
     setup_rate_limiter(app)
     setup_error_handlers(app)
     from middleware.security_headers import SecurityHeadersMiddleware
+    from fastapi.middleware.gzip import GZipMiddleware
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(GZipMiddleware, minimum_size=500)
 
     # Static file serving
     static_dir = os.path.join(os.path.dirname(__file__), settings.UPLOAD_DIR)
