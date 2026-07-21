@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   FiHome, FiBook, FiCode, FiFileText, FiLayers,
   FiMessageSquare, FiAward, FiBarChart2, FiTrendingUp,
-  FiUser, FiSettings, FiShield, FiEdit3, FiCpu,
+  FiUser, FiSettings, FiShield, FiEdit3, FiCpu, FiBriefcase, FiCalendar,
 } from 'react-icons/fi';
 import './Sidebar.css';
 
@@ -11,6 +11,8 @@ const studentLinks = [
   { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
   { to: '/my-courses', icon: FiBook, label: 'My Courses' },
   { to: '/coding', icon: FiCode, label: 'Coding Practice' },
+  { to: '/career', icon: FiBriefcase, label: 'Career Portfolio' },
+  { to: '/planner', icon: FiCalendar, label: 'Study Planner' },
   { to: '/notes', icon: FiFileText, label: 'Notes' },
   { to: '/flashcards', icon: FiLayers, label: 'Flashcards' },
   { to: '/ai-workspace', icon: FiCpu, label: 'Enterprise AI' },
@@ -23,6 +25,8 @@ const studentLinks = [
 const instructorLinks = [
   { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
   { to: '/instructor', icon: FiEdit3, label: 'Instructor Panel' },
+  { to: '/analytics', icon: FiBarChart2, label: 'Analytics' },
+  { to: '/career', icon: FiBriefcase, label: 'Career Portfolio' },
   { to: '/discussion', icon: FiMessageSquare, label: 'Collaboration Hub' },
 ];
 
@@ -30,6 +34,8 @@ const adminLinks = [
   { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
   { to: '/admin', icon: FiShield, label: 'Admin Panel' },
   { to: '/admin-portal', icon: FiShield, label: 'Executive Portal' },
+  { to: '/analytics', icon: FiBarChart2, label: 'Analytics' },
+  { to: '/career', icon: FiBriefcase, label: 'Career Portfolio' },
   { to: '/discussion', icon: FiMessageSquare, label: 'Collaboration Hub' },
 ];
 

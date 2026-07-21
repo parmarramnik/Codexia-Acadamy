@@ -108,15 +108,24 @@ export default function CareerDashboard() {
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.pageTitle}>Career Development & AI Portfolio</h1>
-      <p style={styles.pageSubtitle}>Analyze resume skill gaps, document your projects, and show off credentials.</p>
+      <div style={styles.headerFlex}>
+        <div>
+          <h1 style={styles.pageTitle}>Career Development & AI Portfolio</h1>
+          <p style={styles.pageSubtitle}>Analyze resume skill gaps, document your projects, and show off credentials.</p>
+        </div>
+        <div style={styles.headerActions}>
+          <a href={portfolio.github_url || '#'} target="_blank" rel="noreferrer" style={styles.actionBtnSecondary}>
+            <FiGithub /> Public Portfolio
+          </a>
+        </div>
+      </div>
 
       <div style={styles.layoutGrid}>
         
         {/* Left Side: Career Portfolio Details */}
         <div style={styles.leftColumn}>
           <div style={styles.card}>
-            <h2 style={styles.cardTitle}><FiBriefcase /> Portfolio Details</h2>
+            <h2 style={styles.cardTitle}><FiBriefcase style={{ color: 'var(--accent-primary)' }} /> Portfolio Details</h2>
             <form onSubmit={handleUpdatePortfolio} style={styles.form}>
               <div style={styles.inputGroup}>
                 <label style={styles.label}>Profile Headline</label>
@@ -328,6 +337,32 @@ const styles = {
     backgroundColor: 'var(--bg-primary)',
     color: 'var(--text-primary)',
   },
+  headerFlex: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '2rem',
+    flexWrap: 'wrap',
+    gap: '1rem',
+  },
+  headerActions: {
+    display: 'flex',
+    gap: '0.75rem',
+  },
+  actionBtnSecondary: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.625rem 1.25rem',
+    backgroundColor: 'var(--bg-card)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: 'var(--radius-md)',
+    color: 'var(--text-primary)',
+    fontWeight: 'var(--fw-medium)',
+    fontSize: '0.875rem',
+    textDecoration: 'none',
+    transition: 'all 0.2s ease',
+  },
   pageTitle: {
     fontSize: '2rem',
     fontWeight: 'var(--fw-semibold)',
@@ -336,11 +371,10 @@ const styles = {
   pageSubtitle: {
     color: 'var(--text-secondary)',
     fontSize: '0.875rem',
-    marginBottom: '2.5rem',
   },
   layoutGrid: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
     gap: '2rem',
   },
   leftColumn: {
@@ -356,8 +390,9 @@ const styles = {
   card: {
     backgroundColor: 'var(--bg-card)',
     border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
+    borderRadius: 'var(--radius-lg)',
     padding: '2rem',
+    boxShadow: 'var(--shadow-md)',
   },
   cardTitle: {
     fontSize: '1.25rem',
@@ -372,32 +407,35 @@ const styles = {
   form: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '1rem',
+    gap: '1.25rem',
   },
   inputGroup: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.375rem',
+    gap: '0.5rem',
     width: '100%',
   },
   row: {
     display: 'flex',
     gap: '1rem',
+    flexWrap: 'wrap',
   },
   label: {
     fontSize: '0.75rem',
     fontWeight: 'var(--fw-semibold)',
     color: 'var(--text-secondary)',
     textTransform: 'uppercase',
+    letterSpacing: '0.05em',
   },
   input: {
     width: '100%',
     backgroundColor: 'var(--bg-secondary)',
     border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-sm)',
+    borderRadius: 'var(--radius-md)',
     color: 'var(--text-primary)',
-    padding: '0.625rem',
+    padding: '0.75rem 1rem',
     fontSize: '0.875rem',
+    transition: 'border-color 0.2s ease',
   },
   sectionHeader: {
     fontSize: '0.875rem',
@@ -489,35 +527,41 @@ const styles = {
     backgroundColor: 'var(--accent-primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
-    padding: '0.75rem',
+    padding: '0.875rem 1.5rem',
     border: 'none',
     borderRadius: 'var(--radius-md)',
     cursor: 'pointer',
     fontSize: '0.875rem',
     marginTop: '1rem',
+    boxShadow: 'var(--shadow-md)',
+    transition: 'all 0.2s ease',
   },
   resumeArea: {
     width: '100%',
     height: '140px',
     backgroundColor: 'var(--bg-secondary)',
     border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-sm)',
+    borderRadius: 'var(--radius-md)',
     color: 'var(--text-primary)',
-    padding: '0.75rem',
-    fontSize: '0.85rem',
+    padding: '0.875rem',
+    fontSize: '0.875rem',
     marginBottom: '1rem',
+    lineHeight: '1.5',
+    resize: 'vertical',
   },
   analyzeBtn: {
     width: '100%',
     backgroundColor: 'var(--accent-primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
-    padding: '0.75rem',
+    padding: '0.875rem 1.5rem',
     border: 'none',
     borderRadius: 'var(--radius-md)',
     cursor: 'pointer',
     fontSize: '0.875rem',
     marginBottom: '1.5rem',
+    boxShadow: 'var(--shadow-md)',
+    transition: 'all 0.2s ease',
   },
   analysisBox: {
     border: '1px solid var(--border-primary)',
