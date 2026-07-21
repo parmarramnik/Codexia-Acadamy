@@ -17,7 +17,7 @@ from schemas.user import UserCreate
 
 def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
     """Validate a user's credentials and return the user if valid."""
-    user = get_user_by_email(db, email)
+    user = get_user_by_email(db, email) or get_user_by_username(db, email)
     if not user:
         return None
         
@@ -50,7 +50,7 @@ def login_user(
     from services.session_service import create_user_session, record_login_attempt
 
     # Pre-check lockout logic
-    user = get_user_by_email(db, email)
+    user = get_user_by_email(db, email) or get_user_by_username(db, email)
     if user and user.lockout_until:
         lockout_time = user.lockout_until.replace(tzinfo=timezone.utc)
         if lockout_time > datetime.now(timezone.utc):

@@ -35,9 +35,9 @@ class UserCreate(UserBase):
 
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    email: str
     password: str
-    remember_me: bool = False
+    remember_me: Optional[bool] = False
 
 
 class ResendVerificationRequest(BaseModel):
