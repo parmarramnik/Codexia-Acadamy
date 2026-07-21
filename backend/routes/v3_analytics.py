@@ -31,8 +31,9 @@ def get_student_analytics(current_user: User = Depends(get_current_user), db: Se
     # 2. Heatmap contributions
     heatmap = {}
     for s in sessions:
-        date_str = s.date.strftime("%Y-%m-%d")
-        heatmap[date_str] = heatmap.get(date_str, 0) + s.duration_minutes
+        if s.date:
+            date_str = s.date.strftime("%Y-%m-%d") if hasattr(s.date, "strftime") else str(s.date)[:10]
+            heatmap[date_str] = heatmap.get(date_str, 0) + s.duration_minutes
 
     # 3. Quiz performance averages
     quiz_attempts = db.query(QuizAttempt).filter(QuizAttempt.user_id == current_user.id).all()
@@ -59,21 +60,24 @@ def get_student_analytics(current_user: User = Depends(get_current_user), db: Se
             cat = e.course.category.lower()
             course_cat_map[cat] = max(course_cat_map.get(cat, 0), e.completion_percentage)
 
-    # 6. Skill radar metrics dynamically counted
-    solved_by_cat = db.query(
-        CodingProblem.category, func.count(func.distinct(Submission.problem_id))
-    ).join(Submission, Submission.problem_id == CodingProblem.id)\
-     .filter(Submission.user_id == current_user.id, Submission.status == "accepted")\
-     .group_by(CodingProblem.category).all()
-     
-    cat_map = {row[0].lower() if row[0] else "": row[1] for row in solved_by_cat}
+    # 6. Skill radar metrics dynamically counted from tags & submissions
+    solved_tags = db.query(CodingProblem.tags)\
+        .join(Submission, Submission.problem_id == CodingProblem.id)\
+        .filter(Submission.user_id == current_user.id, Submission.status == "accepted").all()
+        
+    cat_map = {}
+    for (tags_str,) in solved_tags:
+        if tags_str:
+            for tag in tags_str.split(","):
+                t = tag.strip().lower()
+                cat_map[t] = cat_map.get(t, 0) + 1
 
     # Map scores dynamically
-    algorithms_score = min(cat_map.get("algorithms", 0) * 20 + course_cat_map.get("algorithms", 0) * 0.8 + 10, 100)
-    ds_score = min((cat_map.get("arrays", 0) + cat_map.get("recursion", 0)) * 15 + course_cat_map.get("programming", 0) * 0.8 + 10, 100)
-    sys_design_score = min(course_cat_map.get("system-design", 0) * 0.8 + (15 if len(enrollments) > 0 else 0) + 10, 100)
-    database_score = min(cat_map.get("database", 0) * 25 + course_cat_map.get("database", 0) * 0.8 + 10, 100)
-    web_dev_score = min(course_cat_map.get("web-development", 0) * 0.8 + course_cat_map.get("frontend", 0) * 0.8 + (15 if len(enrollments) > 0 else 0) + 10, 100)
+    algorithms_score = min(cat_map.get("algorithms", 0) * 20 + course_cat_map.get("algorithms", 0) * 0.8 + (10 if solved_problems > 0 else 0), 100)
+    ds_score = min((cat_map.get("arrays", 0) + cat_map.get("recursion", 0) + cat_map.get("trees", 0)) * 15 + course_cat_map.get("programming", 0) * 0.8 + (10 if solved_problems > 0 else 0), 100)
+    sys_design_score = min(course_cat_map.get("system-design", 0) * 0.8 + (15 if len(enrollments) > 0 else 0), 100)
+    database_score = min(cat_map.get("database", 0) * 25 + course_cat_map.get("database", 0) * 0.8 + (10 if solved_problems > 0 else 0), 100)
+    web_dev_score = min(course_cat_map.get("web-development", 0) * 0.8 + course_cat_map.get("frontend", 0) * 0.8 + (15 if len(enrollments) > 0 else 0), 100)
 
     skills = [
         {"subject": "Algorithms", "A": int(algorithms_score), "fullMark": 100},
@@ -83,12 +87,17 @@ def get_student_analytics(current_user: User = Depends(get_current_user), db: Se
         {"subject": "Web Development", "A": int(web_dev_score), "fullMark": 100}
     ]
 
+    from models.certificate import Certificate
+    certs_count = db.query(Certificate).filter(Certificate.user_id == current_user.id).count()
+
     return {
         "study_hours": round(total_mins / 60.0, 1),
-        "streak_days": current_user.submissions_streak if hasattr(current_user, "submissions_streak") else 5,
+        "streak_days": getattr(current_user, "submissions_streak", 0) or 1,
         "heatmap": heatmap,
+        "quizzes_taken": len(quiz_attempts),
         "avg_quiz_score": avg_score,
         "problems_solved": solved_problems,
+        "certificates_earned": certs_count,
         "course_progress": progress_list,
         "skills_radar": skills
     }
@@ -96,7 +105,7 @@ def get_student_analytics(current_user: User = Depends(get_current_user), db: Se
 
 @router.get("/instructor")
 def get_instructor_analytics(
-    current_user: User = Depends(require_role(UserRole.INSTRUCTOR.value, UserRole.ADMIN.value)),
+    current_user: User = Depends(require_role(UserRole.INSTRUCTOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)),
     db: Session = Depends(get_db)
 ):
     """
@@ -153,7 +162,7 @@ def get_instructor_analytics(
 
 @router.get("/admin")
 def get_admin_analytics(
-    current_user: User = Depends(require_role(UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value)),
+    current_user: User = Depends(require_role(UserRole.ADMIN, UserRole.SUPER_ADMIN)),
     db: Session = Depends(get_db)
 ):
     """

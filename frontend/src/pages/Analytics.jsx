@@ -135,33 +135,26 @@ export default function Analytics() {
         {/* Skills/Topics Strengths */}
         <div style={styles.sideCard}>
           <h2 style={styles.sectionHeading}><FiTrendingUp /> Topic Summary</h2>
-          <div style={styles.topicRow}>
-            <span style={styles.topicTitle}>Data Structures & Algorithms</span>
-            <div style={styles.progressRow}>
-              <div style={styles.progressBarBg}>
-                <div style={{ ...styles.progressBarFill, width: '80%' }}></div>
+          {(stats.skills_radar && stats.skills_radar.length > 0
+            ? stats.skills_radar
+            : [
+                { subject: 'Algorithms', A: 40 },
+                { subject: 'Data Structures', A: 35 },
+                { subject: 'System Design', A: 20 },
+                { subject: 'Database', A: 30 },
+                { subject: 'Web Development', A: 50 },
+              ]
+          ).map((item, idx) => (
+            <div key={idx} style={styles.topicRow}>
+              <span style={styles.topicTitle}>{item.subject}</span>
+              <div style={styles.progressRow}>
+                <div style={styles.progressBarBg}>
+                  <div style={{ ...styles.progressBarFill, width: `${Math.min(item.A || 0, 100)}%` }}></div>
+                </div>
+                <span style={styles.progressText}>{item.A || 0}%</span>
               </div>
-              <span style={styles.progressText}>80%</span>
             </div>
-          </div>
-          <div style={styles.topicRow}>
-            <span style={styles.topicTitle}>Web Development Core</span>
-            <div style={styles.progressRow}>
-              <div style={styles.progressBarBg}>
-                <div style={{ ...styles.progressBarFill, width: '65%' }}></div>
-              </div>
-              <span style={styles.progressText}>65%</span>
-            </div>
-          </div>
-          <div style={styles.topicRow}>
-            <span style={styles.topicTitle}>Machine Learning Basics</span>
-            <div style={styles.progressRow}>
-              <div style={styles.progressBarBg}>
-                <div style={{ ...styles.progressBarFill, width: '40%' }}></div>
-              </div>
-              <span style={styles.progressText}>40%</span>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>

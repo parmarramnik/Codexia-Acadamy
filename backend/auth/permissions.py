@@ -49,23 +49,21 @@ def require_permission(permission_name: str):
     return permission_checker
 
 
-def require_role(*allowed_roles: UserRole):
+def require_role(*allowed_roles):
     """
     Dependency factory: restrict endpoint to users with specific roles.
     Super Admin always has access.
-
-    Usage:
-        @router.get("/admin/users")
-        def list_users(user: User = Depends(require_role(UserRole.ADMIN))):
-            ...
     """
     def role_checker(current_user: User = Depends(get_current_user)) -> User:
-        if current_user.role == UserRole.SUPER_ADMIN:
+        user_role_val = current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
+        if user_role_val == "super_admin":
             return current_user
-        if current_user.role not in allowed_roles:
+        
+        allowed_str_list = [r.value if hasattr(r, 'value') else str(r) for r in allowed_roles]
+        if user_role_val not in allowed_str_list:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access denied. Required role: {', '.join(r.value for r in allowed_roles)}",
+                detail=f"Access denied. Required role: {', '.join(allowed_str_list)}",
             )
         return current_user
     return role_checker
