@@ -41,12 +41,11 @@ import VerifyCertificatePublic from './pages/VerifyCertificatePublic';
 import EnterpriseAI from './pages/EnterpriseAI';
 import AdminPortal from './pages/AdminPortal';
 import VerifyEmail from './pages/VerifyEmail';
-import OauthCallback from './pages/OauthCallback';
 
 
 function App() {
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Toaster
         position="top-right"
         toastOptions={{
@@ -77,8 +76,6 @@ function App() {
         <Route path="/verify/:uid" element={<VerifyCertificate />} />
         <Route path="/verify-public/:uid" element={<VerifyCertificatePublic />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/oauth/callback/google" element={<OauthCallback />} />
-        <Route path="/oauth/callback/github" element={<OauthCallback />} />
 
         {/* Protected routes with dashboard layout */}
         <Route element={<ProtectedRoute />}>

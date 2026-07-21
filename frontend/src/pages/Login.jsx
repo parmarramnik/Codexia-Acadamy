@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import LoadingButton from '../components/common/LoadingButton';
 import api from '../services/api';
-import { FaGoogle, FaGithub } from 'react-icons/fa';
 
 export default function Login() {
   const { login } = useAuth();
@@ -14,39 +13,6 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [oauthConfig, setOauthConfig] = useState({ google_client_id: '', github_client_id: '' });
-
-  useEffect(() => {
-    async function loadOauthConfig() {
-      try {
-        const res = await api.get('/auth/oauth/config');
-        setOauthConfig(res.data);
-      } catch (err) {
-        console.error('Failed to load OAuth configurations', err);
-      }
-    }
-    loadOauthConfig();
-  }, []);
-
-  const handleGoogleLogin = () => {
-    if (oauthConfig.google_client_id) {
-      const redirectUri = encodeURIComponent(`${window.location.origin}/oauth/callback/google`);
-      window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${oauthConfig.google_client_id}&redirect_uri=${redirectUri}&response_type=code&scope=email%20profile`;
-    } else {
-      toast.success('Bypassing credentials check (Developer Fallback Mode)!');
-      navigate('/oauth/callback/google?code=mock_google_code');
-    }
-  };
-
-  const handleGithubLogin = () => {
-    if (oauthConfig.github_client_id) {
-      const redirectUri = encodeURIComponent(`${window.location.origin}/oauth/callback/github`);
-      window.location.href = `https://github.com/login/oauth/authorize?client_id=${oauthConfig.github_client_id}&redirect_uri=${redirectUri}&scope=user:email`;
-    } else {
-      toast.success('Bypassing credentials check (Developer Fallback Mode)!');
-      navigate('/oauth/callback/github?code=mock_github_code');
-    }
-  };
 
   const [showResend, setShowResend] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -180,21 +146,6 @@ export default function Login() {
             Sign In
           </LoadingButton>
         </form>
-
-        <div style={styles.dividerContainer}>
-          <div style={styles.dividerLine} />
-          <span style={styles.dividerText}>or continue with</span>
-          <div style={styles.dividerLine} />
-        </div>
-
-        <div style={styles.oauthGrid}>
-          <button type="button" onClick={handleGoogleLogin} style={styles.oauthBtn}>
-            <FaGoogle style={{ marginRight: '8px', color: '#EA4335' }} /> Google
-          </button>
-          <button type="button" onClick={handleGithubLogin} style={styles.oauthBtn}>
-            <FaGithub style={{ marginRight: '8px', color: '#F5F5F5' }} /> GitHub
-          </button>
-        </div>
 
         <div style={styles.footer}>
           <p style={styles.footerText}>

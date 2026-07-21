@@ -1,10 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import LoadingButton from '../components/common/LoadingButton';
-import api from '../services/api';
-import { FaGoogle, FaGithub } from 'react-icons/fa';
 
 export default function Signup() {
   const { signup } = useAuth();
@@ -19,39 +17,6 @@ export default function Signup() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [oauthConfig, setOauthConfig] = useState({ google_client_id: '', github_client_id: '' });
-
-  useEffect(() => {
-    async function loadOauthConfig() {
-      try {
-        const res = await api.get('/auth/oauth/config');
-        setOauthConfig(res.data);
-      } catch (err) {
-        console.error('Failed to load OAuth configurations', err);
-      }
-    }
-    loadOauthConfig();
-  }, []);
-
-  const handleGoogleLogin = () => {
-    if (oauthConfig.google_client_id) {
-      const redirectUri = encodeURIComponent(`${window.location.origin}/oauth/callback/google`);
-      window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${oauthConfig.google_client_id}&redirect_uri=${redirectUri}&response_type=code&scope=email%20profile`;
-    } else {
-      toast.success('Bypassing credentials check (Developer Fallback Mode)!');
-      navigate('/oauth/callback/google?code=mock_google_code');
-    }
-  };
-
-  const handleGithubLogin = () => {
-    if (oauthConfig.github_client_id) {
-      const redirectUri = encodeURIComponent(`${window.location.origin}/oauth/callback/github`);
-      window.location.href = `https://github.com/login/oauth/authorize?client_id=${oauthConfig.github_client_id}&redirect_uri=${redirectUri}&scope=user:email`;
-    } else {
-      toast.success('Bypassing credentials check (Developer Fallback Mode)!');
-      navigate('/oauth/callback/github?code=mock_github_code');
-    }
-  };
 
   const validatePassword = (pwd) => {
     return pwd.length >= 6;
@@ -222,21 +187,6 @@ export default function Signup() {
           </LoadingButton>
         </form>
 
-        <div style={styles.dividerContainer}>
-          <div style={styles.dividerLine} />
-          <span style={styles.dividerText}>or continue with</span>
-          <div style={styles.dividerLine} />
-        </div>
-
-        <div style={styles.oauthGrid}>
-          <button type="button" onClick={handleGoogleLogin} style={styles.oauthBtn}>
-            <FaGoogle style={{ marginRight: '8px', color: '#EA4335' }} /> Google
-          </button>
-          <button type="button" onClick={handleGithubLogin} style={styles.oauthBtn}>
-            <FaGithub style={{ marginRight: '8px', color: '#F5F5F5' }} /> GitHub
-          </button>
-        </div>
-
         <div style={styles.footer}>
           <p style={styles.footerText}>
             Already have an account? <Link to="/login" style={styles.link}>Sign In</Link>
@@ -348,13 +298,8 @@ const styles = {
     cursor: 'pointer',
     textAlign: 'center',
   },
-  btnDisabled: {
-    backgroundColor: 'var(--border-primary)',
-    color: 'var(--text-secondary)',
-    cursor: 'not-allowed',
-  },
   footer: {
-    marginTop: '1rem',
+    marginTop: '1.5rem',
     textAlign: 'center',
   },
   footerText: {
@@ -364,43 +309,5 @@ const styles = {
   link: {
     color: 'var(--color-link)',
     fontWeight: 'var(--fw-medium)',
-  },
-  dividerContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: '1.5rem 0',
-    gap: '0.75rem',
-  },
-  dividerLine: {
-    flex: 1,
-    height: '1px',
-    backgroundColor: 'var(--border-primary)',
-  },
-  dividerText: {
-    fontSize: '0.75rem',
-    color: 'var(--text-secondary)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-  },
-  oauthGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '1rem',
-    marginBottom: '1.5rem',
-  },
-  oauthBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    padding: '0.75rem',
-    fontSize: '0.875rem',
-    color: 'var(--text-primary)',
-    fontWeight: 'var(--fw-medium)',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s ease',
   },
 };
