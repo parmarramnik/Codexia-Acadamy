@@ -3,9 +3,9 @@ User Pydantic schemas for request validation and response serialization.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Any
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 import re
 
 
@@ -37,8 +37,19 @@ class UserCreate(UserBase):
 class UserLogin(BaseModel):
     email: Optional[str] = None
     username: Optional[str] = None
-    password: Optional[str] = None
+    password: str
     remember_me: Optional[bool] = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_login_identifier(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            identifier = data.get("email") or data.get("username")
+            if not identifier:
+                raise ValueError("Email or username is required.")
+            data["email"] = identifier
+        return data
+
 
 
 class ResendVerificationRequest(BaseModel):

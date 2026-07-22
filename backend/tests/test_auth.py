@@ -79,7 +79,7 @@ def test_login_success(client):
         "password": "Password123!"
     })
 
-    # Try login
+    # Try login with email
     response = client.post("/api/auth/login", json={
         "email": "tester@test.com",
         "password": "Password123!"
@@ -87,6 +87,25 @@ def test_login_success(client):
     assert response.status_code == 200
     assert "access_token" in response.json()
     assert response.json()["token_type"] == "bearer"
+
+
+def test_login_with_username_success(client):
+    """Test user login using username field in payload."""
+    client.post("/api/auth/signup", json={
+        "email": "tester2@test.com",
+        "username": "tester2",
+        "full_name": "Test User 2",
+        "password": "Password123!"
+    })
+
+    # Try login with username
+    response = client.post("/api/auth/login", json={
+        "username": "tester2",
+        "password": "Password123!"
+    })
+    assert response.status_code == 200
+    assert "access_token" in response.json()
+
 
 
 def test_login_invalid_password(client):

@@ -89,11 +89,11 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.inputGroup}>
-            <label htmlFor="email" style={styles.label}>Email Address</label>
+            <label htmlFor="email" style={styles.label}>Email Address or Username</label>
             <input
               id="email"
-              type="email"
-              placeholder="e.g. name@domain.com"
+              type="text"
+              placeholder="e.g. name@domain.com or username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={styles.input}
