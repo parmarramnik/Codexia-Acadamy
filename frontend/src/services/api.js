@@ -1,9 +1,9 @@
 import axios from 'axios';
 
 let API_URL = import.meta.env.VITE_API_URL;
-if (!API_URL || API_URL.includes('example.com')) {
+if (!API_URL || API_URL.includes('example.com') || API_URL.includes('wvrv')) {
   const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-  API_URL = isLocal ? 'http://localhost:8000/api' : 'https://codexia-backend-wvrv.onrender.com/api';
+  API_URL = isLocal ? 'http://localhost:8000/api' : 'https://codexia-backend-wrvr.onrender.com/api';
 } else if (API_URL.startsWith('http') && !API_URL.endsWith('/api') && !API_URL.endsWith('/api/')) {
   API_URL = API_URL.endsWith('/') ? `${API_URL}api` : `${API_URL}/api`;
 }
