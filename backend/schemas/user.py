@@ -35,8 +35,9 @@ class UserCreate(UserBase):
 
 
 class UserLogin(BaseModel):
-    email: str
-    password: str
+    email: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
     remember_me: Optional[bool] = False
 
 

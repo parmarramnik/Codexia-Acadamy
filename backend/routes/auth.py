@@ -37,12 +37,19 @@ def signup(data: UserCreate, request: Request, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
-def login(data: UserLogin, request: Request, db: Session = Depends(get_db)):
+def login(data: Optional[UserLogin] = None, request: Request = None, db: Session = Depends(get_db)):
     """Authenticate, check verification status, and receive access + refresh tokens."""
+    if not data or not (data.email or data.username) or not data.password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please enter both email/username and password."
+        )
+
+    user_identifier = (data.email or data.username).strip()
     try:
-        ip = request.client.host if request.client else None
-        user_agent = request.headers.get("user-agent")
-        result = auth_service.login_user(db, data.email, data.password, data.remember_me, ip, user_agent)
+        ip = request.client.host if request and request.client else None
+        user_agent = request.headers.get("user-agent") if request else None
+        result = auth_service.login_user(db, user_identifier, data.password, data.remember_me, ip, user_agent)
         
         user = result["user"]
         is_smoke = user.username.startswith("smoke") or "smoke" in user.email or user.username.startswith("tester") or "test.com" in user.email
@@ -53,7 +60,7 @@ def login(data: UserLogin, request: Request, db: Session = Depends(get_db)):
         log_security_event(db, user_id, "login_success", f"User: {user.username}", request=request)
         return result
     except ValueError as e:
-        log_security_event(db, None, "login_failed", f"Email: {data.email}, Error: {str(e)}", request=request)
+        log_security_event(db, None, "login_failed", f"User: {user_identifier}, Error: {str(e)}", request=request)
         status_code = status.HTTP_401_UNAUTHORIZED if "Invalid email or password" in str(e) else status.HTTP_400_BAD_REQUEST
         raise HTTPException(
             status_code=status_code,
