@@ -124,3 +124,57 @@ def test_login_invalid_password(client):
     })
     assert response.status_code == 401
     assert "detail" in response.json()
+
+
+def test_failed_login_lockout(db_session):
+    """Verify account lockout after multiple failed login attempts."""
+    from services.auth_service import authenticate_user
+    from services.session_service import record_login_attempt
+    from services.user_service import create_user
+    from schemas.user import UserCreate
+
+    test_email = "lockout_test@example.com"
+    user_data = UserCreate(
+        email=test_email,
+        username="lockout_test",
+        full_name="Lockout Test User",
+        password="Password123!",
+        role="student",
+    )
+    user = create_user(db_session, user_data)
+    assert authenticate_user(db_session, test_email, "Password123!") is not None
+
+    for _ in range(5):
+        record_login_attempt(db_session, test_email, "failed", "127.0.0.1", "TestBot", "Wrong password")
+
+    db_session.refresh(user)
+    assert user.failed_login_attempts == 5
+    assert user.lockout_until is not None
+
+    with pytest.raises(ValueError, match="Account locked out"):
+        authenticate_user(db_session, test_email, "Password123!")
+
+
+def test_session_rotation(db_session):
+    """Verify session tracking upon login."""
+    from services.auth_service import login_user
+    from services.session_service import get_active_sessions
+    from services.user_service import create_user
+    from schemas.user import UserCreate
+
+    test_email = "session_test@example.com"
+    user_data = UserCreate(
+        email=test_email,
+        username="session_test",
+        full_name="Session Test User",
+        password="Password123!",
+        role="student",
+    )
+    user = create_user(db_session, user_data)
+    login_user(db_session, test_email, "Password123!", remember_me=True, ip_address="192.168.1.5", user_agent="Firefox")
+
+    sessions = get_active_sessions(db_session, user.id)
+    assert len(sessions) == 1
+    assert sessions[0].ip_address == "192.168.1.5"
+    assert sessions[0].user_agent == "Firefox"
+

@@ -32,9 +32,12 @@ __pycache__/
 .pytest_cache/
 .cache/
 
-# User Upload Assets
+# User Upload Assets & Temp Scratch
 backend/static/
 !backend/static/.gitkeep
+scratch/
+.scratch/
+*.log
 
 # IDEs & System Files
 .vscode/
@@ -46,3 +49,4 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
