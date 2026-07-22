@@ -11,15 +11,29 @@ import re
 
 class UserBase(BaseModel):
     email: EmailStr
-    username: str = Field(..., min_length=3, max_length=100)
-    full_name: str = Field(..., min_length=2, max_length=200)
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def populate_user_defaults(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            email = str(data.get("email", "")).strip()
+            prefix = email.split("@")[0] if "@" in email else email
+            clean_username = re.sub(r"[^a-zA-Z0-9_-]", "", prefix) or "user"
+
+            if not data.get("username"):
+                data["username"] = clean_username
+            if not data.get("full_name"):
+                data["full_name"] = data.get("username") or clean_username
+        return data
 
     @field_validator("username")
     @classmethod
-    def validate_username(cls, value: str) -> str:
-        if not re.match(r"^[a-zA-Z0-9_-]+$", value):
-            raise ValueError("Username can only contain letters, numbers, underscores, and hyphens")
-        return value.lower()
+    def validate_username(cls, value: Optional[str]) -> str:
+        val = (value or "user").strip()
+        cleaned = re.sub(r"[^a-zA-Z0-9_-]", "", val) or "user"
+        return cleaned.lower()
 
 
 class UserCreate(UserBase):

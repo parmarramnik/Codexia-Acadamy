@@ -67,6 +67,12 @@ def create_app() -> FastAPI:
             "version": settings.APP_VERSION,
         }
 
+    # Explicit OpenAPI spec endpoint
+    from fastapi.responses import JSONResponse
+    @app.get("/api/openapi.json", include_in_schema=False)
+    def get_openapi_spec():
+        return JSONResponse(content=app.openapi())
+
     return app
 
 

@@ -69,6 +69,18 @@ def test_signup_success(client):
     assert "id" in response.json()
 
 
+def test_signup_without_username_and_fullname(client):
+    """Test signup with only email and password (omitting username & full_name)."""
+    response = client.post("/api/auth/signup", json={
+        "email": "23bce212@nirmauni.ac.in",
+        "password": "Password123!"
+    })
+    assert response.status_code == 201
+    assert response.json()["email"] == "23bce212@nirmauni.ac.in"
+    assert response.json()["username"] == "23bce212"
+
+
+
 def test_login_success(client):
     """Test user login and token generation."""
     # First sign up
