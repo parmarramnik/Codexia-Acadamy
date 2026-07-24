@@ -24,7 +24,7 @@ router = APIRouter()
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
-def signup(data: UserCreate, request: Request, db: Session = Depends(get_db)):
+def signup(request: Request, data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user account."""
     try:
         user = auth_service.signup_user(db, data)
@@ -37,7 +37,7 @@ def signup(data: UserCreate, request: Request, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
-def login(data: UserLogin, request: Request, db: Session = Depends(get_db)):
+def login(request: Request, data: UserLogin, db: Session = Depends(get_db)):
     """Authenticate, check verification status, and receive access + refresh tokens."""
     try:
         ip = request.client.host if (request and request.client) else None
@@ -149,7 +149,7 @@ def verify_email(token: str, request: Request, db: Session = Depends(get_db)):
 
 @router.post("/resend-verification", response_model=MessageResponse)
 @limiter.limit("3/minute")
-def resend_verification(data: ResendVerificationRequest, request: Request, db: Session = Depends(get_db)):
+def resend_verification(request: Request, data: ResendVerificationRequest, db: Session = Depends(get_db)):
     """Resend signup verification link with cooldown rate limiting (60s)."""
     import secrets
     from datetime import datetime, timezone, timedelta
