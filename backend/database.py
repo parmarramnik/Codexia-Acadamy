@@ -66,5 +66,9 @@ def create_tables():
             with engine.begin() as conn:
                 if "last_verification_sent_at" not in user_columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN last_verification_sent_at TIMESTAMP"))
+                if "verification_otp" not in user_columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN verification_otp VARCHAR(6)"))
+                if "verification_otp_expires" not in user_columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN verification_otp_expires TIMESTAMP WITH TIME ZONE"))
     except Exception as e:
-        print(f"[Migration Warning] Failed to dynamically migrate table 'notes': {str(e)}")
+        print(f"[Migration Warning] Dynamic schema migration failed: {str(e)}")
