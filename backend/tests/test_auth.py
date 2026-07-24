@@ -56,6 +56,14 @@ def client(db_session):
     app.dependency_overrides.clear()
 
 
+def _verify_user(db_session, email: str):
+    """Helper: mark a test user as verified so login tests pass the verification gate."""
+    user = db_session.query(User).filter(User.email == email).first()
+    if user:
+        user.is_verified = True
+        db_session.commit()
+
+
 def test_signup_success(client):
     """Test user signup endpoint."""
     response = client.post("/api/auth/signup", json={
@@ -81,7 +89,7 @@ def test_signup_without_username_and_fullname(client):
 
 
 
-def test_login_success(client):
+def test_login_success(client, db_session):
     """Test user login and token generation."""
     # First sign up
     client.post("/api/auth/signup", json={
@@ -90,6 +98,7 @@ def test_login_success(client):
         "full_name": "Test User",
         "password": "Password123!"
     })
+    _verify_user(db_session, "tester@test.com")
 
     # Try login with email
     response = client.post("/api/auth/login", json={
@@ -101,7 +110,7 @@ def test_login_success(client):
     assert response.json()["token_type"] == "bearer"
 
 
-def test_login_with_username_success(client):
+def test_login_with_username_success(client, db_session):
     """Test user login using username field in payload."""
     client.post("/api/auth/signup", json={
         "email": "tester2@test.com",
@@ -109,6 +118,7 @@ def test_login_with_username_success(client):
         "full_name": "Test User 2",
         "password": "Password123!"
     })
+    _verify_user(db_session, "tester2@test.com")
 
     # Try login with username
     response = client.post("/api/auth/login", json={
@@ -120,7 +130,7 @@ def test_login_with_username_success(client):
 
 
 
-def test_login_invalid_password(client):
+def test_login_invalid_password(client, db_session):
     """Test login failure with invalid password."""
     client.post("/api/auth/signup", json={
         "email": "tester@test.com",
@@ -128,6 +138,7 @@ def test_login_invalid_password(client):
         "full_name": "Test User",
         "password": "Password123!"
     })
+    _verify_user(db_session, "tester@test.com")
 
     # Expected response from the Value/Error handling triggers 401
     response = client.post("/api/auth/login", json={

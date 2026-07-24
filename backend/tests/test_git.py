@@ -54,7 +54,7 @@ def client(db_session):
 
 
 @pytest.fixture(scope="function")
-def auth_headers(client):
+def auth_headers(client, db_session):
     email = "git_tester_fixed@test.com"
     username = "git_tester_fixed"
 
@@ -65,6 +65,12 @@ def auth_headers(client):
         "full_name": "Git Tester",
         "password": "Password123!"
     })
+
+    # Verify the user so login passes the email verification gate
+    user = db_session.query(User).filter(User.email == email).first()
+    if user and not user.is_verified:
+        user.is_verified = True
+        db_session.commit()
 
     login_res = client.post("/api/auth/login", json={
         "email": email,

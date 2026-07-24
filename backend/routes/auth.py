@@ -44,10 +44,8 @@ def login(request: Request, data: UserLogin = Body(...), db: Session = Depends(g
         result = auth_service.login_user(db, data.email, data.password, data.remember_me, ip, user_agent)
         
         user = result["user"]
-        # Auto-verify any legacy unverified users on successful login
         if not user.is_verified:
-            user.is_verified = True
-            db.commit()
+            raise ValueError("Your email address is not verified. Please check your inbox for the verification link.")
 
         user_id = user.id
         log_security_event(db, user_id, "login_success", f"User: {user.username}", request=request)

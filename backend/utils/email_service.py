@@ -62,7 +62,7 @@ def send_email(subject: str, recipient: str, body_html: str, body_text: str):
         print(f"Subject: {subject}")
         print(f"Content: {body_text}")
         print("="*60 + "\n")
-        return True
+        return False
 
 def send_verification_email(email: str, token: str):
     """Send signup verification link."""
