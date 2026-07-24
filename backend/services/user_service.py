@@ -54,7 +54,7 @@ def create_user(db: Session, user_data: UserCreate) -> User:
         password_hash=hash_password(user_data.password),
         role=assigned_role,
         is_active=True,
-        is_verified=False,
+        is_verified=True,
         verification_token=secrets.token_urlsafe(32),
     )
     db.add(user)
