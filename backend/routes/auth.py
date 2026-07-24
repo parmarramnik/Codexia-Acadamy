@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Authentication routes — signup, login, logout, password reset, email verification, token refresh.
 """
