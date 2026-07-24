@@ -3,7 +3,10 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
-import { FiCheckCircle, FiShield, FiRotateCw, FiArrowLeft } from 'react-icons/fi';
+import { FiCheckCircle, FiShield, FiRotateCw, FiArrowLeft, FiAlertTriangle } from 'react-icons/fi';
+
+const ADMIN_EMAIL = 'parmarramnik408@gmail.com';
+const INSTRUCTOR_EMAIL = '23bce212@nirmauni.ac.in';
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
@@ -11,6 +14,7 @@ export default function VerifyEmail() {
   const { loginWithTokens } = useAuth();
 
   const initialEmail = searchParams.get('email') || '';
+  const initialRole = searchParams.get('role') || 'student';
   const [email, setEmail] = useState(initialEmail);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [countdown, setCountdown] = useState(60);
@@ -23,6 +27,18 @@ export default function VerifyEmail() {
     useRef(null), useRef(null), useRef(null)
   ];
 
+  // Determine if this is a role-approval flow (OTP sent to admin/instructor, not user)
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanRole = initialRole.trim().toLowerCase();
+  const isRoleApproval =
+    (cleanRole === 'admin' || cleanRole === 'super_admin' || cleanRole === 'instructor') &&
+    cleanEmail !== ADMIN_EMAIL.toLowerCase() &&
+    cleanEmail !== INSTRUCTOR_EMAIL.toLowerCase();
+
+  const approvalTarget =
+    (cleanRole === 'admin' || cleanRole === 'super_admin') ? ADMIN_EMAIL :
+    cleanRole === 'instructor' ? INSTRUCTOR_EMAIL : null;
+
   // 60-Second Real-Time Countdown Timer
   useEffect(() => {
     if (countdown <= 0) return;
@@ -34,7 +50,6 @@ export default function VerifyEmail() {
 
   // Handle Digit Typing
   const handleDigitChange = (index, value) => {
-    // Only accept numeric digits
     const cleaned = value.replace(/[^0-9]/g, '');
     if (!cleaned) {
       const updated = [...otp];
@@ -48,7 +63,6 @@ export default function VerifyEmail() {
     updated[index] = digit;
     setOtp(updated);
 
-    // Auto-focus next input box
     if (index < 5 && digit) {
       inputRefs[index + 1].current?.focus();
     }
@@ -173,10 +187,30 @@ export default function VerifyEmail() {
                 <FiShield size={24} style={styles.badgeIcon} />
               </div>
               <h2 style={styles.title}>Verify Your Email</h2>
-              <p style={styles.desc}>
-                We sent a 6-digit OTP verification code to{' '}
-                <strong style={styles.emailHighlight}>{email || 'your email'}</strong>.
-              </p>
+
+              {isRoleApproval ? (
+                <div style={styles.roleApprovalNotice}>
+                  <FiAlertTriangle size={18} style={{ color: '#FF9800', flexShrink: 0 }} />
+                  <div>
+                    <p style={{ ...styles.desc, color: '#FFB74D', fontWeight: '600', margin: '0 0 4px 0' }}>
+                      {cleanRole.toUpperCase()} Access Requires Approval
+                    </p>
+                    <p style={{ ...styles.desc, fontSize: '0.82rem', margin: 0 }}>
+                      The 6-digit OTP has been sent to the official{' '}
+                      <strong style={{ color: '#FF9800' }}>
+                        {cleanRole === 'instructor' ? 'Instructor' : 'Admin'}
+                      </strong>{' '}
+                      email (<strong style={{ color: '#FFFFFF' }}>{approvalTarget}</strong>).
+                      Please contact them to get your verification code.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p style={styles.desc}>
+                  We sent a 6-digit OTP verification code to{' '}
+                  <strong style={styles.emailHighlight}>{email || 'your email'}</strong>.
+                </p>
+              )}
             </div>
 
             {!initialEmail && (
@@ -274,7 +308,7 @@ const styles = {
   },
   glassCard: {
     width: '100%',
-    maxWidth: '460px',
+    maxWidth: '480px',
     backgroundColor: 'rgba(28, 28, 30, 0.75)',
     backdropFilter: 'blur(20px)',
     border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -324,6 +358,17 @@ const styles = {
   emailHighlight: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  roleApprovalNotice: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '12px',
+    backgroundColor: 'rgba(255, 152, 0, 0.08)',
+    border: '1px solid rgba(255, 152, 0, 0.2)',
+    borderRadius: '12px',
+    padding: '14px 16px',
+    textAlign: 'left',
+    marginTop: '4px',
   },
   inputWrapper: {
     display: 'flex',

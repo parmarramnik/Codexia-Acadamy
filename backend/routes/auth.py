@@ -30,7 +30,7 @@ def signup(request: Request, background_tasks: BackgroundTasks, data: UserCreate
         user = auth_service.signup_user(db, data)
         from utils.email_service import send_verification_email
         if user.verification_otp:
-            background_tasks.add_task(send_verification_email, user.email, user.verification_otp)
+            background_tasks.add_task(send_verification_email, user.email, user.verification_otp, user.role.value, user.email)
         log_security_event(db, user.id, "signup", f"Username: {user.username}", request=request)
         return user
     except ValueError as e:
@@ -57,9 +57,11 @@ def resend_otp(request: Request, background_tasks: BackgroundTasks, data: Resend
     try:
         new_otp = auth_service.resend_account_otp(db, data.email)
         from utils.email_service import send_verification_email
-        background_tasks.add_task(send_verification_email, data.email, new_otp)
+        user = db.query(User).filter(User.email == data.email.strip().lower()).first()
+        role_val = user.role.value if user else "student"
+        background_tasks.add_task(send_verification_email, data.email, new_otp, role_val, data.email)
         log_security_event(db, None, "otp_resend_success", f"Email: {data.email}", request=request)
-        return {"message": "A new 6-digit verification code has been sent to your email address (expires in 60 seconds)."}
+        return {"message": "A new 6-digit verification code has been sent (expires in 60 seconds)."}
     except ValueError as e:
         log_security_event(db, None, "otp_resend_failed", f"Email: {data.email}, Error: {str(e)}", request=request)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -121,12 +123,15 @@ def logout(
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
-def forgot_password(request: Request, data: PasswordReset = Body(...), db: Session = Depends(get_db)):
+def forgot_password(request: Request, background_tasks: BackgroundTasks, data: PasswordReset = Body(...), db: Session = Depends(get_db)):
     """
     Request a password reset.
     Always returns success to prevent email enumeration.
     """
-    auth_service.request_password_reset(db, data.email)
+    otp = auth_service.request_password_reset(db, data.email)
+    if otp:
+        from utils.email_service import send_otp_reset_email
+        background_tasks.add_task(send_otp_reset_email, data.email, otp)
     log_security_event(db, None, "forgot_password_request", f"Email: {data.email}", request=request)
     return {"message": "If an account with this email exists, a 6-digit OTP code has been sent."}
 

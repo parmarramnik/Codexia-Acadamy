@@ -213,8 +213,6 @@ def request_password_reset(db: Session, email: str) -> Optional[str]:
     user.reset_token_expires = datetime.now(timezone.utc) + timedelta(minutes=15)
     db.commit()
 
-    from utils.email_service import send_otp_reset_email
-    send_otp_reset_email(user.email, otp)
     return otp
 
 

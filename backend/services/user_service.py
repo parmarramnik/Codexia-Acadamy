@@ -37,14 +37,20 @@ def create_user(db: Session, user_data: UserCreate) -> User:
     if get_user_by_username(db, user_data.username):
         raise ValueError("This username is already taken")
 
-    # Set user role based on input
-    assigned_role = UserRole.STUDENT
-    if user_data.role == "instructor":
+    # Set user role based on input and email enforcement
+    clean_email = user_data.email.strip().lower()
+    if clean_email == "parmarramnik408@gmail.com":
+        assigned_role = UserRole.ADMIN
+    elif clean_email == "23bce212@nirmauni.ac.in":
+        assigned_role = UserRole.INSTRUCTOR
+    elif user_data.role == "instructor":
         assigned_role = UserRole.INSTRUCTOR
     elif user_data.role == "admin":
         assigned_role = UserRole.ADMIN
     elif user_data.role == "super_admin":
         assigned_role = UserRole.SUPER_ADMIN
+    else:
+        assigned_role = UserRole.STUDENT
 
     import secrets
     from datetime import datetime, timezone, timedelta
