@@ -75,6 +75,7 @@ function App() {
         <Route path="/verify/:uid" element={<VerifyCertificate />} />
         <Route path="/verify-public/:uid" element={<VerifyCertificatePublic />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/verify-otp" element={<VerifyEmail />} />
 
         {/* Protected routes with dashboard layout */}
         <Route element={<ProtectedRoute />}>

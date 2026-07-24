@@ -84,11 +84,69 @@ def login_user(
 
 
 def signup_user(db: Session, user_data: UserCreate) -> User:
-    """Register a new user and trigger verification email."""
+    """Register a new user and create initial OTP."""
     user = create_user(db, user_data)
-    from utils.email_service import send_verification_email
-    send_verification_email(user.email, user.verification_token)
     return user
+
+
+def verify_account_otp(db: Session, email: str, otp: str) -> dict:
+    """Verify 6-digit OTP for user account activation within 60 seconds."""
+    from datetime import datetime, timezone
+    email_clean = email.strip().lower()
+    user = db.query(User).filter(User.email == email_clean).first()
+    if not user:
+        raise ValueError("No account found with this email address.")
+
+    if user.is_verified:
+        # Already verified, return login tokens directly
+        access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "user": user}
+
+    if not user.verification_otp or user.verification_otp.strip() != otp.strip():
+        raise ValueError("Invalid verification OTP code. Please check the code sent to your email.")
+
+    if user.verification_otp_expires:
+        expires = user.verification_otp_expires
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) > expires:
+            raise ValueError("Verification OTP code has expired (60s limit). Please click 'Resend OTP' for a new code.")
+
+    # Verification successful
+    user.is_verified = True
+    user.verification_otp = None
+    user.verification_otp_expires = None
+    db.commit()
+
+    access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
+    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": user,
+    }
+
+
+def resend_account_otp(db: Session, email: str) -> str:
+    """Generate a new 6-digit OTP expiring in 60s for the given email."""
+    import secrets
+    from datetime import datetime, timezone, timedelta
+    email_clean = email.strip().lower()
+    user = db.query(User).filter(User.email == email_clean).first()
+    if not user:
+        raise ValueError("No account found with this email address.")
+
+    if user.is_verified:
+        raise ValueError("This account is already verified. Please log in directly.")
+
+    new_otp = f"{secrets.randbelow(1000000):06d}"
+    user.verification_otp = new_otp
+    user.verification_otp_expires = datetime.now(timezone.utc) + timedelta(seconds=60)
+    user.last_verification_sent_at = datetime.now(timezone.utc)
+    db.commit()
+    return new_otp
 
 
 def refresh_access_token(

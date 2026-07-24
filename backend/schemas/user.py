@@ -70,6 +70,15 @@ class ResendVerificationRequest(BaseModel):
     email: EmailStr
 
 
+class VerifyOTPRequest(BaseModel):
+    email: EmailStr
+    otp: str = Field(..., min_length=6, max_length=6)
+
+
+class ResendOTPRequest(BaseModel):
+    email: EmailStr
+
+
 class UserUpdate(BaseModel):
     full_name: Optional[str] = Field(None, min_length=2, max_length=200)
     bio: Optional[str] = Field(None, max_length=1000)

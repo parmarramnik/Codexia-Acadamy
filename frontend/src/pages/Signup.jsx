@@ -54,8 +54,8 @@ export default function Signup() {
         password,
         role,
       });
-      toast.success('Account created successfully! Please verify your email and sign in.');
-      navigate('/login');
+      toast.success('Account created! Please enter the 6-digit OTP code sent to your email.');
+      navigate(`/verify-otp?email=${encodeURIComponent(email)}`);
     } catch (err) {
       let errorMsg = 'Registration failed';
       const detail = err.response?.data?.detail;

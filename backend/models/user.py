@@ -35,6 +35,8 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     is_verified = Column(Boolean, default=False, nullable=False)
     verification_token = Column(String(255), nullable=True)
+    verification_otp = Column(String(6), nullable=True, index=True)
+    verification_otp_expires = Column(DateTime, nullable=True)
     last_verification_sent_at = Column(DateTime, nullable=True)
     reset_token = Column(String(255), nullable=True)
     reset_token_expires = Column(DateTime, nullable=True)

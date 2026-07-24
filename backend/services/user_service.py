@@ -47,6 +47,8 @@ def create_user(db: Session, user_data: UserCreate) -> User:
         assigned_role = UserRole.SUPER_ADMIN
 
     import secrets
+    from datetime import datetime, timezone, timedelta
+    otp = f"{secrets.randbelow(1000000):06d}"
     user = User(
         email=user_data.email,
         username=user_data.username,
@@ -55,7 +57,9 @@ def create_user(db: Session, user_data: UserCreate) -> User:
         role=assigned_role,
         is_active=True,
         is_verified=False,
-        verification_token=secrets.token_urlsafe(32),
+        verification_otp=otp,
+        verification_otp_expires=datetime.now(timezone.utc) + timedelta(seconds=60),
+        last_verification_sent_at=datetime.now(timezone.utc),
     )
     db.add(user)
     db.commit()

@@ -3,7 +3,7 @@ Authentication routes — signup, login, logout, password reset, email verificat
 """
 
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Body, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -13,6 +13,7 @@ from schemas.user import (
     UserCreate, UserLogin, UserResponse, TokenResponse,
     RefreshTokenRequest, LogoutRequest, PasswordReset, PasswordResetConfirm,
     ChangePassword, MessageResponse, ResendVerificationRequest,
+    VerifyOTPRequest, ResendOTPRequest
 )
 from services import auth_service
 from services.audit_service import log_security_event
@@ -23,14 +24,44 @@ router = APIRouter()
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
-def signup(request: Request, data: UserCreate = Body(...), db: Session = Depends(get_db)):
-    """Register a new user account."""
+def signup(request: Request, background_tasks: BackgroundTasks, data: UserCreate = Body(...), db: Session = Depends(get_db)):
+    """Register a new user account and trigger 6-digit OTP verification email."""
     try:
         user = auth_service.signup_user(db, data)
+        from utils.email_service import send_verification_email
+        if user.verification_otp:
+            background_tasks.add_task(send_verification_email, user.email, user.verification_otp)
         log_security_event(db, user.id, "signup", f"Username: {user.username}", request=request)
         return user
     except ValueError as e:
         log_security_event(db, None, "signup_failed", f"Email: {data.email}, Error: {str(e)}", request=request)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/verify-otp", response_model=TokenResponse)
+def verify_otp(request: Request, data: VerifyOTPRequest = Body(...), db: Session = Depends(get_db)):
+    """Verify 6-digit OTP code for user account activation within 60 seconds."""
+    try:
+        result = auth_service.verify_account_otp(db, data.email, data.otp)
+        log_security_event(db, result["user"].id, "otp_verification_success", f"Email: {data.email}", request=request)
+        return result
+    except ValueError as e:
+        log_security_event(db, None, "otp_verification_failed", f"Email: {data.email}, Error: {str(e)}", request=request)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/resend-otp", response_model=MessageResponse)
+@limiter.limit("3/minute")
+def resend_otp(request: Request, background_tasks: BackgroundTasks, data: ResendOTPRequest = Body(...), db: Session = Depends(get_db)):
+    """Resend 6-digit OTP code for account verification (expires in 60s)."""
+    try:
+        new_otp = auth_service.resend_account_otp(db, data.email)
+        from utils.email_service import send_verification_email
+        background_tasks.add_task(send_verification_email, data.email, new_otp)
+        log_security_event(db, None, "otp_resend_success", f"Email: {data.email}", request=request)
+        return {"message": "A new 6-digit verification code has been sent to your email address (expires in 60 seconds)."}
+    except ValueError as e:
+        log_security_event(db, None, "otp_resend_failed", f"Email: {data.email}, Error: {str(e)}", request=request)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
@@ -45,7 +76,7 @@ def login(request: Request, data: UserLogin = Body(...), db: Session = Depends(g
         
         user = result["user"]
         if not user.is_verified:
-            raise ValueError("Your email address is not verified. Please check your inbox for the verification link.")
+            raise ValueError("Your account is not verified. Please enter the 6-digit OTP code sent to your email address.")
 
         user_id = user.id
         log_security_event(db, user_id, "login_success", f"User: {user.username}", request=request)

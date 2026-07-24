@@ -17,21 +17,12 @@ export default function Login() {
   const [showResend, setShowResend] = useState(false);
   const [isResending, setIsResending] = useState(false);
 
-  const handleResendVerification = async () => {
+  const handleResendVerification = () => {
     if (!email) {
       toast.error('Please enter your email address first.');
       return;
     }
-    setIsResending(true);
-    try {
-      await api.post('/auth/resend-verification', { email });
-      toast.success('Verification link has been resent to your inbox!');
-      setShowResend(false);
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to resend verification link.');
-    } finally {
-      setIsResending(false);
-    }
+    navigate(`/verify-otp?email=${encodeURIComponent(email)}`);
   };
 
   const handleSubmit = async (e) => {
@@ -75,14 +66,13 @@ export default function Login() {
 
         {showResend && (
           <div style={styles.resendContainer}>
-            <p style={styles.resendText}>Your email address is not verified.</p>
+            <p style={styles.resendText}>Your account is not verified yet.</p>
             <button
               type="button"
               onClick={handleResendVerification}
-              disabled={isResending}
               style={styles.resendBtn}
             >
-              {isResending ? 'Resending...' : 'Resend Verification Email'}
+              Enter 6-Digit OTP Code
             </button>
           </div>
         )}

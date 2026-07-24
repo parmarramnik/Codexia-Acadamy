@@ -64,33 +64,34 @@ def send_email(subject: str, recipient: str, body_html: str, body_text: str):
         print("="*60 + "\n")
         return False
 
-def send_verification_email(email: str, token: str):
-    """Send signup verification link."""
-    verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
-    subject = "Verify Your Account - Codexia Academy"
+def send_verification_email(email: str, otp: str):
+    """Send 6-digit numeric OTP code for signup verification."""
+    subject = "Your Account Verification Code - Codexia Academy"
     
     body_text = (
         f"Welcome to Codexia Academy!\n\n"
-        f"Please verify your account by visiting the following link:\n"
-        f"{verify_url}\n\n"
-        f"If you did not sign up for this account, please ignore this email."
+        f"Your 6-digit account verification code is:\n"
+        f"{otp}\n\n"
+        f"This code will expire in 60 seconds. Please enter it on the verification page to complete your signup."
     )
     
     body_html = f"""
     <html>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
         <h2 style="color: #ff9800; text-align: center;">Welcome to Codexia Academy!</h2>
-        <p>Thank you for signing up. Please verify your email address to unlock your coding learning workspace.</p>
+        <p>Thank you for signing up. Use the 6-digit verification code below to activate your account:</p>
         <div style="text-align: center; margin: 30px 0;">
-          <a href="{verify_url}" style="background-color: #ff9800; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">Verify Email Address</a>
+          <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #ff9800; background-color: #f5f5f5; padding: 12px 24px; border-radius: 6px; border: 2px dashed #ff9800; display: inline-block;">{otp}</span>
         </div>
-        <p style="font-size: 0.85em; color: #666666;">Or copy and paste this link into your browser: <br/> {verify_url}</p>
+        <p style="font-size: 0.9em; color: #e53935; text-align: center; font-weight: bold;">⏰ Note: This verification code expires in 60 seconds.</p>
         <hr style="border: 0; border-top: 1px solid #e0e0e0; margin: 20px 0;"/>
         <p style="font-size: 0.8em; color: #999999; text-align: center;">Codexia Academy LMS Platform &copy; 2026</p>
       </body>
     </html>
     """
     return send_email(subject, email, body_html, body_text)
+
+send_verification_otp = send_verification_email
 
 def send_otp_reset_email(email: str, otp: str):
     """Send 6-digit numeric OTP code for password reset."""
