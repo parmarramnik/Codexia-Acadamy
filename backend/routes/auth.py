@@ -4,7 +4,8 @@ from __future__ import annotations
 Authentication routes — signup, login, logout, password reset, email verification, token refresh.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -24,7 +25,7 @@ router = APIRouter()
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
-def signup(request: Request, data: UserCreate, db: Session = Depends(get_db)):
+def signup(request: Request, data: UserCreate = Body(...), db: Session = Depends(get_db)):
     """Register a new user account."""
     try:
         user = auth_service.signup_user(db, data)
@@ -37,7 +38,7 @@ def signup(request: Request, data: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
-def login(request: Request, data: UserLogin, db: Session = Depends(get_db)):
+def login(request: Request, data: UserLogin = Body(...), db: Session = Depends(get_db)):
     """Authenticate, check verification status, and receive access + refresh tokens."""
     try:
         ip = request.client.host if (request and request.client) else None
@@ -62,7 +63,7 @@ def login(request: Request, data: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.post("/refresh")
-def refresh_token(data: RefreshTokenRequest, request: Request, db: Session = Depends(get_db)):
+def refresh_token(request: Request, data: RefreshTokenRequest = Body(...), db: Session = Depends(get_db)):
     """Refresh an access token using a valid refresh token with Token Rotation (RTR)."""
     try:
         ip = request.client.host if request.client else None
@@ -80,7 +81,7 @@ def refresh_token(data: RefreshTokenRequest, request: Request, db: Session = Dep
 @router.post("/logout", response_model=MessageResponse)
 def logout(
     request: Request,
-    data: LogoutRequest = None,
+    data: Optional[LogoutRequest] = Body(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -92,7 +93,7 @@ def logout(
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
-def forgot_password(data: PasswordReset, request: Request, db: Session = Depends(get_db)):
+def forgot_password(request: Request, data: PasswordReset = Body(...), db: Session = Depends(get_db)):
     """
     Request a password reset.
     Always returns success to prevent email enumeration.
@@ -103,7 +104,7 @@ def forgot_password(data: PasswordReset, request: Request, db: Session = Depends
 
 
 @router.post("/reset-password", response_model=MessageResponse)
-def reset_password(data: PasswordResetConfirm, request: Request, db: Session = Depends(get_db)):
+def reset_password(request: Request, data: PasswordResetConfirm = Body(...), db: Session = Depends(get_db)):
     """Reset password using email and 6-digit OTP code."""
     try:
         auth_service.reset_password(db, data.email, data.otp, data.new_password)
@@ -114,11 +115,10 @@ def reset_password(data: PasswordResetConfirm, request: Request, db: Session = D
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-
 @router.post("/change-password", response_model=MessageResponse)
 def change_password(
-    data: ChangePassword,
     request: Request,
+    data: ChangePassword = Body(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -149,7 +149,7 @@ def verify_email(token: str, request: Request, db: Session = Depends(get_db)):
 
 @router.post("/resend-verification", response_model=MessageResponse)
 @limiter.limit("3/minute")
-def resend_verification(request: Request, data: ResendVerificationRequest, db: Session = Depends(get_db)):
+def resend_verification(request: Request, data: ResendVerificationRequest = Body(...), db: Session = Depends(get_db)):
     """Resend signup verification link with cooldown rate limiting (60s)."""
     import secrets
     from datetime import datetime, timezone, timedelta
