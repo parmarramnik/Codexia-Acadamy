@@ -1,11 +1,11 @@
 import { useAuth } from '../../context/AuthContext';
-import { FiBell, FiLogOut, FiSearch } from 'react-icons/fi';
+import { FiBell, FiLogOut, FiSearch, FiMenu } from 'react-icons/fi';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import './DashboardNavbar.css';
 
-export default function DashboardNavbar() {
+export default function DashboardNavbar({ onToggleSidebar }) {
   const { user, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -42,59 +42,65 @@ export default function DashboardNavbar() {
   return (
     <header className="dashboard-navbar" id="dashboard-navbar">
       <div className="dashboard-navbar-inner">
-        <div className="dashboard-search" style={{ position: 'relative' }}>
-          <FiSearch className="search-icon" />
-          <input
-            type="text"
-            className="form-input search-input"
-            placeholder="Search courses, notes, problems..."
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            onFocus={() => setShowDropdown(suggestions.length > 0)}
-            onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-          />
-          {showDropdown && (
-            <div style={{
-              position: 'absolute',
-              top: '45px',
-              left: 0,
-              width: '100%',
-              backgroundColor: 'var(--bg-card)',
-              border: '1px solid var(--border-primary)',
-              borderRadius: 'var(--radius-sm)',
-              boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
-              zIndex: 1000,
-              maxHeight: '240px',
-              overflowY: 'auto'
-            }}>
-              {suggestions.map((s, idx) => (
-                <div 
-                  key={idx}
-                  onClick={() => {
-                    navigate(s.path);
-                    setSearchQuery('');
-                    setSuggestions([]);
-                    setShowDropdown(false);
-                  }}
-                  style={{
-                    padding: '0.75rem 1rem',
-                    borderBottom: '1px solid var(--border-primary)',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    color: 'var(--text-primary)',
-                    textAlign: 'left'
-                  }}
-                  onMouseDown={(e) => e.preventDefault()}
-                >
-                  <span>{s.label}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', textTransform: 'uppercase' }}>{s.type}</span>
-                </div>
-              ))}
-            </div>
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, maxWidth: '450px' }}>
+          <button className="sidebar-toggle-btn" onClick={onToggleSidebar} aria-label="Toggle Sidebar">
+            <FiMenu size={20} />
+          </button>
+          
+          <div className="dashboard-search" style={{ position: 'relative', width: '100%' }}>
+            <FiSearch className="search-icon" />
+            <input
+              type="text"
+              className="form-input search-input"
+              placeholder="Search courses, problems..."
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              onFocus={() => setShowDropdown(suggestions.length > 0)}
+              onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+            />
+            {showDropdown && (
+              <div style={{
+                position: 'absolute',
+                top: '45px',
+                left: 0,
+                width: '100%',
+                backgroundColor: 'var(--bg-card)',
+                border: '1px solid var(--border-primary)',
+                borderRadius: 'var(--radius-sm)',
+                boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
+                zIndex: 1000,
+                maxHeight: '240px',
+                overflowY: 'auto'
+              }}>
+                {suggestions.map((s, idx) => (
+                  <div 
+                    key={idx}
+                    onClick={() => {
+                      navigate(s.path);
+                      setSearchQuery('');
+                      setSuggestions([]);
+                      setShowDropdown(false);
+                    }}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      borderBottom: '1px solid var(--border-primary)',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      color: 'var(--text-primary)',
+                      textAlign: 'left'
+                    }}
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
+                    <span>{s.label}</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', textTransform: 'uppercase' }}>{s.type}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="dashboard-navbar-actions">

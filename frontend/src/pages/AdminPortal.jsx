@@ -139,24 +139,24 @@ export default function AdminPortal() {
       {/* Stats KPIs row */}
       <div style={styles.statsGrid}>
         <div style={styles.statCard}>
+          <span style={styles.statLabel}>Total Users</span>
+          <div style={styles.statValue}>{stats?.total_users || 0}</div>
+          <span style={styles.statFoot}>Registered accounts</span>
+        </div>
+        <div style={styles.statCard}>
           <span style={styles.statLabel}>Active Sessions</span>
-          <div style={styles.statValue}>{stats?.active_users || 0}</div>
-          <span style={styles.statFoot}>Live sockets connected</span>
+          <div style={styles.statValue}>{stats?.active_sessions || 0}</div>
+          <span style={styles.statFoot}>Live sockets/tokens</span>
         </div>
         <div style={styles.statCard}>
-          <span style={styles.statLabel}>CPU Utilization</span>
-          <div style={styles.statValue}>{health?.cpu_percent || 0}%</div>
-          <span style={styles.statFoot}>Server load average</span>
+          <span style={styles.statLabel}>Total Courses</span>
+          <div style={styles.statValue}>{stats?.total_courses || 0}</div>
+          <span style={styles.statFoot}>Published syllabus catalogs</span>
         </div>
         <div style={styles.statCard}>
-          <span style={styles.statLabel}>RAM Consumption</span>
-          <div style={styles.statValue}>{health?.memory_percent || 0}%</div>
-          <span style={styles.statFoot}>Platform heap utilization</span>
-        </div>
-        <div style={styles.statCard}>
-          <span style={styles.statLabel}>Certificates Issued</span>
-          <div style={styles.statValue}>{stats?.certificates_issued || 0}</div>
-          <span style={styles.statFoot}>Public credential registries</span>
+          <span style={styles.statLabel}>Total Enrollments</span>
+          <div style={styles.statValue}>{stats?.total_enrollments || 0}</div>
+          <span style={styles.statFoot}>Active student enrollments</span>
         </div>
       </div>
 

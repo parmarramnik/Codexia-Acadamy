@@ -20,6 +20,41 @@ from services import quiz_service, course_service
 router = APIRouter()
 
 
+@router.get("", response_model=list)
+def list_all_quizzes(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List all published quizzes with course titles and question counts."""
+    from models.quiz import Quiz, Question, QuizAttempt
+    quizzes = db.query(Quiz).all()
+    res = []
+    for q in quizzes:
+        question_count = db.query(Question).filter(Question.quiz_id == q.id).count()
+        attempts = db.query(QuizAttempt).filter(
+            QuizAttempt.quiz_id == q.id,
+            QuizAttempt.user_id == current_user.id
+        ).order_by(QuizAttempt.score.desc()).all()
+        
+        best_score = attempts[0].percentage if attempts else None
+        
+        res.append({
+            "id": q.id,
+            "course_id": q.course_id,
+            "course_title": q.course.title if q.course else "General Assessment",
+            "title": q.title,
+            "description": q.description,
+            "time_limit_minutes": q.time_limit_minutes,
+            "total_marks": q.total_marks,
+            "passing_percentage": q.passing_percentage,
+            "question_count": question_count,
+            "user_best_percentage": best_score,
+            "user_attempts_count": len(attempts),
+            "max_attempts": q.max_attempts
+        })
+    return res
+
+
 @router.get("/{quiz_id}")
 def get_quiz(
     quiz_id: int,

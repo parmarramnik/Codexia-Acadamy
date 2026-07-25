@@ -152,6 +152,12 @@ def change_user_role(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
+    # Super Admin protection
+    if user.role == "super_admin" and current_user.role != "super_admin":
+        raise HTTPException(status_code=403, detail="Forbidden: Only Super Admins can alter a Super Admin account")
+    if role == "super_admin" and current_user.role != "super_admin":
+        raise HTTPException(status_code=403, detail="Forbidden: Only Super Admins can promote users to Super Admin")
+
     # Verify target role is seeded
     role_rec = db.query(Role).filter(Role.name == role).first()
     if not role_rec:
@@ -174,6 +180,8 @@ def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
     if user.id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot delete yourself")
+    if user.role in ["admin", "super_admin"] and current_user.role != "super_admin":
+        raise HTTPException(status_code=403, detail="Forbidden: Only Super Admins can delete administrative accounts")
     db.delete(user)
     db.commit()
     return {"status": "deleted"}

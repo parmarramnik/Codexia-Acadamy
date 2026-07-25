@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import { FiUsers, FiBookOpen, FiAlertCircle, FiSettings, FiCheck, FiTrash2, FiToggleLeft, FiToggleRight, FiVolume2 } from 'react-icons/fi';
 
 export default function AdminDashboard() {
+  const { user } = useAuth();
   const [stats, setStats] = useState({
     total_users: 0,
     active_users: 0,
@@ -232,16 +234,22 @@ export default function AdminDashboard() {
                     {u.password_hash ? `${u.password_hash.substring(0, 12)}...` : 'N/A'}
                   </td>
                   <td style={styles.td}>
-                    <select
-                      value={u.role}
-                      onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                      style={styles.inlineSelect}
-                    >
-                      <option value="student">Student</option>
-                      <option value="instructor">Instructor</option>
-                      <option value="admin">Admin</option>
-                      <option value="super_admin">Super Admin</option>
-                    </select>
+                    {u.role === 'super_admin' && user?.role !== 'super_admin' ? (
+                      <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--accent-primary)', padding: '0.25rem 0.5rem', backgroundColor: 'rgba(255,152,0,0.15)', borderRadius: '4px', border: '1px solid rgba(255,152,0,0.3)' }}>
+                        🔒 Root Super Admin
+                      </span>
+                    ) : (
+                      <select
+                        value={u.role}
+                        onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                        style={styles.inlineSelect}
+                      >
+                        <option value="student">Student</option>
+                        <option value="instructor">Instructor</option>
+                        <option value="admin">Admin</option>
+                        {user?.role === 'super_admin' && <option value="super_admin">Super Admin</option>}
+                      </select>
+                    )}
                   </td>
                   <td style={styles.td}>
                     <button
@@ -395,7 +403,9 @@ const styles = {
     fontWeight: 'var(--fw-medium)',
     borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
     cursor: 'pointer',
-    border: '1px solid transparent',
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    borderColor: 'transparent',
     whiteSpace: 'nowrap',
   },
   activeTab: {

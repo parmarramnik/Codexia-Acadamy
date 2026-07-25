@@ -3,12 +3,19 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
-import { FiBookOpen, FiClock, FiTarget, FiActivity, FiAward, FiCode, FiCpu, FiCalendar, FiShield, FiArrowRight } from 'react-icons/fi';
-import AdminDashboard from './AdminDashboard';
-import InstructorDashboard from './InstructorDashboard';
+import { 
+  FiBookOpen, FiClock, FiTarget, FiActivity, 
+  FiAward, FiCode, FiCpu, FiCalendar, 
+  FiShield, FiArrowRight, FiUser, FiSliders, FiMessageSquare 
+} from 'react-icons/fi';
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const role = user?.role || 'student';
+
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Student states
   const [stats, setStats] = useState({
     total_courses_enrolled: 0,
     completed_courses: 0,
@@ -20,26 +27,64 @@ export default function Dashboard() {
     certificates_earned: 0,
   });
   const [courses, setCourses] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+
+  // Instructor states
+  const [instructorStats, setInstructorStats] = useState({
+    active_students: 0,
+    course_completion_rate: 0.0,
+    average_quiz_score: 0.0,
+    lecture_watch_rate: 0.0,
+    courses_list: []
+  });
+
+  // Admin / Super Admin states
+  const [adminStats, setAdminStats] = useState({
+    total_users: 0,
+    active_users: 0,
+    total_courses: 0,
+    published_courses: 0,
+    pending_approval: 0,
+    total_enrollments: 0
+  });
 
   useEffect(() => {
     async function fetchDashboardData() {
       try {
-        const [statsRes, enrollmentsRes] = await Promise.all([
-          api.get('/analytics/dashboard'),
-          api.get('/courses/enrolled/me')
-        ]);
-        setStats(statsRes.data);
-        // Map actual user enrollments with real completion percentage
-        const mappedCourses = (enrollmentsRes.data || []).map(e => ({
-          id: e.course.id,
-          title: e.course.title,
-          slug: e.course.slug,
-          difficulty: e.course.difficulty,
-          short_description: e.course.short_description,
-          progress: e.completion_percentage,
-        }));
-        setCourses(mappedCourses);
+        if (role === 'student') {
+          const [statsRes, enrollmentsRes] = await Promise.all([
+            api.get('/analytics/dashboard'),
+            api.get('/courses/enrolled/me')
+          ]);
+          setStats(statsRes.data);
+          const mappedCourses = (enrollmentsRes.data || []).map(e => ({
+            id: e.course.id,
+            title: e.course.title,
+            slug: e.course.slug,
+            difficulty: e.course.difficulty,
+            short_description: e.course.short_description,
+            progress: e.completion_percentage,
+          }));
+          setCourses(mappedCourses);
+        } else if (role === 'instructor') {
+          const res = await api.get('/analytics/instructor');
+          setInstructorStats(res.data || {
+            active_students: 0,
+            course_completion_rate: 0.0,
+            average_quiz_score: 0.0,
+            lecture_watch_rate: 0.0,
+            courses_list: []
+          });
+        } else if (role === 'admin' || role === 'super_admin') {
+          const res = await api.get('/admin/stats');
+          setAdminStats(res.data || {
+            total_users: 0,
+            active_users: 0,
+            total_courses: 0,
+            published_courses: 0,
+            pending_approval: 0,
+            total_enrollments: 0
+          });
+        }
       } catch (err) {
         console.error(err);
         toast.error('Failed to load dashboard data');
@@ -48,14 +93,7 @@ export default function Dashboard() {
       }
     }
     fetchDashboardData();
-  }, []);
-
-  if (user?.role === 'admin' || user?.role === 'super_admin') {
-    return <AdminDashboard />;
-  }
-  if (user?.role === 'instructor') {
-    return <InstructorDashboard />;
-  }
+  }, [role]);
 
   if (isLoading) {
     return (
@@ -65,123 +103,298 @@ export default function Dashboard() {
     );
   }
 
-  const statCards = [
-    { label: 'Courses Enrolled', value: stats.total_courses_enrolled, icon: <FiBookOpen size={20} style={styles.statIcon} /> },
-    { label: 'Study Hours', value: `${stats.total_study_hours}h`, icon: <FiClock size={20} style={styles.statIcon} /> },
-    { label: 'Quiz Score Avg', value: `${stats.average_quiz_score}%`, icon: <FiTarget size={20} style={styles.statIcon} /> },
-    { label: 'Current Streak', value: `${stats.current_streak} days`, icon: <FiActivity size={20} style={styles.statIcon} /> },
-    { label: 'Problems Solved', value: stats.problems_solved, icon: <FiCode size={20} style={styles.statIcon} /> },
-    { label: 'Certificates Earned', value: stats.certificates_earned, icon: <FiAward size={20} style={styles.statIcon} /> },
-  ];
+  // --- RENDERING BASED ON ROLE ---
 
-  return (
-    <div style={styles.container}>
-      <div style={styles.welcomeRow}>
-        <div>
-          <h1 style={styles.welcomeTitle}>Welcome back, {user?.full_name || 'Student'}! 👋</h1>
-          <p style={styles.welcomeSubtitle}>Track your learning path and practice coding questions today.</p>
+  // 1. STUDENT VIEW
+  if (role === 'student') {
+    const statCards = [
+      { label: 'Courses Enrolled', value: stats.total_courses_enrolled, icon: <FiBookOpen size={20} style={styles.statIcon} /> },
+      { label: 'Study Hours', value: `${stats.total_study_hours}h`, icon: <FiClock size={20} style={styles.statIcon} /> },
+      { label: 'Quiz Score Avg', value: `${stats.average_quiz_score}%`, icon: <FiTarget size={20} style={styles.statIcon} /> },
+      { label: 'Current Streak', value: `${stats.current_streak} days`, icon: <FiActivity size={20} style={styles.statIcon} /> },
+      { label: 'Problems Solved', value: stats.problems_solved, icon: <FiCode size={20} style={styles.statIcon} /> },
+      { label: 'Certificates Earned', value: stats.certificates_earned, icon: <FiAward size={20} style={styles.statIcon} /> },
+    ];
+
+    return (
+      <div style={styles.container}>
+        <div style={styles.welcomeRow}>
+          <div>
+            <h1 style={styles.welcomeTitle}>Welcome back, {user?.full_name || 'Student'}! 👋</h1>
+            <p style={styles.welcomeSubtitle}>Track your learning path and practice coding questions today.</p>
+          </div>
+          <div style={styles.roleBadge}>{role.toUpperCase()}</div>
         </div>
-        <div style={styles.roleBadge}>{user?.role?.toUpperCase() || 'STUDENT'}</div>
-      </div>
 
-      {/* Role Management Portal Banner */}
-      {(user?.role === 'instructor' || user?.role === 'admin' || user?.role === 'super_admin') && (
+        <div style={styles.statsGrid}>
+          {statCards.map((card, idx) => (
+            <div key={idx} style={styles.statCard}>
+              <div style={styles.statHeader}>
+                <span style={styles.statValue}>{card.value}</span>
+                {card.icon}
+              </div>
+              <span style={styles.statLabel}>{card.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <h2 style={styles.sectionTitle}>Quick Actions</h2>
+        <div style={styles.quickActionsRow}>
+          <Link to="/courses" style={styles.actionCard}>
+            <FiBookOpen size={24} style={styles.actionIcon} />
+            <div>
+              <h3 style={styles.actionTitle}>Continue Learning</h3>
+              <p style={styles.actionDesc}>Resume where you left off in your modules.</p>
+            </div>
+          </Link>
+          <Link to="/coding" style={styles.actionCard}>
+            <FiCode size={24} style={styles.actionIcon} />
+            <div>
+              <h3 style={styles.actionTitle}>Coding Practice</h3>
+              <p style={styles.actionDesc}>Solve programming exercises in the sandbox.</p>
+            </div>
+          </Link>
+          <Link to="/planner" style={styles.actionCard}>
+            <FiCalendar size={24} style={styles.actionIcon} />
+            <div>
+              <h3 style={styles.actionTitle}>Study Planner</h3>
+              <p style={styles.actionDesc}>Track streaking, reminders, and target weekly goals.</p>
+            </div>
+          </Link>
+        </div>
+
+        <h2 style={styles.sectionTitle}>My Enrolled Courses</h2>
+        <div style={styles.coursesGrid}>
+          {courses.length === 0 ? (
+            <div style={styles.emptyState}>
+              <p style={styles.emptyText}>You are not enrolled in any courses yet.</p>
+              <Link to="/courses" style={styles.browseBtn}>Browse Courses</Link>
+            </div>
+          ) : (
+            courses.slice(0, 3).map((course) => (
+              <div key={course.id} style={styles.courseCard}>
+                <div style={styles.courseHeader}>
+                  <h3 style={styles.courseTitle}>{course.title}</h3>
+                  <span style={styles.courseDifficulty}>{course.difficulty}</span>
+                </div>
+                <p style={styles.courseDesc}>{course.short_description || 'Master this topic with hands-on practice.'}</p>
+                <div style={styles.progressRow}>
+                  <div style={styles.progressBarBg}>
+                    <div style={{ ...styles.progressBarFill, width: `${course.progress || 0}%` }}></div>
+                  </div>
+                  <span style={styles.progressText}>{Math.round(course.progress || 0)}%</span>
+                </div>
+                <Link to={`/courses/${course.slug}`} style={styles.viewCourseLink}>Resume Course</Link>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // 2. INSTRUCTOR VIEW
+  if (role === 'instructor') {
+    const instructorCards = [
+      { label: 'Active Students', value: instructorStats.active_students, icon: <FiUser size={20} style={styles.statIcon} /> },
+      { label: 'Completion Rate', value: `${instructorStats.course_completion_rate}%`, icon: <FiActivity size={20} style={styles.statIcon} /> },
+      { label: 'Quiz Class Avg', value: `${instructorStats.average_quiz_score}%`, icon: <FiTarget size={20} style={styles.statIcon} /> },
+      { label: 'Lecture Watch Rate', value: `${instructorStats.lecture_watch_rate}%`, icon: <FiClock size={20} style={styles.statIcon} /> },
+    ];
+
+    const rawName = user?.full_name || 'Nirma';
+    const displayName = rawName.toLowerCase().startsWith('instructor') ? rawName : `Instructor ${rawName}`;
+
+    return (
+      <div style={styles.container}>
+        <div style={styles.welcomeRow}>
+          <div>
+            <h1 style={styles.welcomeTitle}>Welcome back, {displayName}! 🎓</h1>
+            <p style={styles.welcomeSubtitle}>Manage curriculum modules, check enrollment statistics, and reply to student doubts.</p>
+          </div>
+          <div style={styles.roleBadge}>{role.toUpperCase()}</div>
+        </div>
+
+        <div style={styles.roleBanner}>
+          <div style={styles.roleBannerLeft}>
+            <FiShield size={24} style={styles.roleBannerIcon} />
+            <div>
+              <h3 style={styles.roleBannerTitle}>Instructor Curriculum Builder</h3>
+              <p style={styles.roleBannerText}>Create coding problems, structure curriculum modules, and upload lecture videos.</p>
+            </div>
+          </div>
+          <Link to="/instructor" style={styles.roleBannerBtn}>
+            Go to Instructor Panel <FiArrowRight size={16} style={{ marginLeft: '6px' }} />
+          </Link>
+        </div>
+
+        <div style={styles.statsGrid}>
+          {instructorCards.map((card, idx) => (
+            <div key={idx} style={styles.statCard}>
+              <div style={styles.statHeader}>
+                <span style={styles.statValue}>{card.value}</span>
+                {card.icon}
+              </div>
+              <span style={styles.statLabel}>{card.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <h2 style={styles.sectionTitle}>Instructor Quick Actions</h2>
+        <div style={styles.quickActionsRow}>
+          <Link to="/instructor" style={styles.actionCard}>
+            <FiSliders size={24} style={styles.actionIcon} />
+            <div>
+              <h3 style={styles.actionTitle}>Create / Edit Syllabus</h3>
+              <p style={styles.actionDesc}>Manage course chapters, details, and video lectures.</p>
+            </div>
+          </Link>
+          <Link to="/analytics" style={styles.actionCard}>
+            <FiActivity size={24} style={styles.actionIcon} />
+            <div>
+              <h3 style={styles.actionTitle}>View Enrollment Charts</h3>
+              <p style={styles.actionDesc}>Track completion metrics and quiz averages.</p>
+            </div>
+          </Link>
+          <Link to="/discussion" style={styles.actionCard}>
+            <FiMessageSquare size={24} style={styles.actionIcon} />
+            <div>
+              <h3 style={styles.actionTitle}>Resolve Forum Doubts</h3>
+              <p style={styles.actionDesc}>Answer student queries on the Collaboration Hub.</p>
+            </div>
+          </Link>
+        </div>
+
+        <h2 style={styles.sectionTitle}>My Authored Courses</h2>
+        <div style={styles.coursesGrid}>
+          {instructorStats.courses_list.length === 0 ? (
+            <div style={styles.emptyState}>
+              <p style={styles.emptyText}>You haven't authored any courses yet.</p>
+              <Link to="/instructor" style={styles.browseBtn}>Create Course</Link>
+            </div>
+          ) : (
+            instructorStats.courses_list.slice(0, 3).map((course) => (
+              <div key={course.id} style={styles.courseCard}>
+                <div style={styles.courseHeader}>
+                  <h3 style={styles.courseTitle}>{course.title}</h3>
+                  <span style={styles.courseDifficulty}>Course ID: #{course.id}</span>
+                </div>
+                <p style={styles.courseDesc}>Check your student enrollment ledger and build out this syllabus structure.</p>
+                <div style={styles.progressRow}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    Active Enrollments: <strong>{course.enrollment_count}</strong> students
+                  </span>
+                </div>
+                <Link to="/instructor" style={styles.viewCourseLink}>Configure Course</Link>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // 3. ADMIN / SUPER ADMIN VIEW
+  if (role === 'admin' || role === 'super_admin') {
+    const adminCards = [
+      { label: 'Total Users', value: adminStats.total_users, icon: <FiUser size={20} style={styles.statIcon} /> },
+      { label: 'Active Courses', value: adminStats.total_courses, icon: <FiBookOpen size={20} style={styles.statIcon} /> },
+      { label: 'Pending Approvals', value: adminStats.pending_approval, icon: <FiAward size={20} style={styles.statIcon} /> },
+      { label: 'Total Enrollments', value: adminStats.total_enrollments, icon: <FiActivity size={20} style={styles.statIcon} /> },
+    ];
+
+    const rawName = user?.full_name || 'Admin';
+    const displayName = rawName.toLowerCase().startsWith('admin') || rawName.toLowerCase().startsWith('administrator')
+      ? rawName
+      : `Administrator ${rawName}`;
+
+    return (
+      <div style={styles.container}>
+        <div style={styles.welcomeRow}>
+          <div>
+            <h1 style={styles.welcomeTitle}>Welcome back, {displayName}! 🛡️</h1>
+            <p style={styles.welcomeSubtitle}>Audit platform logs, update user authorization privileges, and monitor system metrics.</p>
+          </div>
+          <div style={styles.roleBadge}>{role.toUpperCase()}</div>
+        </div>
+
         <div style={styles.roleBanner}>
           <div style={styles.roleBannerLeft}>
             <FiShield size={24} style={styles.roleBannerIcon} />
             <div>
               <h3 style={styles.roleBannerTitle}>
-                {user.role === 'instructor' ? 'Instructor Dashboard Access' : 'Administration Access'}
+                {role === 'super_admin' ? 'Executive Security Panel' : 'Admin Control Panel'}
               </h3>
               <p style={styles.roleBannerText}>
-                You are currently viewing the student learning area. Jump to your management panel to update courses, approve content, or manage users.
+                {role === 'super_admin'
+                  ? 'Suspend accounts, audit logs, or configure dynamic RBAC authorization policies.'
+                  : 'Manage user accounts, review pending course approvals, and oversee platform operations.'}
               </p>
             </div>
           </div>
-          <Link 
-            to={user.role === 'instructor' ? '/instructor' : '/admin'} 
-            style={styles.roleBannerBtn}
-          >
-            Go to Management Panel <FiArrowRight size={16} style={{ marginLeft: '6px' }} />
+          <Link to={role === 'super_admin' ? '/admin-portal' : '/admin'} style={styles.roleBannerBtn}>
+            {role === 'super_admin' ? 'Go to Executive Portal' : 'Go to Admin Panel'} <FiArrowRight size={16} style={{ marginLeft: '6px' }} />
           </Link>
         </div>
-      )}
 
-      {/* Stats Section */}
-      <div style={styles.statsGrid}>
-        {statCards.map((card, idx) => (
-          <div key={idx} style={styles.statCard}>
-            <div style={styles.statHeader}>
-              <span style={styles.statValue}>{card.value}</span>
-              {card.icon}
-            </div>
-            <span style={styles.statLabel}>{card.label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Quick Actions */}
-      <h2 style={styles.sectionTitle}>Quick Actions</h2>
-      <div style={styles.quickActionsRow}>
-        <Link to="/courses" style={styles.actionCard}>
-          <FiBookOpen size={24} style={styles.actionIcon} />
-          <div>
-            <h3 style={styles.actionTitle}>Continue Learning</h3>
-            <p style={styles.actionDesc}>Resume where you left off in your modules.</p>
-          </div>
-        </Link>
-        <Link to="/coding" style={styles.actionCard}>
-          <FiCode size={24} style={styles.actionIcon} />
-          <div>
-            <h3 style={styles.actionTitle}>Coding Practice</h3>
-            <p style={styles.actionDesc}>Solve programming exercises in the sandbox.</p>
-          </div>
-        </Link>
-        <Link to="/ai-tutor" style={styles.actionCard}>
-          <FiCpu size={24} style={styles.actionIcon} />
-          <div>
-            <h3 style={styles.actionTitle}>AI Tutor Chat</h3>
-            <p style={styles.actionDesc}>Get direct assistance or concept breakdowns.</p>
-          </div>
-        </Link>
-        <Link to="/planner" style={styles.actionCard}>
-          <FiCalendar size={24} style={styles.actionIcon} />
-          <div>
-            <h3 style={styles.actionTitle}>Study Planner</h3>
-            <p style={styles.actionDesc}>Track streaking, reminders, and target weekly goals.</p>
-          </div>
-        </Link>
-      </div>
-
-      {/* Enrolled Courses */}
-      <h2 style={styles.sectionTitle}>My Courses</h2>
-      <div style={styles.coursesGrid}>
-        {courses.length === 0 ? (
-          <div style={styles.emptyState}>
-            <p style={styles.emptyText}>You are not enrolled in any courses yet.</p>
-            <Link to="/courses" style={styles.browseBtn}>Browse Courses</Link>
-          </div>
-        ) : (
-          courses.slice(0, 3).map((course) => (
-            <div key={course.id} style={styles.courseCard}>
-              <div style={styles.courseHeader}>
-                <h3 style={styles.courseTitle}>{course.title}</h3>
-                <span style={styles.courseDifficulty}>{course.difficulty}</span>
+        <div style={styles.statsGrid}>
+          {adminCards.map((card, idx) => (
+            <div key={idx} style={styles.statCard}>
+              <div style={styles.statHeader}>
+                <span style={styles.statValue}>{card.value}</span>
+                {card.icon}
               </div>
-              <p style={styles.courseDesc}>{course.short_description || 'Master this topic with hands-on practice.'}</p>
-              <div style={styles.progressRow}>
-                <div style={styles.progressBarBg}>
-                  <div style={{ ...styles.progressBarFill, width: `${course.progress || 0}%` }}></div>
-                </div>
-                <span style={styles.progressText}>{Math.round(course.progress || 0)}%</span>
-              </div>
-              <Link to={`/courses/${course.slug}`} style={styles.viewCourseLink}>Resume Course</Link>
+              <span style={styles.statLabel}>{card.label}</span>
             </div>
-          ))
-        )}
+          ))}
+        </div>
+
+        <h2 style={styles.sectionTitle}>Administrative Actions</h2>
+        <div style={styles.quickActionsRow}>
+          <Link to="/admin" style={styles.actionCard}>
+            <FiUser size={24} style={styles.actionIcon} />
+            <div>
+              <h3 style={styles.actionTitle}>User Registry Manager</h3>
+              <p style={styles.actionDesc}>Suspend accounts, modify credentials, or reassign database roles.</p>
+            </div>
+          </Link>
+          <Link to={role === 'super_admin' ? '/admin-portal' : '/admin'} style={styles.actionCard}>
+            <FiSliders size={24} style={styles.actionIcon} />
+            <div>
+              <h3 style={styles.actionTitle}>
+                {role === 'super_admin' ? 'RBAC Matrix & Security' : 'User Roles & Access'}
+              </h3>
+              <p style={styles.actionDesc}>
+                {role === 'super_admin'
+                  ? 'Configure dynamic permissions mapping and change global server settings.'
+                  : 'Review user authorization status and access controls.'}
+              </p>
+            </div>
+          </Link>
+          <Link to="/analytics" style={styles.actionCard}>
+            <FiActivity size={24} style={styles.actionIcon} />
+            <div>
+              <h3 style={styles.actionTitle}>Platform Statistics</h3>
+              <p style={styles.actionDesc}>Track system signups and catalog distributions.</p>
+            </div>
+          </Link>
+        </div>
+
+        <h2 style={styles.sectionTitle}>System Administration Status</h2>
+        <div style={{ ...styles.emptyState, padding: '2rem', textAlign: 'left', alignItems: 'flex-start' }}>
+          <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', lineHeight: '1.5', color: 'var(--text-secondary)' }}>
+            Your root account is authenticated with full system-wide write privileges. Security logs and login attempts are logged in the audit ledger in real-time.
+          </p>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <Link to="/admin-portal" style={styles.browseBtn}>Check Server Gauges</Link>
+            <Link to="/admin" style={{ ...styles.viewCourseLink, marginTop: 0 }}>View Privilege Matrix</Link>
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 }
 
 const styles = {
@@ -208,6 +421,8 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '2.5rem',
+    gap: '1rem',
+    flexWrap: 'wrap',
   },
   welcomeTitle: {
     fontSize: '2rem',
@@ -282,6 +497,7 @@ const styles = {
     gap: '1rem',
     alignItems: 'flex-start',
     transition: 'border-color var(--transition-fast)',
+    textDecoration: 'none',
   },
   actionIcon: {
     color: 'var(--accent-primary)',
@@ -320,11 +536,12 @@ const styles = {
   },
   browseBtn: {
     backgroundColor: 'var(--accent-primary)',
-    color: 'var(--text-inverse)',
+    color: '#1A1A1A',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.625rem 1.25rem',
     borderRadius: 'var(--radius-md)',
     fontSize: '0.875rem',
+    textDecoration: 'none',
   },
   courseCard: {
     backgroundColor: 'var(--bg-card)',
@@ -391,6 +608,7 @@ const styles = {
     fontSize: '0.875rem',
     textAlign: 'center',
     marginTop: '0.5rem',
+    textDecoration: 'none',
   },
   roleBanner: {
     display: 'flex',

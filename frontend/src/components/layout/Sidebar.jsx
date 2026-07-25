@@ -1,15 +1,16 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   FiHome, FiBook, FiCode, FiFileText, FiLayers,
   FiMessageSquare, FiAward, FiBarChart2, FiTrendingUp,
-  FiUser, FiSettings, FiShield, FiEdit3, FiCpu, FiCalendar,
+  FiUser, FiSettings, FiShield, FiEdit3, FiCpu, FiCalendar, FiCheckSquare,
 } from 'react-icons/fi';
 import './Sidebar.css';
 
 const studentLinks = [
   { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
   { to: '/my-courses', icon: FiBook, label: 'My Courses' },
+  { to: '/quizzes', icon: FiCheckSquare, label: 'Quizzes' },
   { to: '/coding', icon: FiCode, label: 'Coding Practice' },
   { to: '/planner', icon: FiCalendar, label: 'Study Planner' },
   { to: '/notes', icon: FiFileText, label: 'Notes' },
@@ -24,6 +25,7 @@ const studentLinks = [
 const instructorLinks = [
   { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
   { to: '/instructor', icon: FiEdit3, label: 'Instructor Panel' },
+  { to: '/quizzes', icon: FiCheckSquare, label: 'Quizzes' },
   { to: '/analytics', icon: FiBarChart2, label: 'Analytics' },
   { to: '/discussion', icon: FiMessageSquare, label: 'Collaboration Hub' },
 ];
@@ -31,7 +33,16 @@ const instructorLinks = [
 const adminLinks = [
   { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
   { to: '/admin', icon: FiShield, label: 'Admin Panel' },
+  { to: '/quizzes', icon: FiCheckSquare, label: 'Quizzes' },
+  { to: '/analytics', icon: FiBarChart2, label: 'Analytics' },
+  { to: '/discussion', icon: FiMessageSquare, label: 'Collaboration Hub' },
+];
+
+const superAdminLinks = [
+  { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
   { to: '/admin-portal', icon: FiShield, label: 'Executive Portal' },
+  { to: '/admin', icon: FiShield, label: 'Admin Panel' },
+  { to: '/quizzes', icon: FiCheckSquare, label: 'Quizzes' },
   { to: '/analytics', icon: FiBarChart2, label: 'Analytics' },
   { to: '/discussion', icon: FiMessageSquare, label: 'Collaboration Hub' },
 ];
@@ -41,18 +52,20 @@ const bottomLinks = [
   { to: '/settings', icon: FiSettings, label: 'Settings' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isCollapsed = false, isMobileOpen = false }) {
   const { user } = useAuth();
-  const location = useLocation();
 
-  const isStudent = user?.role === 'student' || !user?.role;
+  const isSuperAdmin = user?.role === 'super_admin';
+  const isAdmin = user?.role === 'admin';
   const isInstructor = user?.role === 'instructor';
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
   let visibleLinks = studentLinks;
   let sectionLabel = 'Learning';
 
-  if (isAdmin) {
+  if (isSuperAdmin) {
+    visibleLinks = superAdminLinks;
+    sectionLabel = 'Super Admin';
+  } else if (isAdmin) {
     visibleLinks = adminLinks;
     sectionLabel = 'Administration';
   } else if (isInstructor) {
@@ -61,9 +74,9 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="sidebar" id="sidebar">
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`} id="sidebar">
       <div className="sidebar-header">
-        <span className="sidebar-brand">Codexia</span>
+        <span className="sidebar-brand">{isCollapsed ? 'C' : 'Codexia'}</span>
       </div>
 
       <nav className="sidebar-nav">

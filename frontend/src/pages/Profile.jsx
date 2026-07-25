@@ -86,7 +86,17 @@ export default function Profile() {
             </div>
             <h2 style={styles.fullName}>{user?.full_name}</h2>
             <p style={styles.username}>@{user?.username}</p>
-            <span style={styles.roleBadge}>{user?.role?.toUpperCase()}</span>
+            {user?.role === 'super_admin' ? (
+              <span style={{ ...styles.roleBadge, backgroundColor: 'rgba(255, 152, 0, 0.2)', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)' }}>
+                👑 ROOT SUPER ADMIN
+              </span>
+            ) : user?.role === 'admin' ? (
+              <span style={{ ...styles.roleBadge, backgroundColor: 'rgba(52, 152, 219, 0.2)', color: '#3498DB', border: '1px solid #3498DB' }}>
+                🛡️ ADMINISTRATOR
+              </span>
+            ) : (
+              <span style={styles.roleBadge}>{user?.role?.toUpperCase()}</span>
+            )}
             
             <p style={styles.bioText}>
               {user?.bio || "No bio added yet. Tell Codexia Academy about your career path!"}

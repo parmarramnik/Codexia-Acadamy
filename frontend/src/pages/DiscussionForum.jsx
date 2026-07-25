@@ -128,13 +128,7 @@ export default function DiscussionForum() {
       const res = await api.get('/comms/messages', {
         params: { with_user_id: targetUser.id }
       });
-      const now = Date.now();
-      const loadedMsgs = (res.data || []).map((m, idx) => ({
-        ...m,
-        id: m.id || `msg-${now}-${idx}-${Math.random()}`,
-        visibleUntil: now + 4000
-      }));
-      setMessages(loadedMsgs);
+      setMessages(res.data || []);
     } catch (err) {
       toast.error('Could not load chat logs');
     }
@@ -152,13 +146,10 @@ export default function DiscussionForum() {
           message: newMsg
         }
       });
-      const now = Date.now();
       const sentMsg = {
         sender_id: 'me',
         message: newMsg,
-        created_at: new Date().toISOString(),
-        id: `msg-sent-${now}-${Math.random()}`,
-        visibleUntil: now + 4000
+        created_at: new Date().toISOString()
       };
       setMessages(prev => [...prev, sentMsg]);
       setNewMsg('');
@@ -168,22 +159,6 @@ export default function DiscussionForum() {
       setIsSendingMsg(false);
     }
   };
-
-  // Automatically vanish direct messages after 4 seconds of display
-  useEffect(() => {
-    if (messages.length === 0) return;
-    const interval = setInterval(() => {
-      const now = Date.now();
-      setMessages(prev => {
-        const filtered = prev.filter(m => !m.visibleUntil || m.visibleUntil > now);
-        if (filtered.length !== prev.length) {
-          return filtered;
-        }
-        return prev;
-      });
-    }, 200);
-    return () => clearInterval(interval);
-  }, [messages]);
 
   // Dynamic process description in the upper left header
   const getDynamicSubtitle = () => {

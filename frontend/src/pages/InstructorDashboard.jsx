@@ -933,7 +933,9 @@ const styles = {
     fontWeight: 'var(--fw-medium)',
     borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
     cursor: 'pointer',
-    border: '1px solid transparent',
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    borderColor: 'transparent',
   },
   activeTab: {
     color: 'var(--accent-primary)',

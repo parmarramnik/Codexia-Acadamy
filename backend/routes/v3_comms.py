@@ -5,7 +5,7 @@ Collaborative Forums & Direct Messaging routes v3.0
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 
 from database import get_db
@@ -25,7 +25,7 @@ def list_discussions(
     db: Session = Depends(get_db)
 ):
     """List forum discussion threads."""
-    query = db.query(Discussion)
+    query = db.query(Discussion).options(joinedload(Discussion.user), joinedload(Discussion.replies))
     if course_id:
         query = query.filter(Discussion.course_id == course_id)
     if is_doubt is not None:
@@ -144,7 +144,15 @@ def reply_to_discussion(
 @router.get("/discussions/{discussion_id}")
 def get_discussion_details(discussion_id: int, db: Session = Depends(get_db)):
     """Fetch discussion details with all reply structures."""
-    discussion = db.query(Discussion).filter(Discussion.id == discussion_id).first()
+    discussion = (
+        db.query(Discussion)
+        .options(
+            joinedload(Discussion.user),
+            joinedload(Discussion.replies).joinedload(DiscussionReply.user)
+        )
+        .filter(Discussion.id == discussion_id)
+        .first()
+    )
     if not discussion:
         raise HTTPException(status_code=404, detail="Thread not found")
         

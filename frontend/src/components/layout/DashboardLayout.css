@@ -1,6 +1,8 @@
 .dashboard-layout {
   display: flex;
   min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
 }
 
 .dashboard-main {
@@ -9,6 +11,11 @@
   flex-direction: column;
   margin-left: var(--sidebar-width);
   min-height: 100vh;
+  transition: margin-left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dashboard-main.collapsed {
+  margin-left: 72px;
 }
 
 .dashboard-content {
@@ -17,8 +24,20 @@
   overflow-y: auto;
 }
 
+/* Overlay for Mobile Sidebar drawer */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 299; /* Just below Sidebar's z-index */
+  transition: opacity 0.25s ease;
+}
+
 @media (max-width: 768px) {
   .dashboard-main {
-    margin-left: 0;
+    margin-left: 0 !important;
   }
 }

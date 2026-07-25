@@ -10,11 +10,17 @@
   flex-direction: column;
   z-index: var(--z-fixed);
   overflow-y: auto;
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-header {
   padding: var(--space-5) var(--space-6);
   border-bottom: 1px solid var(--border-primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: var(--navbar-height);
+  min-height: var(--navbar-height);
 }
 
 .sidebar-brand {
@@ -22,6 +28,10 @@
   font-size: var(--fs-xl);
   font-weight: var(--fw-bold);
   color: var(--accent-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.15s ease;
 }
 
 .sidebar-nav {
@@ -42,6 +52,10 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  transition: opacity 0.15s ease, padding 0.15s ease;
 }
 
 .sidebar-link {
@@ -54,6 +68,8 @@
   font-weight: var(--fw-medium);
   transition: all var(--transition-fast);
   text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .sidebar-link:hover {
@@ -77,13 +93,55 @@
   padding: var(--space-4) 0;
 }
 
+/* Collapsed Sidebar Styles on Desktop */
+.sidebar.collapsed {
+  width: 72px;
+}
+
+.sidebar.collapsed .sidebar-brand {
+  opacity: 0;
+  width: 0;
+  pointer-events: none;
+}
+
+.sidebar.collapsed .sidebar-section-label {
+  opacity: 0;
+  padding: 0;
+  pointer-events: none;
+}
+
+.sidebar.collapsed .sidebar-link {
+  padding: var(--space-3) 0;
+  justify-content: center;
+  gap: 0;
+}
+
+.sidebar.collapsed .sidebar-link span {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-link.active {
+  border-right: none;
+  border-left: 3px solid var(--accent-primary);
+}
+
+/* Responsive Styles */
 @media (max-width: 768px) {
   .sidebar {
+    width: var(--sidebar-width) !important;
     transform: translateX(-100%);
-    transition: transform var(--transition-base);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .sidebar.open {
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .sidebar.collapsed {
+    transform: translateX(-100%);
+  }
+
+  .sidebar.collapsed.mobile-open {
     transform: translateX(0);
   }
 }

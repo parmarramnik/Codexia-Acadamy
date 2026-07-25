@@ -76,25 +76,28 @@ def get_dashboard_analytics(db: Session, user_id: int) -> dict:
 
 def _calculate_streak(db: Session, user_id: int) -> int:
     """Calculate the current consecutive-day study streak."""
+    # Fetch all unique study session dates for the user to compute in memory
+    sessions = (
+        db.query(func.date(StudySession.date))
+        .filter(StudySession.user_id == user_id)
+        .distinct()
+        .all()
+    )
+    dates = {s[0] for s in sessions if s[0] is not None}
+    
     today = datetime.now(timezone.utc).date()
+    yesterday = today - timedelta(days=1)
+    
+    if today not in dates and yesterday not in dates:
+        return 0
+        
     streak = 0
-    check_date = today
-
-    while True:
-        session = (
-            db.query(StudySession)
-            .filter(
-                StudySession.user_id == user_id,
-                func.date(StudySession.date) == check_date,
-            )
-            .first()
-        )
-        if session:
-            streak += 1
-            check_date -= timedelta(days=1)
-        else:
-            break
-
+    check_date = today if today in dates else yesterday
+    
+    while check_date in dates:
+        streak += 1
+        check_date -= timedelta(days=1)
+        
     return streak
 
 

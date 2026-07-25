@@ -64,10 +64,18 @@ def send_email(subject: str, recipient: str, body_html: str, body_text: str):
         if port == 465:
             server = smtplib.SMTP_SSL(host, port, timeout=15)
         else:
-            server = smtplib.SMTP(host, port, timeout=15)
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
+            try:
+                server = smtplib.SMTP(host, port, timeout=15)
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+            except Exception as e:
+                logger.warning(f"SMTP TLS connection on port {port} failed: {e}. Trying fallback to SMTP SSL on port 465...")
+                try:
+                    server = smtplib.SMTP_SSL(host, 465, timeout=15)
+                except Exception as e_ssl:
+                    logger.error(f"SMTP SSL fallback on port 465 failed as well: {e_ssl}")
+                    raise e_ssl
 
         server.login(user, password)
         server.sendmail(from_email, [recipient], msg.as_string())

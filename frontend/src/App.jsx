@@ -40,6 +40,7 @@ import VerifyCertificatePublic from './pages/VerifyCertificatePublic';
 import EnterpriseAI from './pages/EnterpriseAI';
 import AdminPortal from './pages/AdminPortal';
 import VerifyEmail from './pages/VerifyEmail';
+import QuizHub from './pages/QuizHub';
 
 
 function App() {
@@ -48,7 +49,7 @@ function App() {
       <Toaster
         position="top-right"
         toastOptions={{
-          duration: 4000,
+          duration: 2000,
           style: {
             background: '#2D2D2D',
             color: '#F5F5F5',
@@ -83,6 +84,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/my-courses" element={<Courses />} />
             <Route path="/courses/:slug/learn/:lectureId" element={<VideoPlayer />} />
+            <Route path="/quizzes" element={<QuizHub />} />
             <Route path="/quizzes/:id" element={<Quiz />} />
             <Route path="/coding" element={<CodingPractice />} />
             <Route path="/coding/:slug" element={<CodingPractice />} />
@@ -97,8 +99,6 @@ function App() {
             <Route path="/planner" element={<StudyPlanner />} />
             <Route path="/discussion" element={<DiscussionForum />} />
             <Route path="/ai-workspace" element={<EnterpriseAI />} />
-            <Route path="/admin-portal" element={<AdminPortal />} />
-
           </Route>
         </Route>
 
@@ -113,6 +113,13 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
           <Route element={<DashboardLayout />}>
             <Route path="/admin" element={<AdminDashboard />} />
+          </Route>
+        </Route>
+
+        {/* Super Admin exclusive routes */}
+        <Route element={<ProtectedRoute allowedRoles={['super_admin']} />}>
+          <Route element={<DashboardLayout />}>
+            <Route path="/admin-portal" element={<AdminPortal />} />
           </Route>
         </Route>
       </Routes>
