@@ -43,9 +43,6 @@ export default function DashboardNavbar({ onToggleSidebar }) {
     <header className="dashboard-navbar" id="dashboard-navbar">
       <div className="dashboard-navbar-inner">
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, maxWidth: '450px' }}>
-          <button className="sidebar-toggle-btn" onClick={onToggleSidebar} aria-label="Toggle Sidebar">
-            <FiMenu size={20} />
-          </button>
           
           <div className="dashboard-search" style={{ position: 'relative', width: '100%' }}>
             <FiSearch className="search-icon" />

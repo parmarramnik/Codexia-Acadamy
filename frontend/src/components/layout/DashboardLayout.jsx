@@ -48,6 +48,7 @@ export default function DashboardLayout() {
       <Sidebar 
         isCollapsed={isCollapsed} 
         isMobileOpen={isMobileOpen} 
+        onToggleSidebar={handleToggleSidebar}
       />
 
       <div className={`dashboard-main ${isCollapsed ? 'collapsed' : ''}`}>

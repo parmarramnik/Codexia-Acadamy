@@ -1,101 +1,190 @@
-# NoteAI — AI Powered Knowledge Management Platform
+# 🚀 Codexia Academy — AI-Powered Learning Management System (ALMS)
 
-## New Feature: Git for Notes Version Control
-
-This feature transforms standard notes in NoteAI into independent Git repositories. Every note maintains a working copy, commits, branches, merges, checkouts, tags, starred states, and aligned diff comparisons.
-
----
-
-### Core Git-Inspired Architecture
-
-Every note behaves exactly like a separate Git repository:
-- **Working Copy**: Represented by the `title` and `content` columns in the `notes` table. Modifying the note in the editor changes the working copy.
-- **Branches**: Refered to as references pointing to specific commits. The default branch is `main`. Switching branches restores the note's title and content to the head commit of the selected branch.
-- **Commits**: Permanent snapshots of the note's state. When you commit, a new snapshot is created, and the branch HEAD advances. History is append-only and never deleted.
-- **HEAD Reference**: The active branch is tracked via the `current_branch_id` column in the `notes` table.
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Docker](https://img.shields.io/badge/Docker_Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL_15-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis_7-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
+[![Google Gemini](https://img.shields.io/badge/Google_Gemini_AI-8E75B2?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
 
 ---
 
-### Database Schema
+## 📌 Project Overview
 
-Four new tables support version control:
-
-#### 1. `git_branches`
-- `id` (Integer, Primary Key)
-- `note_id` (Integer, ForeignKey to `notes.id` on delete CASCADE)
-- `name` (String, e.g., "main", "dev")
-- `head_commit_id` (String(36), ForeignKey to `git_commits.id` on delete SET NULL)
-- `created_at` (DateTime)
-- `created_by` (Integer, ForeignKey to `users.id` on delete CASCADE)
-
-#### 2. `git_commits`
-- `id` (String(36), UUID, Primary Key)
-- `note_id` (Integer, ForeignKey to `notes.id` on delete CASCADE)
-- `branch_id` (Integer, ForeignKey to `git_branches.id` on delete SET NULL)
-- `parent_commit` (String(36), ForeignKey to `git_commits.id` on delete SET NULL)
-- `message` (String, description of changes)
-- `snapshot` (Text, JSON payload `{"title": ..., "content": ...}`)
-- `created_at` (DateTime)
-- `author_id` (Integer, ForeignKey to `users.id` on delete CASCADE)
-- `metadata_json` (Text, stores stats like word count, character count, read time, device, manual vs auto)
-- `is_favorite` (Boolean, starred commit)
-- `is_checkpoint` (Boolean, marked milestone)
-
-#### 3. `git_tags`
-- `id` (Integer, Primary Key)
-- `commit_id` (String(36), ForeignKey to `git_commits.id` on delete CASCADE)
-- `name` (String, e.g., "v1.0", "Final Exam")
-- `created_at` (DateTime)
-
-#### 4. `git_merge_history`
-- `id` (Integer, Primary Key)
-- `note_id` (Integer, ForeignKey to `notes.id` on delete CASCADE)
-- `source_branch` (String, source branch name)
-- `target_branch` (String, target branch name)
-- `merged_commit` (String(36), ForeignKey to `git_commits.id` on delete CASCADE)
-- `merged_at` (DateTime)
+**Codexia Academy** is a modern, enterprise-grade, microservice-based **AI-Powered Learning Management System (ALMS)**. Designed for modern tech education, it combines interactive learning, live multi-language code execution via Monaco Editor, automated quiz evaluations, dynamic PDF certificate generation with QR verification, and an intelligent **AI Tutor** powered by **Google Gemini** and **RAG (Retrieval-Augmented Generation)**.
 
 ---
 
-### API Endpoints
+## 🛠️ Technology Stack
 
-All endpoints are scoped to the authenticated user and prefix `/api/git`.
+### **Frontend**
+- **Framework**: React 18 + Vite
+- **Routing**: React Router DOM v6
+- **State & HTTP**: Context API + Axios
+- **Code Editor**: `@monaco-editor/react` (Monaco Code Editor)
+- **Data Visualization**: Recharts (Analytics & Progress tracking)
+- **Styling & UI**: Custom CSS Design System + `react-icons` + `react-hot-toast`
+- **Markdown Rendering**: `react-markdown` + `react-syntax-highlighter`
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/git/commit` | Commits current note working copy changes. |
-| `POST` | `/api/git/branch` | Creates a new branch from active HEAD. |
-| `POST` | `/api/git/checkout` | Switches branches (warns if uncommitted changes exist). |
-| `POST` | `/api/git/merge` | Merges two branches. Handles FF or resolves conflicts. |
-| `POST` | `/api/git/cherry-pick`| Cherry-picks a commit onto the active branch. |
-| `GET`  | `/api/git/history` | Fetches filtered history of commits. |
-| `GET`  | `/api/git/branches` | Lists all branches of a note. |
-| `GET`  | `/api/git/diff` | Returns side-by-side diff hunks with word-level highlight. |
-| `GET`  | `/api/git/compare` | Compares two branches for merge pre-verification. |
-| `GET`  | `/api/git/timeline` | Returns reverse chronological timeline with graph tracks. |
-| `POST` | `/api/git/tag` | Tags (pins) a commit. |
-| `POST` | `/api/git/restore` | Reverts working copy to a commit (creates revert commit). |
-| `POST` | `/api/git/commit/{id}/favorite` | Stars/unstars a commit. |
-| `GET`  | `/api/git/ai-summary` | Asks Gemini to suggest a commit summary from changes. |
-| `GET`  | `/api/git/export` | Exports history to JSON, Markdown, or PDF. |
+### **Backend (Microservices Architecture)**
+- **Language & Framework**: Python 3.10+ & FastAPI
+- **ASGI Server**: Uvicorn
+- **ORM & Migrations**: SQLAlchemy 2.0 + Alembic
+- **API Security**: JWT Bearer Tokens (OAuth2), Passlib (Bcrypt)
+
+### **AI & Machine Learning**
+- **LLM Engine**: Google Gemini API (`google-generativeai`)
+- **RAG Framework**: LangChain + FAISS Vector Store
+- **Embeddings**: Sentence Transformers (`sentence-transformers`)
+
+### **Database & Caching**
+- **Relational Database**: PostgreSQL 15 (Docker containerized)
+- **In-Memory Cache**: Redis 7
+- **Document / Certificate Engine**: ReportLab (PDF Generation) + PyQRCode
+
+### **DevOps & Infrastructure**
+- **Containerization**: Docker & Docker Compose
+- **Gateway**: Custom FastAPI Reverse Proxy API Gateway
+- **Testing**: Pytest + Pytest-Asyncio
 
 ---
 
-### Key Workflows
+## 🏗️ System Architecture & Project Structure
 
-#### 1. Commit Flow
-1. User makes edits in the workspace.
-2. Clicking **Commit** saves the working copy changes and posts to `/api/git/commit`.
-3. If **Auto-Commit** settings are enabled, the backend automatically runs timer checks (e.g. 30-min intervals) or delta thresholds (> 100 character changes) on save, auto-committing modifications.
+The project is structured into **Microservices**, an **API Gateway**, and a **React Single Page Application (SPA)**:
 
-#### 2. Branch Flow
-1. User clicks **Branch**, enters a name, and creates it. The new branch points to the active HEAD commit.
-2. The user can checkout branches. If they try to checkout with unsaved changes, the app blocks and prompts the user. Passing `force=True` bypasses and discards unsaved changes.
+```text
+AI Learning Management System/
+├── backend/
+│   ├── microservices/
+│   │   ├── gateway/            # API Gateway (Port 8000) - Reverse Proxy & Routing
+│   │   ├── auth_service/       # Auth & User Service (Port 8001) - Auth, Profiles, RBAC
+│   │   ├── course_service/     # Course Service (Port 8002) - Catalog, Lessons, Enrollment
+│   │   ├── quiz_service/       # Quiz Service (Port 8003) - Quizzes & PDF Certificates
+│   │   ├── coding_service/     # Coding Service (Port 8004) - Live Code Execution Engine
+│   │   ├── ai_service/         # AI Service (Port 8005) - Gemini AI Tutor & RAG
+│   │   ├── analytics_service/  # Analytics Service (Port 8006) - User Stats & Leaderboards
+│   │   └── shared/             # Shared Models, Database Sessions & Schemas
+│   ├── database.py             # Shared DB Configuration
+│   ├── seed_db.py              # Initial Database Seeder
+│   └── requirements.txt        # Python Dependencies
+├── frontend/
+│   ├── public/                 # Static Assets
+│   ├── src/
+│   │   ├── components/         # Reusable UI Components (Navbar, Modals, Cards)
+│   │   ├── context/            # AuthContext & ThemeContext
+│   │   ├── pages/              # 30+ Application Pages (Dashboard, AI Tutor, Code Editor, etc.)
+│   │   ├── services/           # Axios API Client Configurations
+│   │   └── styles/             # Global & Component CSS
+│   ├── package.json            # Node Dependencies
+│   └── vite.config.js          # Vite Build Configuration
+├── docker-compose.yml          # Multi-container Orchestration Config
+├── .env.example                # Sample Environment File
+└── README.md                   # Project Documentation
+```
 
-#### 3. Merge & Conflict Flow
-1. Merging branch A into branch B calculates their **Lowest Common Ancestor** (LCA).
-2. If B has no changes since LCA, it performs a **Fast-Forward Merge** by moving B's HEAD reference to A's HEAD.
-3. If both modified since LCA:
-   - Line-by-line checks run. If changes are non-conflicting, they are merged.
-   - If changes overlap, the merge blocks, returning conflict details.
-   - The user opens the **Merge Editor Dialog** and selects a strategy: `keep_target` (Keep B), `keep_source` (Keep A), `merge_both` (concatenate), or `custom` (custom text). A merge commit is created with the resolved payload.
+---
+
+## ⚡ Microservices Breakdown & Port Mapping
+
+| Service Name | Port | Description |
+| :--- | :---: | :--- |
+| **API Gateway** | `8000` | Unified API Entry Point (Reverse proxy for all microservices) |
+| **Auth Service** | `8001` | User registration, login, JWT validation, role management |
+| **Course Service** | `8002` | Courses, modules, lessons, student enrollment tracking |
+| **Quiz Service** | `8003` | Quizzes, assessments, auto-grading, PDF certificate generator |
+| **Coding Service** | `8004` | Interactive code exercises, multi-language test execution engine |
+| **AI Service** | `8005` | Gemini-powered AI Tutor, RAG study guide generator, auto-summarization |
+| **Analytics Service** | `8006` | Dashboard metrics, progress stats, gamification leaderboards |
+| **PostgreSQL DB** | `5432` | Main database (`codexia_lms`) |
+| **Redis Cache** | `6379` | In-memory caching layer |
+
+---
+
+## ✨ Key Features
+
+- 🧠 **AI Tutor with RAG**: Chat in real-time with an AI assistant trained on course materials using Gemini & FAISS vector search.
+- 💻 **Interactive Monaco Code Execution**: Solve coding challenges right in the browser with syntax highlighting and instant test results.
+- 📜 **QR-Verified PDF Certificates**: Earn downloadable certificates featuring verifiable QR codes upon course completion.
+- 📊 **Comprehensive Analytics**: Monitor your learning trajectory with dynamic Recharts progress visualizers.
+- 🏆 **Gamification & Leaderboards**: Compete with peers through streak tracking, badges, and real-time leaderboards.
+- 🛡️ **Role-Based Portals**: Tailored interfaces for Students, Instructors, and System Administrators.
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- **Docker Desktop** installed & running
+- **Node.js** (v18+) & **npm**
+- **Python** (v3.10+) *(for local non-Docker development)*
+- **Google Gemini API Key** *(for AI features)*
+
+---
+
+### Method 1: Running with Docker Compose (Recommended)
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/parmarramnik/Codexia-Acadamy.git
+   cd "AI Learning Management System"
+   ```
+
+2. **Setup Environment Variables**:
+   Create a `.env` file in the project root:
+   ```env
+   GEMINI_API_KEY=your_google_gemini_api_key_here
+   SECRET_KEY=your_jwt_secret_key_here
+   ```
+
+3. **Launch Docker Containers**:
+   ```bash
+   docker-compose up --build
+   ```
+
+4. **Access the Services**:
+   - **API Gateway**: `http://localhost:8000`
+   - **Interactive API Docs (Swagger)**: `http://localhost:8000/docs`
+
+---
+
+### Method 2: Running Frontend Locally
+
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+4. Open your browser at `http://localhost:5173`.
+
+---
+
+## 🧪 Testing & Database Seeding
+
+To seed initial sample data (courses, coding problems, quizzes):
+
+```bash
+cd backend
+python seed_db.py
+python seed_coding_problems.py
+```
+
+To run backend smoke tests:
+```bash
+python backend/run_smoke.py
+```
+
+---
+
+## 📄 License
+
+This project is open-source and available under the **MIT License**.

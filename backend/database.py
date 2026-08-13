@@ -16,10 +16,11 @@ if settings.DATABASE_URL.startswith("sqlite"):
 else:
     engine = create_engine(
         settings.DATABASE_URL,
-        pool_size=20,
-        max_overflow=30,
+        pool_size=10,
+        max_overflow=20,
         pool_pre_ping=True,
-        pool_recycle=300,
+        pool_recycle=180,
+        connect_args={"connect_timeout": 5},
         echo=False,
     )
 
@@ -40,9 +41,22 @@ def get_db():
         db.close()
 
 
+_tables_initialized = False
+
 def create_tables():
-    """Create all tables in the database."""
-    Base.metadata.create_all(bind=engine)
+    """Create all tables in the database safely and instantly without blocking on remote locks."""
+    global _tables_initialized
+    if _tables_initialized:
+        return
+    _tables_initialized = True
+    try:
+        from sqlalchemy import inspect
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        if "users" not in tables or "courses" not in tables:
+            Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"[Schema Notice] create_tables handled exception: {e}")
 
     # Dynamic schema migration for existing databases
     from sqlalchemy import inspect, text

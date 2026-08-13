@@ -27,7 +27,7 @@ class Quiz(Base):
     __tablename__ = "quizzes"
 
     id = Column(Integer, primary_key=True, index=True)
-    course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
+    course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=True)
     title = Column(String(300), nullable=False)
     description = Column(Text, nullable=True)
     time_limit_minutes = Column(Integer, default=30)

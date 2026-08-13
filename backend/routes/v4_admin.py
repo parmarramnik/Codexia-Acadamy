@@ -21,20 +21,26 @@ router = APIRouter(prefix="/admin", tags=["Enterprise Administration"])
 
 
 def require_permission(permission_name: str):
-    """Enforces dynamic dynamic database-level RBAC authorization checks on route endpoints."""
+    """Enforces dynamic database-level RBAC authorization checks on route endpoints."""
     def dependency(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-        if current_user.role in ["super_admin"]:
+        role_val = current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
+        if role_val in ["super_admin", "admin"]:
             return current_user
-        role_record = db.query(Role).filter(Role.name == current_user.role).first()
+
+        role_record = db.query(Role).filter(Role.name == role_val).first()
         if not role_record:
+            if role_val in ["super_admin", "admin"]:
+                return current_user
             raise HTTPException(status_code=403, detail="Forbidden: Role record not found")
-        
+
         # Verify permissions links
         has_perm = db.query(RolePermission).join(Permission).filter(
             RolePermission.role_id == role_record.id,
             Permission.name == permission_name
         ).first()
         if not has_perm:
+            if role_val in ["super_admin", "admin"]:
+                return current_user
             raise HTTPException(status_code=403, detail=f"Forbidden: Missing permission '{permission_name}'")
         return current_user
     return dependency

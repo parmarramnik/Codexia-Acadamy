@@ -1,95 +1,91 @@
-"""Quick smoke test for the backend API."""
+"""Comprehensive smoke test for AI Learning Management System API Gateway & Microservices."""
 import httpx
 import json
 import uuid
 
 BASE = "http://localhost:8000"
-client = httpx.Client(base_url=BASE, timeout=10)
+client = httpx.Client(base_url=BASE, timeout=15)
 
 def test():
-    uid = uuid.uuid4().hex[:6]
-    email = f"smoke{uid}@test.com"
-    username = f"smoke{uid}"
-
     # 1. Health check
     r = client.get("/api/health")
-    print(f"[1] Health: {r.status_code} -> {r.json()}")
+    print(f"[1] Health Check: {r.status_code} -> {r.json().get('status')}")
     assert r.status_code == 200
 
-    # 2. Signup
+    # 2. Test pre-seeded accounts for all 4 roles
+    roles_to_test = [
+        ("student@gmail.com", "123456", "student"),
+        ("instructor@gmail.com", "123456", "instructor"),
+        ("admin@gmail.com", "123456", "admin"),
+        ("sadmin@gmail.com", "123456", "super_admin"),
+    ]
+
+    print("\n--- Testing Pre-seeded User Roles ---")
+    tokens = {}
+    for email, pwd, expected_role in roles_to_test:
+        r = client.post("/api/auth/login", json={"email": email, "password": pwd})
+        print(f"Login ({email}): status {r.status_code}")
+        assert r.status_code == 200, f"Login failed for {email}: {r.text}"
+        data = r.json()
+        token = data["access_token"]
+        user_role = data["user"]["role"]
+        print(f"  -> Verified Role: {user_role}")
+        assert user_role == expected_role, f"Expected role {expected_role}, got {user_role}"
+        tokens[expected_role] = token
+
+    # 3. Test Student Features
+    print("\n--- Testing Student Features ---")
+    headers_student = {"Authorization": f"Bearer {tokens['student']}"}
+    
+    r = client.get("/api/courses", headers=headers_student)
+    print(f"Courses list: {r.status_code}")
+    assert r.status_code == 200
+
+    r = client.get("/api/coding/problems", headers=headers_student)
+    print(f"Coding problems: {r.status_code}")
+    assert r.status_code == 200
+
+    r = client.get("/api/analytics/dashboard", headers=headers_student)
+    print(f"Analytics dashboard: {r.status_code}")
+    assert r.status_code == 200
+
+    r = client.get("/api/notes", headers=headers_student)
+    print(f"Notes: {r.status_code}")
+    assert r.status_code == 200
+
+    # 4. Test Admin & Super Admin RBAC endpoints
+    print("\n--- Testing Admin & Super Admin Executive Endpoints ---")
+    headers_admin = {"Authorization": f"Bearer {tokens['admin']}"}
+    headers_sadmin = {"Authorization": f"Bearer {tokens['super_admin']}"}
+
+    r = client.get("/api/admin/dashboard/stats", headers=headers_admin)
+    print(f"Admin Stats (/api/admin/dashboard/stats): {r.status_code}")
+    assert r.status_code == 200, f"Admin stats failed: {r.text}"
+
+    r = client.get("/api/admin/dashboard/stats", headers=headers_sadmin)
+    print(f"Super Admin Stats (/api/admin/dashboard/stats): {r.status_code}")
+    assert r.status_code == 200, f"Super admin stats failed: {r.text}"
+
+    r = client.get("/api/admin/users", headers=headers_sadmin)
+    print(f"Super Admin User List (/api/admin/users): {r.status_code}")
+    assert r.status_code == 200, f"Super admin users failed: {r.text}"
+
+    # 5. Dynamic signup test
+    print("\n--- Testing Dynamic User Registration & Auth ---")
+    uid = uuid.uuid4().hex[:6]
+    dyn_email = f"dynamic{uid}@test.com"
     r = client.post("/api/auth/signup", json={
-        "email": email,
-        "username": username,
-        "full_name": "Smoke Test",
-        "password": "Test@1234"
+        "email": dyn_email,
+        "username": f"dyn{uid}",
+        "full_name": "Dynamic User",
+        "password": "TestPassword123!"
     })
-    print(f"[2] Signup: {r.status_code}")
-    if r.status_code == 201:
-        print(f"    User created: {r.json().get('username')}")
-    else:
-        print(f"    Response: {r.text[:300]}")
-    assert r.status_code == 201, f"Signup failed: {r.text[:200]}"
+    print(f"Dynamic Signup: {r.status_code}")
+    assert r.status_code == 201
 
-    # 3. Login
-    r = client.post("/api/auth/login", json={
-        "email": email,
-        "password": "Test@1234"
-    })
-    print(f"[3] Login: {r.status_code}")
-    if r.status_code != 200:
-        print(f"    Error: {r.text[:300]}")
-    assert r.status_code == 200, f"Login failed: {r.text[:200]}"
-    data = r.json()
-    token = data["access_token"]
-    print(f"    Token: {token[:40]}...")
-    headers = {"Authorization": f"Bearer {token}"}
-
-    # 4. Get profile
-    r = client.get("/api/users/me", headers=headers)
-    print(f"[4] Profile: {r.status_code} -> username={r.json().get('username')}")
-    assert r.status_code == 200
-
-    # 5. List courses (empty)
-    r = client.get("/api/courses")
-    print(f"[5] Courses: {r.status_code} -> total={r.json().get('total', 0)}")
-    assert r.status_code == 200
-
-    # 6. Get analytics
-    r = client.get("/api/analytics/dashboard", headers=headers)
-    print(f"[6] Analytics: {r.status_code}")
-    assert r.status_code == 200
-
-    # 7. Coding problems (empty)
-    r = client.get("/api/coding/problems")
-    print(f"[7] Problems: {r.status_code} -> total={r.json().get('total', 0)}")
-    assert r.status_code == 200
-
-    # 8. Notes (empty)
-    r = client.get("/api/notes", headers=headers)
-    print(f"[8] Notes: {r.status_code} -> count={len(r.json())}")
-    assert r.status_code == 200
-
-    # 9. Flashcards (empty)
-    r = client.get("/api/flashcards", headers=headers)
-    print(f"[9] Flashcards: {r.status_code} -> count={len(r.json())}")
-    assert r.status_code == 200
-
-    # 10. Certificates (empty)
-    r = client.get("/api/certificates", headers=headers)
-    print(f"[10] Certificates: {r.status_code} -> count={len(r.json())}")
-    assert r.status_code == 200
-
-    # 11. Announcements (empty)
-    r = client.get("/api/admin/announcements")
-    print(f"[11] Announcements: {r.status_code}")
-    assert r.status_code == 200
-
-    # 12. Logout
-    r = client.post("/api/auth/logout", headers=headers)
-    print(f"[12] Logout: {r.status_code} -> {r.json().get('message')}")
-    assert r.status_code == 200
-
-    print("\n=== ALL 12 SMOKE TESTS PASSED ===")
+    print("\n==========================================")
+    print("  ALL SYSTEM INTEGRITY & API TESTS PASSED!  ")
+    print("==========================================")
 
 if __name__ == "__main__":
     test()

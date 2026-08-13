@@ -155,6 +155,7 @@ export default function Signup() {
               />
               <button
                 type="button"
+                tabIndex="-1"
                 onClick={() => setShowPassword(!showPassword)}
                 style={styles.showButton}
               >

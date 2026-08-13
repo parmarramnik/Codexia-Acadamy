@@ -31,25 +31,148 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
+  auth_service:
     build:
       context: ./backend
-      dockerfile: Dockerfile
-    container_name: codexia_api
+      dockerfile: microservices/auth_service/Dockerfile
+    container_name: codexia_auth_service
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "8001:8001"
     environment:
-      - DATABASE_URL=postgresql://codexia_admin:admin_secure_pwd@postgres:5432/codexia_lms
+      - DATABASE_URL=postgresql://neondb_owner:npg_rkM2m8upYgzS@ep-super-frost-adgtyrjd-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
       - REDIS_URL=redis://redis:6379/0
-      - APP_NAME=Codexia Academy
+      - APP_NAME=Codexia Auth Service
+      - DEBUG=true
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=parmarramnik408@gmail.com
+      - SMTP_PASSWORD=xafrqvrcphorurko
+      - FROM_EMAIL=parmarramnik408@gmail.com
+
+  course_service:
+    build:
+      context: ./backend
+      dockerfile: microservices/course_service/Dockerfile
+    container_name: codexia_course_service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://neondb_owner:npg_rkM2m8upYgzS@ep-super-frost-adgtyrjd-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
+      - REDIS_URL=redis://redis:6379/0
+      - APP_NAME=Codexia Course Service
       - DEBUG=true
     volumes:
-      - ./backend/uploads:/app/uploads
+      - ./backend/static:/app/static
+
+  quiz_service:
+    build:
+      context: ./backend
+      dockerfile: microservices/quiz_service/Dockerfile
+    container_name: codexia_quiz_service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8003:8003"
+    environment:
+      - DATABASE_URL=postgresql://neondb_owner:npg_rkM2m8upYgzS@ep-super-frost-adgtyrjd-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
+      - REDIS_URL=redis://redis:6379/0
+      - APP_NAME=Codexia Quiz Service
+      - DEBUG=true
+    volumes:
+      - ./backend/static:/app/static
+
+  coding_service:
+    build:
+      context: ./backend
+      dockerfile: microservices/coding_service/Dockerfile
+    container_name: codexia_coding_service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8004:8004"
+    environment:
+      - DATABASE_URL=postgresql://neondb_owner:npg_rkM2m8upYgzS@ep-super-frost-adgtyrjd-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
+      - REDIS_URL=redis://redis:6379/0
+      - APP_NAME=Codexia Coding Service
+      - DEBUG=true
+
+  ai_service:
+    build:
+      context: ./backend
+      dockerfile: microservices/ai_service/Dockerfile
+    container_name: codexia_ai_service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8005:8005"
+    environment:
+      - DATABASE_URL=postgresql://neondb_owner:npg_rkM2m8upYgzS@ep-super-frost-adgtyrjd-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
+      - REDIS_URL=redis://redis:6379/0
+      - APP_NAME=Codexia AI Service
+      - DEBUG=true
+
+  analytics_service:
+    build:
+      context: ./backend
+      dockerfile: microservices/analytics_service/Dockerfile
+    container_name: codexia_analytics_service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8006:8006"
+    environment:
+      - DATABASE_URL=postgresql://neondb_owner:npg_rkM2m8upYgzS@ep-super-frost-adgtyrjd-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
+      - REDIS_URL=redis://redis:6379/0
+      - APP_NAME=Codexia Analytics Service
+      - DEBUG=true
+
+  gateway:
+    build:
+      context: ./backend
+      dockerfile: microservices/gateway/Dockerfile
+    container_name: codexia_api_gateway
+    depends_on:
+      - auth_service
+      - course_service
+      - quiz_service
+      - coding_service
+      - ai_service
+      - analytics_service
+    ports:
+      - "8000:8000"
+    environment:
+      - AUTH_SERVICE_URL=http://auth_service:8001
+      - COURSE_SERVICE_URL=http://course_service:8002
+      - QUIZ_SERVICE_URL=http://quiz_service:8003
+      - CODING_SERVICE_URL=http://coding_service:8004
+      - AI_SERVICE_URL=http://ai_service:8005
+      - ANALYTICS_SERVICE_URL=http://analytics_service:8006
+      - APP_NAME=Codexia API Gateway
+      - DEBUG=true
+    volumes:
+      - ./backend/static:/app/static
 
 volumes:
   postgres_data:

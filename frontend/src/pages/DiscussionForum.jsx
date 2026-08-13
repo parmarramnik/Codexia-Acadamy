@@ -9,7 +9,8 @@ import {
   FiSend, 
   FiUser, 
   FiMessageCircle,
-  FiX
+  FiX,
+  FiTrash2
 } from 'react-icons/fi';
 import LoadingButton from '../components/common/LoadingButton';
 
@@ -94,6 +95,22 @@ export default function DiscussionForum() {
       loadThreads();
     } catch (err) {
       toast.error('Could not mark resolved');
+    }
+  };
+
+  // Delete thread / doubt
+  const handleDeleteThread = async (id, e) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this thread/doubt?')) return;
+    try {
+      await api.delete(`/comms/discussions/${id}`);
+      toast.success('Thread removed successfully');
+      if (selectedThread?.id === id) {
+        setSelectedThread(null);
+      }
+      loadThreads();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to remove thread');
     }
   };
 
@@ -230,15 +247,38 @@ export default function DiscussionForum() {
                       {t.is_doubt && <FiHelpCircle style={{ color: 'var(--color-warning)', marginRight: '4px', flexShrink: 0 }} />}
                       {t.title}
                     </span>
-                    {t.is_resolved ? (
-                      <span style={styles.resolvedBadge}>
-                        <FiCheckCircle size={12} /> Resolved
-                      </span>
-                    ) : t.is_doubt ? (
-                      <button onClick={(e) => { e.stopPropagation(); handleResolveDoubt(t.id); }} style={styles.resolveBtn}>
-                        Resolve
-                      </button>
-                    ) : null}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {t.is_resolved ? (
+                        <span style={styles.resolvedBadge}>
+                          <FiCheckCircle size={12} /> Resolved
+                        </span>
+                      ) : t.is_doubt ? (
+                        <button onClick={(e) => { e.stopPropagation(); handleResolveDoubt(t.id); }} style={styles.resolveBtn}>
+                          Resolve
+                        </button>
+                      ) : null}
+
+                      {(user?.id === t.user?.id || ['admin', 'super_admin', 'instructor'].includes(user?.role)) && (
+                        <button
+                          onClick={(e) => handleDeleteThread(t.id, e)}
+                          style={{
+                            background: 'rgba(244, 67, 54, 0.1)',
+                            border: '1px solid rgba(244, 67, 54, 0.3)',
+                            color: '#F44336',
+                            borderRadius: '4px',
+                            padding: '3px 7px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            fontSize: '0.75rem',
+                          }}
+                          title="Delete this thread/doubt"
+                        >
+                          <FiTrash2 size={13} /> Delete
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <p style={styles.threadPreview}>{t.content.length > 80 ? `${t.content.slice(0, 80)}...` : t.content}</p>
                   <div style={styles.threadMeta}>

@@ -127,6 +127,111 @@ def get_my_attempts(
     return [QuizAttemptResult.model_validate(a) for a in attempts]
 
 
+from pydantic import BaseModel, Field
+from typing import Optional, List
+from ai.generator import generate_quiz_questions
+from models.quiz import Quiz, Question, Answer, QuizAttempt, QuizResponse as QuizRespModel
+
+
+class AIQuizRequest(BaseModel):
+    topic: str = Field(..., description="Subject or topic for quiz generation")
+    course_id: Optional[int] = None
+    question_count: int = Field(5, ge=1, le=20)
+    difficulty: str = Field("medium", description="easy, medium, hard")
+    time_limit_minutes: int = Field(15, ge=1)
+    passing_percentage: int = Field(70, ge=1, le=100)
+
+
+@router.post("", response_model=dict)
+def create_quiz_manual(
+    data: QuizCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Manually create a new quiz with questions and answers (Instructor/Admin only)."""
+    user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if user_role not in ("instructor", "admin", "super_admin"):
+        raise HTTPException(status_code=403, detail="Only instructors and admins can create quizzes")
+
+    quiz = quiz_service.create_quiz(db, data.course_id, data)
+    quiz.is_published = True
+    db.commit()
+    db.refresh(quiz)
+    return {"message": "Quiz created successfully", "quiz_id": quiz.id}
+
+
+@router.post("/ai-generate", response_model=dict)
+def create_quiz_ai(
+    data: AIQuizRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Generate a full quiz with AI based on topic/course name and question count (Instructor/Admin only)."""
+    user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if user_role not in ("instructor", "admin", "super_admin"):
+        raise HTTPException(status_code=403, detail="Only instructors and admins can generate quizzes")
+
+    # Generate questions using Gemini AI
+    generated_q_list = generate_quiz_questions(
+        topic=data.topic,
+        count=data.question_count,
+        difficulty=data.difficulty
+    )
+
+    if not generated_q_list or "error" in generated_q_list[0]:
+        raise HTTPException(status_code=500, detail="AI quiz generation failed. Please try again.")
+
+    target_course_id = data.course_id
+    if not target_course_id:
+        from models.course import Course
+        first_c = db.query(Course.id).first()
+        if first_c:
+            target_course_id = first_c[0]
+
+    total_marks = len(generated_q_list) * 10
+    quiz = Quiz(
+        course_id=target_course_id,
+        title=f"AI Quiz: {data.topic}",
+        description=f"Generated assessment on '{data.topic}' ({data.difficulty.capitalize()} level).",
+        time_limit_minutes=data.time_limit_minutes,
+        total_marks=total_marks,
+        passing_percentage=data.passing_percentage,
+        is_published=True,
+        max_attempts=3
+    )
+    db.add(quiz)
+    db.flush()
+
+    for idx, g_q in enumerate(generated_q_list, start=1):
+        q_obj = Question(
+            quiz_id=quiz.id,
+            question_type="mcq",
+            content=g_q.get("question", f"Question {idx} on {data.topic}"),
+            explanation=g_q.get("explanation", "Review core concept details."),
+            marks=10,
+            order_index=idx
+        )
+        db.add(q_obj)
+        db.flush()
+
+        options = g_q.get("options", ["Option A", "Option B", "Option C", "Option D"])
+        correct_ans = g_q.get("correct_answer", options[0])
+
+        for a_idx, opt_text in enumerate(options, start=1):
+            is_corr = str(opt_text).strip().lower() == str(correct_ans).strip().lower() or a_idx == 1
+            answer = Answer(
+                question_id=q_obj.id,
+                content=opt_text,
+                is_correct=is_corr,
+                order_index=a_idx
+            )
+            db.add(answer)
+
+    db.commit()
+    db.refresh(quiz)
+    return {"message": f"AI Quiz generated successfully with {len(generated_q_list)} questions", "quiz_id": quiz.id}
+
+
 @router.put("/{quiz_id}", response_model=MessageResponse)
 def update_quiz(
     quiz_id: int,
@@ -135,12 +240,13 @@ def update_quiz(
     db: Session = Depends(get_db),
 ):
     """Update quiz settings."""
+    user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if user_role not in ("instructor", "admin", "super_admin"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
     quiz = quiz_service.get_quiz_by_id(db, quiz_id)
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
-    course = course_service.get_course_by_id(db, quiz.course_id)
-    if not course or not is_owner_or_admin(course.instructor_id, current_user):
-        raise HTTPException(status_code=403, detail="Not authorized")
 
     update_dict = data.model_dump(exclude_unset=True)
     for field, value in update_dict.items():
@@ -155,13 +261,22 @@ def delete_quiz(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Delete a quiz."""
+    """Delete a quiz (Instructor/Admin/Super Admin only)."""
+    user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if user_role not in ("instructor", "admin", "super_admin"):
+        raise HTTPException(status_code=403, detail="Only instructors and admins can delete quizzes")
+
     quiz = quiz_service.get_quiz_by_id(db, quiz_id)
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
-    course = course_service.get_course_by_id(db, quiz.course_id)
-    if not course or not is_owner_or_admin(course.instructor_id, current_user):
-        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Clean up associated questions, answers, and attempts first
+    questions = db.query(Question).filter(Question.quiz_id == quiz_id).all()
+    for q in questions:
+        db.query(Answer).filter(Answer.question_id == q.id).delete(synchronize_session=False)
+    db.query(Question).filter(Question.quiz_id == quiz_id).delete(synchronize_session=False)
+    db.query(QuizAttempt).filter(QuizAttempt.quiz_id == quiz_id).delete(synchronize_session=False)
+
     db.delete(quiz)
     db.commit()
     return {"message": "Quiz deleted successfully"}

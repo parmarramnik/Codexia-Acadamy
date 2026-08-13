@@ -108,6 +108,7 @@ export default function Login() {
               />
               <button
                 type="button"
+                tabIndex="-1"
                 onClick={() => setShowPassword(!showPassword)}
                 style={styles.showButton}
               >

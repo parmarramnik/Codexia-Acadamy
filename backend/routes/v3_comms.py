@@ -204,6 +204,27 @@ def resolve_doubt(
     return {"status": "resolved"}
 
 
+@router.delete("/discussions/{discussion_id}")
+def delete_discussion(
+    discussion_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a discussion thread or doubt (only by owner, admin, super_admin, or instructor)."""
+    discussion = db.query(Discussion).filter(Discussion.id == discussion_id).first()
+    if not discussion:
+        raise HTTPException(status_code=404, detail="Thread not found")
+
+    user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if discussion.user_id != current_user.id and user_role not in ("admin", "super_admin", "instructor"):
+        raise HTTPException(status_code=403, detail="You do not have permission to remove this thread")
+
+    db.query(DiscussionReply).filter(DiscussionReply.discussion_id == discussion_id).delete(synchronize_session=False)
+    db.delete(discussion)
+    db.commit()
+    return {"status": "deleted", "message": "Thread removed successfully"}
+
+
 @router.get("/messages")
 def get_direct_messages(
     with_user_id: int,

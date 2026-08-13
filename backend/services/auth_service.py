@@ -103,15 +103,18 @@ def verify_account_otp(db: Session, email: str, otp: str) -> dict:
         refresh_token = create_refresh_token(data={"sub": str(user.id)})
         return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "user": user}
 
-    if not user.verification_otp or user.verification_otp.strip() != otp.strip():
-        raise ValueError("Invalid verification OTP code. Please check the code sent to your email.")
-
     if user.verification_otp_expires:
         expires = user.verification_otp_expires
         if expires.tzinfo is None:
             expires = expires.replace(tzinfo=timezone.utc)
         if datetime.now(timezone.utc) > expires:
+            user.verification_otp = None
+            user.verification_otp_expires = None
+            db.commit()
             raise ValueError("Verification OTP code has expired (60s limit). Please click 'Resend OTP' for a new code.")
+
+    if not user.verification_otp or user.verification_otp.strip() != otp.strip():
+        raise ValueError("Invalid verification OTP code. Please check your email inbox for the 6-digit OTP code.")
 
     # Verification successful
     user.is_verified = True

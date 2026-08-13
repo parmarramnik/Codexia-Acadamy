@@ -248,6 +248,8 @@ export default function VerifyEmail() {
                 ))}
               </div>
 
+
+
               {/* 60-Second Real-Time Countdown & Resend Section */}
               <div style={styles.timerRow}>
                 <span style={styles.timerText}>
