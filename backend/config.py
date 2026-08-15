@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
     FROM_EMAIL: str = "noreply@codexia.com"
+    ADMIN_EMAIL: str = "parmarramnik408@gmail.com"
+    INSTRUCTOR_EMAIL: str = "23bce212@nirmauni.ac.in"
 
     # Frontend URL (for email links)
     FRONTEND_URL: str = "http://localhost:3000"
@@ -60,3 +62,12 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+if not settings.DEBUG and settings.JWT_SECRET_KEY == "change-this-in-production-use-a-strong-random-key":
+    import warnings
+    warnings.warn(
+        "CRITICAL SECURITY WARNING: JWT_SECRET_KEY is using the default development placeholder in production mode! "
+        "Set a strong random key in your .env or environment variables immediately.",
+        RuntimeWarning,
+        stacklevel=2,
+    )

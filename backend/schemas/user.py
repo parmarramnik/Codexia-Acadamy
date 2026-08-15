@@ -109,11 +109,14 @@ class UserListResponse(BaseModel):
     role: str
     is_active: bool
     is_verified: bool
-    password_hash: str
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class AdminPasswordResetRequest(BaseModel):
+    new_password: str = Field(..., min_length=6, max_length=128)
 
 
 class PasswordReset(BaseModel):

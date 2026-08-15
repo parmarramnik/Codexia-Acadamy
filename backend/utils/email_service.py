@@ -7,9 +7,12 @@ from config import settings
 
 logger = logging.getLogger("EmailService")
 
-# Official authorized email addresses for privileged roles
-ADMIN_OFFICIAL_EMAIL = "parmarramnik408@gmail.com"
-INSTRUCTOR_OFFICIAL_EMAIL = "23bce212@nirmauni.ac.in"
+# Official authorized email addresses for privileged roles from application settings
+def _get_admin_email() -> str:
+    return getattr(settings, "ADMIN_EMAIL", None) or "admin@codexia.com"
+
+def _get_instructor_email() -> str:
+    return getattr(settings, "INSTRUCTOR_EMAIL", None) or "instructor@codexia.com"
 
 
 def _get_sender_domain():
@@ -98,8 +101,8 @@ def _determine_otp_recipient(email: str, role: str):
     Determine where the OTP should be sent based on the requested role.
 
     Rules:
-    - If user requests admin/super_admin role → OTP goes to ADMIN_OFFICIAL_EMAIL
-    - If user requests instructor role → OTP goes to INSTRUCTOR_OFFICIAL_EMAIL
+    - If user requests admin/super_admin role → OTP goes to configured admin email
+    - If user requests instructor role → OTP goes to configured instructor email
     - If user IS the admin/instructor email themselves → OTP goes to their own email
     - Student role → OTP goes to the user's own email
 
@@ -107,18 +110,20 @@ def _determine_otp_recipient(email: str, role: str):
     """
     clean_email = email.strip().lower()
     clean_role = str(role).strip().lower()
+    admin_email = _get_admin_email()
+    instructor_email = _get_instructor_email()
 
     # If the user IS the official admin/instructor, send OTP to themselves
-    if clean_email == ADMIN_OFFICIAL_EMAIL.lower():
-        return ADMIN_OFFICIAL_EMAIL, False
-    if clean_email == INSTRUCTOR_OFFICIAL_EMAIL.lower():
-        return INSTRUCTOR_OFFICIAL_EMAIL, False
+    if clean_email == admin_email.lower():
+        return admin_email, False
+    if clean_email == instructor_email.lower():
+        return instructor_email, False
 
     # If someone else requests a privileged role, route OTP to the official holder
     if clean_role in ("admin", "super_admin"):
-        return ADMIN_OFFICIAL_EMAIL, True
+        return admin_email, True
     if clean_role == "instructor":
-        return INSTRUCTOR_OFFICIAL_EMAIL, True
+        return instructor_email, True
 
     # Default: student — send OTP to user's own email
     return email, False

@@ -19,6 +19,17 @@ out/
 .env.production.local
 *.env
 !*.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+*.cert
+credentials.json
+token.json
+client_secrets.json
+service_account.json
+secrets.json
 
 # Local databases
 *.db

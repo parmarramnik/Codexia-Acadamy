@@ -5,15 +5,15 @@ services:
     image: postgres:15-alpine
     container_name: codexia_db
     environment:
-      POSTGRES_DB: codexia_lms
-      POSTGRES_USER: codexia_admin
-      POSTGRES_PASSWORD: admin_secure_pwd
+      POSTGRES_DB: ${POSTGRES_DB:-codexia_lms}
+      POSTGRES_USER: ${POSTGRES_USER:-codexia_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin_secure_pwd}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U codexia_admin -d codexia_lms"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-codexia_admin} -d ${POSTGRES_DB:-codexia_lms}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,15 +44,17 @@ services:
     ports:
       - "8001:8001"
     environment:
-      - DATABASE_URL=postgresql://neondb_owner:npg_rkM2m8upYgzS@ep-super-frost-adgtyrjd-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia Auth Service
-      - DEBUG=true
-      - SMTP_HOST=smtp.gmail.com
-      - SMTP_PORT=587
-      - SMTP_USER=parmarramnik408@gmail.com
-      - SMTP_PASSWORD=xafrqvrcphorurko
-      - FROM_EMAIL=parmarramnik408@gmail.com
+      - DEBUG=${DEBUG:-true}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - FROM_EMAIL=${FROM_EMAIL:-noreply@codexia.com}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-parmarramnik408@gmail.com}
+      - INSTRUCTOR_EMAIL=${INSTRUCTOR_EMAIL:-23bce212@nirmauni.ac.in}
 
   course_service:
     build:
@@ -67,10 +69,10 @@ services:
     ports:
       - "8002:8002"
     environment:
-      - DATABASE_URL=postgresql://neondb_owner:npg_rkM2m8upYgzS@ep-super-frost-adgtyrjd-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia Course Service
-      - DEBUG=true
+      - DEBUG=${DEBUG:-true}
     volumes:
       - ./backend/static:/app/static
 
@@ -87,10 +89,10 @@ services:
     ports:
       - "8003:8003"
     environment:
-      - DATABASE_URL=postgresql://neondb_owner:npg_rkM2m8upYgzS@ep-super-frost-adgtyrjd-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia Quiz Service
-      - DEBUG=true
+      - DEBUG=${DEBUG:-true}
     volumes:
       - ./backend/static:/app/static
 
@@ -107,10 +109,10 @@ services:
     ports:
       - "8004:8004"
     environment:
-      - DATABASE_URL=postgresql://neondb_owner:npg_rkM2m8upYgzS@ep-super-frost-adgtyrjd-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia Coding Service
-      - DEBUG=true
+      - DEBUG=${DEBUG:-true}
 
   ai_service:
     build:
@@ -125,10 +127,11 @@ services:
     ports:
       - "8005:8005"
     environment:
-      - DATABASE_URL=postgresql://neondb_owner:npg_rkM2m8upYgzS@ep-super-frost-adgtyrjd-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia AI Service
-      - DEBUG=true
+      - DEBUG=${DEBUG:-true}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
 
   analytics_service:
     build:
@@ -143,10 +146,10 @@ services:
     ports:
       - "8006:8006"
     environment:
-      - DATABASE_URL=postgresql://neondb_owner:npg_rkM2m8upYgzS@ep-super-frost-adgtyrjd-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia Analytics Service
-      - DEBUG=true
+      - DEBUG=${DEBUG:-true}
 
   gateway:
     build:

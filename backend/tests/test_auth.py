@@ -80,12 +80,12 @@ def test_signup_success(client):
 def test_signup_without_username_and_fullname(client):
     """Test signup with only email and password (omitting username & full_name)."""
     response = client.post("/api/auth/signup", json={
-        "email": "23bce212@nirmauni.ac.in",
+        "email": "student_user1@example.com",
         "password": "Password123!"
     })
     assert response.status_code == 201
-    assert response.json()["email"] == "23bce212@nirmauni.ac.in"
-    assert response.json()["username"] == "23bce212"
+    assert response.json()["email"] == "student_user1@example.com"
+    assert response.json()["username"] == "student_user1"
 
 
 

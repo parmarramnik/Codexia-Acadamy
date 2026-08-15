@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import api from '../services/api';
@@ -19,7 +19,11 @@ import {
   FiDatabase,
   FiCpu,
   FiStar,
-  FiMaximize2
+  FiMaximize2,
+  FiRotateCcw,
+  FiCopy,
+  FiPlayCircle,
+  FiSliders
 } from 'react-icons/fi';
 
 export default function CodingPractice() {
@@ -38,8 +42,13 @@ export default function CodingPractice() {
   // Layout states
   const [leftTab, setLeftTab] = useState('description'); // 'description' | 'submissions' | 'ai'
   const [consoleOpen, setConsoleOpen] = useState(true);
-  const [consoleTab, setConsoleTab] = useState('testcase'); // 'testcase' | 'result'
+  const [consoleTab, setConsoleTab] = useState('testcase'); // 'testcase' | 'custom' | 'result'
   const [activeCaseIndex, setActiveCaseIndex] = useState(0);
+  
+  // Custom Input Testcase
+  const [customInput, setCustomInput] = useState('');
+  const [customResult, setCustomResult] = useState(null);
+  const [isRunningCustom, setIsRunningCustom] = useState(false);
   
   // Data states
   const [submissions, setSubmissions] = useState([]);
@@ -65,14 +74,25 @@ export default function CodingPractice() {
     go: 'package main\n\nimport "fmt"\n\nfunc main() {\n    // Write Go code here\n}\n'
   };
 
-  // Fetch coding problems list and first problem details
+  const getStarterCode = (problem, lang) => {
+    if (!problem) return starterCode[lang] || '';
+    if (lang === 'python') return problem.starter_code_python || starterCode.python;
+    if (lang === 'javascript') return problem.starter_code_javascript || starterCode.javascript;
+    if (lang === 'cpp') return problem.starter_code_cpp || starterCode.cpp;
+    if (lang === 'c') return starterCode.c;
+    if (lang === 'java') return problem.starter_code_java || starterCode.java;
+    if (lang === 'go') return starterCode.go;
+    return starterCode.python;
+  };
+
+  // Fetch coding problems list and problem details
   useEffect(() => {
     async function loadProblems() {
       setIsLoading(true);
       let items = [];
       try {
         const res = await api.get('/coding/problems');
-        items = res.data.items || [];
+        items = res.data?.items || (Array.isArray(res.data) ? res.data : []);
         setProblems(items);
       } catch (err) {
         toast.error('Failed to load coding problems');
@@ -85,7 +105,7 @@ export default function CodingPractice() {
         try {
           const detailRes = await api.get(`/coding/problems/${activeSlug}`);
           setSelectedProblem(detailRes.data);
-          setCode(detailRes.data.starter_code_python || starterCode.python);
+          setCode(getStarterCode(detailRes.data, language));
           
           // Fetch favorites
           try {
@@ -105,13 +125,27 @@ export default function CodingPractice() {
   // Update starter code when language changes
   useEffect(() => {
     if (!selectedProblem) return;
-    if (language === 'python') setCode(selectedProblem.starter_code_python || starterCode.python);
-    if (language === 'javascript') setCode(selectedProblem.starter_code_javascript || starterCode.javascript);
-    if (language === 'cpp') setCode(selectedProblem.starter_code_cpp || starterCode.cpp);
-    if (language === 'c') setCode(starterCode.c);
-    if (language === 'java') setCode(selectedProblem.starter_code_java || starterCode.java);
-    if (language === 'go') setCode(starterCode.go);
-  }, [language, selectedProblem]);
+    setCode(getStarterCode(selectedProblem, language));
+  }, [language]);
+
+  // Global Keyboard Shortcuts (Ctrl+Enter to Run, Ctrl+Shift+Enter to Submit)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleSubmit();
+        } else {
+          handleRun();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === "'") {
+        e.preventDefault();
+        setConsoleOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [code, language, selectedProblem, customInput]);
 
   // Fetch submissions when Left Tab changes to 'submissions'
   useEffect(() => {
@@ -125,7 +159,7 @@ export default function CodingPractice() {
     setIsSubmissionsLoading(true);
     try {
       const res = await api.get(`/coding/problems/${selectedProblem.id}/submissions`);
-      setSubmissions(res.data || []);
+      setSubmissions(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       toast.error('Failed to load submissions');
     } finally {
@@ -133,9 +167,20 @@ export default function CodingPractice() {
     }
   };
 
+  const handleResetCode = () => {
+    if (window.confirm('Reset code to initial boilerplate template? Your current edits will be cleared.')) {
+      setCode(getStarterCode(selectedProblem, language));
+      toast.success('Code reset to default starter template');
+    }
+  };
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(code);
+    toast.success('Code copied to clipboard!');
+  };
+
   const handleRun = async () => {
     if (!selectedProblem) return;
-    setIsRunning(false);
     setIsRunning(true);
     setConsoleOpen(true);
     setConsoleTab('result');
@@ -160,9 +205,51 @@ export default function CodingPractice() {
         toast.error('Some sample test cases failed');
       }
     } catch (err) {
-      toast.error('Error running code');
+      const errDetail = err.response?.data?.detail || err.message || 'Error running code';
+      toast.error(errDetail);
+      setResults({
+        status: 'Runtime Error',
+        passed: 0,
+        total: selectedProblem.test_cases?.filter(tc => !tc.is_hidden).length || 0,
+        test_results: [],
+        error_message: errDetail,
+        type: 'run'
+      });
     } finally {
       setIsRunning(false);
+    }
+  };
+
+  const handleCustomRun = async () => {
+    if (!selectedProblem) return;
+    setIsRunningCustom(true);
+    setConsoleOpen(true);
+    setConsoleTab('custom');
+    try {
+      const res = await api.post(`/coding/problems/${selectedProblem.id}/custom-run`, {
+        code,
+        language,
+        custom_input: customInput
+      });
+      setCustomResult(res.data);
+      if (res.data.status === 'completed') {
+        toast.success('Custom test executed successfully!');
+      } else {
+        toast.error('Execution encountered an error');
+      }
+    } catch (err) {
+      const errDetail = err.response?.data?.detail || err.message || 'Execution failed';
+      toast.error(errDetail);
+      setCustomResult({
+        status: 'error',
+        input_data: customInput,
+        actual_output: '',
+        error_message: errDetail,
+        execution_time_ms: 0,
+        memory_used_mb: 0
+      });
+    } finally {
+      setIsRunningCustom(false);
     }
   };
 
@@ -183,20 +270,28 @@ export default function CodingPractice() {
         status: res.data.status,
         passed: res.data.test_cases_passed,
         total: res.data.test_cases_total,
-        test_results: [], // Submission response does not return test results detail for security
+        test_results: [],
         error_message: res.data.error_message,
         execution_time_ms: res.data.execution_time_ms,
         type: 'submit'
       });
       if (isAccepted) {
         toast.success('Congratulations! All test cases passed.');
-        // Refresh submissions if tab is open
         if (leftTab === 'submissions') loadSubmissions();
       } else {
         toast.error(`Submission failed: ${(res.data.status || 'failed').replace('_', ' ').toLowerCase()}`);
       }
     } catch (err) {
-      toast.error('Error submitting code');
+      const errDetail = err.response?.data?.detail || err.message || 'Error submitting code';
+      toast.error(errDetail);
+      setResults({
+        status: 'Submission Failed',
+        passed: 0,
+        total: selectedProblem.test_cases?.length || 0,
+        test_results: [],
+        error_message: errDetail,
+        type: 'submit'
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -578,7 +673,7 @@ export default function CodingPractice() {
               backgroundColor: 'var(--bg-primary)'
             } : {})
           }}>
-            {/* Header Language Selector */}
+            {/* Header Controls */}
             <div style={styles.editorHeader}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', width: '100%' }}>
                 
@@ -590,18 +685,18 @@ export default function CodingPractice() {
                     onChange={(e) => setLanguage(e.target.value)}
                     style={styles.langSelect}
                   >
-                    <option value="python">Python</option>
-                    <option value="javascript">JavaScript</option>
-                    <option value="cpp">C++</option>
-                    <option value="c">C</option>
-                    <option value="java">Java</option>
+                    <option value="python">Python 3</option>
+                    <option value="javascript">JavaScript (Node.js)</option>
+                    <option value="cpp">C++ (G++)</option>
+                    <option value="c">C (GCC)</option>
+                    <option value="java">Java (OpenJDK)</option>
                     <option value="go">Go</option>
                   </select>
                 </div>
 
                 {/* Theme Select */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Theme:</span>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Theme:</span>
                   <select
                     value={editorTheme}
                     onChange={(e) => setEditorTheme(e.target.value)}
@@ -614,7 +709,7 @@ export default function CodingPractice() {
 
                 {/* Font Size Select */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Size:</span>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Size:</span>
                   <select
                     value={fontSize}
                     onChange={(e) => setFontSize(Number(e.target.value))}
@@ -627,6 +722,46 @@ export default function CodingPractice() {
                     <option value="20">20px</option>
                   </select>
                 </div>
+
+                {/* Reset Code Button */}
+                <button
+                  onClick={handleResetCode}
+                  style={{
+                    padding: '0.35rem 0.6rem',
+                    backgroundColor: 'transparent',
+                    border: '1px solid var(--border-primary)',
+                    borderRadius: '4px',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem'
+                  }}
+                  title="Reset to starter boilerplate"
+                >
+                  <FiRotateCcw size={12} /> Reset
+                </button>
+
+                {/* Copy Code Button */}
+                <button
+                  onClick={handleCopyCode}
+                  style={{
+                    padding: '0.35rem 0.6rem',
+                    backgroundColor: 'transparent',
+                    border: '1px solid var(--border-primary)',
+                    borderRadius: '4px',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem'
+                  }}
+                  title="Copy code to clipboard"
+                >
+                  <FiCopy size={12} /> Copy
+                </button>
 
                 {/* Word Wrap Toggle */}
                 <button
@@ -701,23 +836,30 @@ export default function CodingPractice() {
             }}>
               {/* Drawer Tabs */}
               <div style={styles.consoleHeader}>
-                <div style={{ display: 'flex', gap: '1rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button
                     onClick={() => setConsoleTab('testcase')}
                     style={consoleTab === 'testcase' ? { ...styles.consoleTabBtn, ...styles.consoleTabBtnActive } : styles.consoleTabBtn}
                   >
-                    Testcase
+                    Testcases
+                  </button>
+                  <button
+                    onClick={() => setConsoleTab('custom')}
+                    style={consoleTab === 'custom' ? { ...styles.consoleTabBtn, ...styles.consoleTabBtnActive } : styles.consoleTabBtn}
+                  >
+                    Custom Input
                   </button>
                   <button
                     onClick={() => setConsoleTab('result')}
                     style={consoleTab === 'result' ? { ...styles.consoleTabBtn, ...styles.consoleTabBtnActive } : styles.consoleTabBtn}
                   >
-                    Result
+                    Test Result
                   </button>
                 </div>
                 <button 
                   onClick={() => setConsoleOpen(false)}
                   style={styles.collapseBtn}
+                  title="Collapse console"
                 >
                   <FiChevronDown size={18} />
                 </button>
@@ -728,7 +870,7 @@ export default function CodingPractice() {
                 {consoleTab === 'testcase' ? (
                   /* Testcase Tab */
                   <div style={styles.testcaseTabContent}>
-                    <p style={styles.consoleHelpText}>Run your code against these sample input testcases:</p>
+                    <p style={styles.consoleHelpText}>Run your code against these sample test cases:</p>
                     <div style={styles.testcaseGrid}>
                       {selectedProblem.test_cases?.filter(tc => !tc.is_hidden).map((tc, idx) => (
                         <button
@@ -756,6 +898,76 @@ export default function CodingPractice() {
                           <span style={styles.ioLabel}>Expected Output:</span>
                           <pre style={styles.ioPre}>{selectedProblem.test_cases.filter(tc => !tc.is_hidden)[activeCaseIndex].expected_output}</pre>
                         </div>
+                      </div>
+                    )}
+                  </div>
+                ) : consoleTab === 'custom' ? (
+                  /* Custom Input Tab */
+                  <div style={styles.testcaseTabContent}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <span style={styles.ioLabel}>Standard Input (stdin):</span>
+                      <LoadingButton
+                        onClick={handleCustomRun}
+                        loading={isRunningCustom}
+                        loadingText="Executing..."
+                        style={{
+                          padding: '0.3rem 0.75rem',
+                          backgroundColor: 'var(--accent-primary)',
+                          color: '#FFF',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontSize: '0.8rem',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.3rem'
+                        }}
+                      >
+                        <FiPlayCircle size={14} /> Run Custom Input
+                      </LoadingButton>
+                    </div>
+                    <textarea
+                      placeholder="Enter custom stdin here..."
+                      value={customInput}
+                      onChange={(e) => setCustomInput(e.target.value)}
+                      style={{
+                        width: '100%',
+                        height: '75px',
+                        backgroundColor: '#1E1E1E',
+                        border: '1px solid #333',
+                        borderRadius: '4px',
+                        color: '#FFF',
+                        fontFamily: 'Fira Code, monospace',
+                        fontSize: '0.82rem',
+                        padding: '0.5rem',
+                        outline: 'none',
+                        resize: 'none',
+                        boxSizing: 'border-box',
+                        marginBottom: '0.75rem'
+                      }}
+                    />
+
+                    {customResult && (
+                      <div style={styles.caseIOBox}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{
+                            ...styles.ioLabel,
+                            color: customResult.status === 'completed' ? 'var(--color-success)' : 'var(--color-error)',
+                            fontWeight: 'bold'
+                          }}>
+                            {customResult.status === 'completed' ? 'Execution Output (stdout):' : 'Execution Error:'}
+                          </span>
+                          <span style={styles.runtimeBadge}>
+                            Runtime: {customResult.execution_time_ms} ms · Memory: {customResult.memory_used_mb} MB
+                          </span>
+                        </div>
+                        {customResult.actual_output && (
+                          <pre style={{ ...styles.ioPre, color: 'var(--color-success)', marginTop: '0.4rem' }}>{customResult.actual_output}</pre>
+                        )}
+                        {customResult.error_message && (
+                          <pre style={{ ...styles.ioPre, color: 'var(--color-error)', marginTop: '0.4rem' }}>{customResult.error_message}</pre>
+                        )}
                       </div>
                     )}
                   </div>
@@ -868,8 +1080,9 @@ export default function CodingPractice() {
                   onClick={handleRun}
                   loading={isRunning}
                   loadingText="Running..."
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isRunningCustom}
                   style={styles.runBtn}
+                  title="Run Code (Ctrl + Enter)"
                 >
                   <FiPlay /> Run
                 </LoadingButton>
@@ -877,8 +1090,9 @@ export default function CodingPractice() {
                   onClick={handleSubmit}
                   loading={isSubmitting}
                   loadingText="Submitting..."
-                  disabled={isRunning}
+                  disabled={isRunning || isRunningCustom}
                   style={styles.submitBtn}
+                  title="Submit Solution (Ctrl + Shift + Enter)"
                 >
                   <FiCheck /> Submit
                 </LoadingButton>

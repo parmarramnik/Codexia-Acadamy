@@ -72,8 +72,10 @@ export default function QuizHub() {
         api.get('/quizzes'),
         api.get('/courses')
       ]);
-      setQuizzes(quizRes.data || []);
-      setCourses(courseRes.data || []);
+      const quizItems = Array.isArray(quizRes.data) ? quizRes.data : (quizRes.data?.items || []);
+      const courseItems = Array.isArray(courseRes.data) ? courseRes.data : (courseRes.data?.items || []);
+      setQuizzes(quizItems);
+      setCourses(courseItems);
     } catch (err) {
       toast.error('Failed to load quiz catalog');
     } finally {

@@ -5,7 +5,7 @@ Schemas package.
 from schemas.user import (
     UserCreate, UserLogin, UserUpdate, UserResponse, UserListResponse,
     TokenResponse, RefreshTokenRequest, PasswordReset, PasswordResetConfirm,
-    ChangePassword, MessageResponse,
+    ChangePassword, MessageResponse, AdminPasswordResetRequest,
 )
 from schemas.course import (
     CourseCreate, CourseUpdate, CourseResponse, CourseListResponse,

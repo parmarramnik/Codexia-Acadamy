@@ -486,3 +486,29 @@ def get_user_submissions(
         .order_by(Submission.submitted_at.desc())
         .all()
     )
+
+
+def custom_run_code(
+    db: Session,
+    problem_id: int,
+    code: str,
+    language: str,
+    custom_input: str,
+) -> dict:
+    """Run code against custom user-provided standard input (stdin)."""
+    problem = get_problem_by_id(db, problem_id)
+    if not problem:
+        raise ValueError("Problem not found")
+
+    passed, actual_output, time_ms, err, peak_mem = execute_code_sandbox(
+        code, language, custom_input, "",
+        time_limit_seconds=5.0, memory_limit_mb=256
+    )
+    return {
+        "status": "completed" if not err else "error",
+        "input_data": custom_input,
+        "actual_output": actual_output if not err else "",
+        "error_message": err,
+        "execution_time_ms": int(time_ms) if time_ms else 0,
+        "memory_used_mb": round(peak_mem, 2),
+    }

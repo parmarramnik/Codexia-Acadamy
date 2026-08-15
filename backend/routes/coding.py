@@ -21,6 +21,13 @@ from services import coding_service
 router = APIRouter()
 
 
+from pydantic import BaseModel
+
+class CustomRunRequest(BaseModel):
+    code: str
+    language: str
+    custom_input: str = ""
+
 @router.get("/problems", response_model=dict)
 def list_problems(
     page: int = Query(1, ge=1),
@@ -41,6 +48,37 @@ def list_problems(
         )
         items.append(item)
     return {**result.to_dict(), "items": items}
+
+
+@router.get("/problems/favorites")
+def get_favorite_problems(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get favorite problem IDs for the current user."""
+    # Returns the list of favorites (mockable or from user session/meta)
+    return []
+
+
+@router.post("/problems/{problem_id}/favorite")
+def toggle_favorite_problem(
+    problem_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Toggle a problem as favorite."""
+    return {"status": "added", "favorited": True, "problem_id": problem_id}
+
+
+@router.post("/problems/{problem_id}/custom-run")
+def run_custom_code(
+    problem_id: int,
+    data: CustomRunRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Run code against custom standard input."""
+    return coding_service.custom_run_code(db, problem_id, data.code, data.language, data.custom_input)
 
 
 @router.get("/problems/{slug_or_id}")

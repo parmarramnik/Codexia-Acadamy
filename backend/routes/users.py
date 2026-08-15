@@ -3,7 +3,7 @@ User management routes — profile, list users, update role.
 """
 
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Body
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -12,7 +12,7 @@ from auth.permissions import require_role
 from models.user import User, UserRole
 from schemas.user import (
     UserResponse, UserListResponse, UserUpdate,
-    ChangePassword, MessageResponse,
+    ChangePassword, MessageResponse, AdminPasswordResetRequest,
 )
 from services import user_service
 from services.audit_service import log_audit_event
@@ -189,7 +189,7 @@ def delete_user(
 def admin_reset_password(
     user_id: int,
     request: Request,
-    new_password: str = Query(..., min_length=6),
+    data: AdminPasswordResetRequest = Body(...),
     current_user: User = Depends(require_role(UserRole.ADMIN)),
     db: Session = Depends(get_db),
 ):
@@ -199,7 +199,7 @@ def admin_reset_password(
         raise HTTPException(status_code=404, detail="User not found")
         
     from auth.password import hash_password
-    target_user.password_hash = hash_password(new_password)
+    target_user.password_hash = hash_password(data.new_password)
     db.commit()
     
     log_audit_event(
