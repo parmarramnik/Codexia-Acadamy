@@ -284,23 +284,100 @@ code, pre {
   border: 0;
 }
 
-/* --- Responsive --- */
+/* Glassmorphism & High-Performance UI Classes */
+.glass-panel {
+  background: rgba(38, 38, 38, 0.75);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background: rgba(45, 45, 45, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 161, 22, 0.3);
+}
+
+/* Smooth Hardware-Accelerated Hover Lift */
+.hover-lift {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+  will-change: transform;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+/* Touch Friendly Mobile Targets */
+button, a, input, select, textarea {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Modern Minimal Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #141414;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555555;
+}
+
+/* --- Responsive Breakpoints & Device Adaptation --- */
+@media (max-width: 1200px) {
+  .grid-4 { grid-template-columns: repeat(3, 1fr); }
+}
+
 @media (max-width: 1024px) {
   .grid-4 { grid-template-columns: repeat(2, 1fr); }
   .grid-3 { grid-template-columns: repeat(2, 1fr); }
+  :root {
+    --sidebar-width: 240px;
+  }
 }
 
 @media (max-width: 768px) {
-  html { font-size: 14px; }
+  html { 
+    font-size: 14px; 
+    scroll-behavior: smooth;
+  }
   .grid-4,
   .grid-3,
   .grid-2 { grid-template-columns: 1fr; }
-  .container { padding: 0 var(--space-4); }
-  .hide-mobile { display: none; }
+  .container { padding: 0 var(--space-3); }
+  .hide-mobile { display: none !important; }
+  .show-mobile { display: block !important; }
+  
+  /* Touch target height on mobile devices */
+  button, .btn, .sidebar-link {
+    min-height: 42px;
+  }
 }
 
 @media (max-width: 480px) {
-  html { font-size: 13px; }
+  html { font-size: 13.5px; }
+  .container { padding: 0 var(--space-2); }
+  .p-6 { padding: var(--space-4); }
+  .p-8 { padding: var(--space-4); }
 }
 
 /* Diff Word Highlighting */

@@ -82,6 +82,12 @@ def create_app() -> FastAPI:
     setup_cors(app)
     setup_rate_limiter(app)
     setup_error_handlers(app)
+    
+    from starlette.middleware.gzip import GZipMiddleware
+    app.add_middleware(GZipMiddleware, minimum_size=500)
+    
+    from middleware.security_headers import SecurityHeadersMiddleware
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # Static file serving across microservices
     static_dir = os.path.join(backend_dir, settings.UPLOAD_DIR)
@@ -92,9 +98,17 @@ def create_app() -> FastAPI:
     ensure_directory(os.path.join(static_dir, "avatars"))
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+    # Persistent HTTP connection pool for high-throughput, low-latency microservice proxying
+    limits = httpx.Limits(max_keepalive_connections=30, max_connections=150, keepalive_expiry=30.0)
+    http_client = httpx.AsyncClient(timeout=60.0, limits=limits)
+
     @app.on_event("startup")
     def on_startup():
         create_tables()
+
+    @app.on_event("shutdown")
+    async def on_shutdown():
+        await http_client.aclose()
 
     @app.get("/", tags=["Root"])
     @app.get("/docs", include_in_schema=False)
@@ -154,19 +168,17 @@ def create_app() -> FastAPI:
 
         req_headers = dict(request.headers)
         req_headers.pop("host", None)
-        req_headers["accept-encoding"] = "identity"
 
         body = await request.body()
 
         try:
-            async with httpx.AsyncClient(timeout=60.0, headers={"accept-encoding": "identity"}) as client:
-                proxy_res = await client.request(
-                    method=request.method,
-                    url=target_url,
-                    headers=req_headers,
-                    content=body,
-                    follow_redirects=True,
-                )
+            proxy_res = await http_client.request(
+                method=request.method,
+                url=target_url,
+                headers=req_headers,
+                content=body,
+                follow_redirects=True,
+            )
 
             # Strip encoding and transport headers case-insensitively
             excluded_headers = {"content-encoding", "content-length", "transfer-encoding", "connection", "keep-alive"}
