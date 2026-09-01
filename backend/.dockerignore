@@ -1,0 +1,41 @@
+# Secrets and Environment Variables
+.env
+.env.*
+*.env
+!*.env.example
+
+# Git and Version Control
+.git
+.gitignore
+
+# Python Virtual Environments & Caches
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+ENV/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Local Databases and Media files
+*.db
+*.sqlite
+*.sqlite3
+ai_lms.db
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs & Temp files
+*.log
+scratch/
+.scratch/
