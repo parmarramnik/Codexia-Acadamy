@@ -26,12 +26,10 @@ httpx==0.27.2
 slowapi==0.1.9
 email-validator>=2.0.0
 
-# AI
+# AI (Cloud Gemini API)
 google-generativeai>=0.7.0,<0.8.0
 langchain==0.3.0
 langchain-google-genai==2.0.0
-faiss-cpu>=1.7.4
-sentence-transformers==3.1.0
 
 # PDF Generation
 reportlab==4.2.2
