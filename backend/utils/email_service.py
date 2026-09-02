@@ -1,5 +1,6 @@
 import smtplib
 import logging
+import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formatdate, make_msgid, formataddr
@@ -271,3 +272,18 @@ def send_otp_reset_email(email: str, otp: str):
 </body>
 </html>"""
     return send_email(subject, email, body_html, body_text)
+
+
+def send_verification_email_async(email: str, otp: str, role: str = "student", requester_email: str = None):
+    """Spawns send_verification_email in a background daemon thread immediately."""
+    t = threading.Thread(target=send_verification_email, args=(email, otp, role, requester_email), daemon=True)
+    t.start()
+    return t
+
+
+def send_otp_reset_email_async(email: str, otp: str):
+    """Spawns send_otp_reset_email in a background daemon thread immediately."""
+    t = threading.Thread(target=send_otp_reset_email, args=(email, otp), daemon=True)
+    t.start()
+    return t
+

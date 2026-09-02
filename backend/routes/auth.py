@@ -24,13 +24,13 @@ router = APIRouter()
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
-def signup(request: Request, background_tasks: BackgroundTasks, data: UserCreate = Body(...), db: Session = Depends(get_db)):
+def signup(request: Request, data: UserCreate = Body(...), db: Session = Depends(get_db)):
     """Register a new user account and trigger 6-digit OTP verification email."""
     try:
         user = auth_service.signup_user(db, data)
-        from utils.email_service import send_verification_email
+        from utils.email_service import send_verification_email_async
         if user.verification_otp:
-            background_tasks.add_task(send_verification_email, user.email, user.verification_otp, user.role.value, user.email)
+            send_verification_email_async(user.email, user.verification_otp, user.role.value, user.email)
         log_security_event(db, user.id, "signup", f"Username: {user.username}", request=request)
         return user
     except ValueError as e:
@@ -52,14 +52,14 @@ def verify_otp(request: Request, data: VerifyOTPRequest = Body(...), db: Session
 
 @router.post("/resend-otp", response_model=MessageResponse)
 @limiter.limit("3/minute")
-def resend_otp(request: Request, background_tasks: BackgroundTasks, data: ResendOTPRequest = Body(...), db: Session = Depends(get_db)):
+def resend_otp(request: Request, data: ResendOTPRequest = Body(...), db: Session = Depends(get_db)):
     """Resend 6-digit OTP code for account verification (expires in 60s)."""
     try:
         new_otp = auth_service.resend_account_otp(db, data.email)
-        from utils.email_service import send_verification_email
+        from utils.email_service import send_verification_email_async
         user = db.query(User).filter(User.email == data.email.strip().lower()).first()
         role_val = user.role.value if user else "student"
-        background_tasks.add_task(send_verification_email, data.email, new_otp, role_val, data.email)
+        send_verification_email_async(data.email, new_otp, role_val, data.email)
         log_security_event(db, None, "otp_resend_success", f"Email: {data.email}", request=request)
         return {"message": "A new 6-digit verification code has been sent (expires in 60 seconds)."}
     except ValueError as e:
@@ -69,7 +69,7 @@ def resend_otp(request: Request, background_tasks: BackgroundTasks, data: Resend
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
-def login(request: Request, background_tasks: BackgroundTasks, data: UserLogin = Body(...), db: Session = Depends(get_db)):
+def login(request: Request, data: UserLogin = Body(...), db: Session = Depends(get_db)):
     """Authenticate, check verification status, and receive access + refresh tokens."""
     try:
         ip = request.client.host if (request and request.client) else None
@@ -80,8 +80,8 @@ def login(request: Request, background_tasks: BackgroundTasks, data: UserLogin =
         if not user.is_verified:
             try:
                 new_otp = auth_service.resend_account_otp(db, user.email)
-                from utils.email_service import send_verification_email
-                background_tasks.add_task(send_verification_email, user.email, new_otp, user.role.value, user.email)
+                from utils.email_service import send_verification_email_async
+                send_verification_email_async(user.email, new_otp, user.role.value, user.email)
             except Exception:
                 pass
             raise ValueError("Your account is not verified. A fresh 6-digit verification code has been sent to your email address.")
@@ -129,15 +129,15 @@ def logout(
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
-def forgot_password(request: Request, background_tasks: BackgroundTasks, data: PasswordReset = Body(...), db: Session = Depends(get_db)):
+def forgot_password(request: Request, data: PasswordReset = Body(...), db: Session = Depends(get_db)):
     """
     Request a password reset.
     Always returns success to prevent email enumeration.
     """
     otp = auth_service.request_password_reset(db, data.email)
     if otp:
-        from utils.email_service import send_otp_reset_email
-        background_tasks.add_task(send_otp_reset_email, data.email, otp)
+        from utils.email_service import send_otp_reset_email_async
+        send_otp_reset_email_async(data.email, otp)
     log_security_event(db, None, "forgot_password_request", f"Email: {data.email}", request=request)
     return {"message": "If an account with this email exists, a 6-digit OTP code has been sent."}
 
