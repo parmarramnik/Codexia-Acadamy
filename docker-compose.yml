@@ -53,8 +53,8 @@ services:
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - FROM_EMAIL=${FROM_EMAIL:-noreply@codexia.com}
-      - ADMIN_EMAIL=${ADMIN_EMAIL:-parmarramnik408@gmail.com}
-      - INSTRUCTOR_EMAIL=${INSTRUCTOR_EMAIL:-23bce212@nirmauni.ac.in}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@codexia.com}
+      - INSTRUCTOR_EMAIL=${INSTRUCTOR_EMAIL:-instructor@codexia.com}
     volumes:
       - ./backend:/app
 

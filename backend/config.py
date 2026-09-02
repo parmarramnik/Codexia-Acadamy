@@ -44,8 +44,8 @@ class Settings(BaseSettings):
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
     FROM_EMAIL: str = "noreply@codexia.com"
-    ADMIN_EMAIL: str = "parmarramnik408@gmail.com"
-    INSTRUCTOR_EMAIL: str = "23bce212@nirmauni.ac.in"
+    ADMIN_EMAIL: str = "admin@codexia.com"
+    INSTRUCTOR_EMAIL: str = "instructor@codexia.com"
 
     # Frontend URL (for email links)
     FRONTEND_URL: str = "http://localhost:3000"
