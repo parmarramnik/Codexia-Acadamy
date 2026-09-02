@@ -69,7 +69,7 @@ def resend_otp(request: Request, background_tasks: BackgroundTasks, data: Resend
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
-def login(request: Request, data: UserLogin = Body(...), db: Session = Depends(get_db)):
+def login(request: Request, background_tasks: BackgroundTasks, data: UserLogin = Body(...), db: Session = Depends(get_db)):
     """Authenticate, check verification status, and receive access + refresh tokens."""
     try:
         ip = request.client.host if (request and request.client) else None
@@ -78,7 +78,13 @@ def login(request: Request, data: UserLogin = Body(...), db: Session = Depends(g
         
         user = result["user"]
         if not user.is_verified:
-            raise ValueError("Your account is not verified. Please enter the 6-digit OTP code sent to your email address.")
+            try:
+                new_otp = auth_service.resend_account_otp(db, user.email)
+                from utils.email_service import send_verification_email
+                background_tasks.add_task(send_verification_email, user.email, new_otp, user.role.value, user.email)
+            except Exception:
+                pass
+            raise ValueError("Your account is not verified. A fresh 6-digit verification code has been sent to your email address.")
 
         user_id = user.id
         log_security_event(db, user_id, "login_success", f"User: {user.username}", request=request)

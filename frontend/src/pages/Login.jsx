@@ -50,6 +50,9 @@ export default function Login() {
       toast.error(errorMsg);
       if (errorMsg.toLowerCase().includes('not verified')) {
         setShowResend(true);
+        setTimeout(() => {
+          navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+        }, 1000);
       }
     } finally {
       setIsLoading(false);
