@@ -26,10 +26,66 @@ def _get_sender_domain():
 
 def send_email(subject: str, recipient: str, body_html: str, body_text: str):
     """
-    Send an email via SMTP with anti-spam best practices for Gmail inbox delivery.
-    Uses proper RFC 5322 headers, matching sender domain for Message-ID,
-    and multipart/alternative MIME structure.
+    Send an email via HTTP REST API (Resend / Brevo) or SMTP with fallback.
+    - Uses Resend/Brevo HTTP API over port 443 if configured (bypasses Render Free Tier SMTP block).
+    - Falls back to standard SMTP TLS/SSL.
+    - If all fail, securely prints OTP to server application logs for instant access.
     """
+    import os
+
+    # 1. Try Resend HTTP API (HTTPS port 443 — NEVER blocked by Render)
+    resend_key = getattr(settings, "RESEND_API_KEY", None) or os.getenv("RESEND_API_KEY")
+    if resend_key:
+        try:
+            import httpx
+            from_addr = getattr(settings, "RESEND_FROM", None) or os.getenv("RESEND_FROM") or "Codexia Academy <onboarding@resend.dev>"
+            resp = httpx.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"},
+                json={
+                    "from": from_addr,
+                    "to": [recipient],
+                    "subject": subject,
+                    "html": body_html,
+                    "text": body_text,
+                },
+                timeout=10,
+            )
+            if resp.status_code in (200, 201):
+                logger.info(f"[Resend API] Email delivered to {recipient}")
+                return True
+            else:
+                logger.warning(f"[Resend API Error] Status {resp.status_code}: {resp.text}")
+        except Exception as e_resend:
+            logger.warning(f"[Resend API Exception]: {e_resend}")
+
+    # 2. Try Brevo HTTP API (HTTPS port 443 — NEVER blocked by Render)
+    brevo_key = getattr(settings, "BREVO_API_KEY", None) or os.getenv("BREVO_API_KEY")
+    if brevo_key:
+        try:
+            import httpx
+            from_email = settings.FROM_EMAIL or "noreply@codexia.com"
+            resp = httpx.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={"api-key": brevo_key, "Content-Type": "application/json"},
+                json={
+                    "sender": {"name": "Codexia Academy", "email": from_email},
+                    "to": [{"email": recipient}],
+                    "subject": subject,
+                    "htmlContent": body_html,
+                    "textContent": body_text,
+                },
+                timeout=10,
+            )
+            if resp.status_code in (200, 201):
+                logger.info(f"[Brevo API] Email delivered to {recipient}")
+                return True
+            else:
+                logger.warning(f"[Brevo API Error] Status {resp.status_code}: {resp.text}")
+        except Exception as e_brevo:
+            logger.warning(f"[Brevo API Exception]: {e_brevo}")
+
+    # 3. Standard SMTP (Works on local Docker, VPS, and paid Render)
     host = settings.SMTP_HOST
     port = settings.SMTP_PORT
     user = settings.SMTP_USER
@@ -39,9 +95,9 @@ def send_email(subject: str, recipient: str, body_html: str, body_text: str):
         from_email = user
 
     if not host or not user or not password:
-        logger.warning("SMTP not configured — falling back to console output.")
+        logger.warning("SMTP not configured — printing OTP to server logs.")
         print("\n" + "=" * 60)
-        print(f"[EMAIL FALLBACK] To: {recipient}")
+        print(f"[SECURE OTP ALERT] To: {recipient}")
         print(f"Subject: {subject}")
         print(f"Content: {body_text}")
         print("=" * 60 + "\n")
@@ -50,38 +106,26 @@ def send_email(subject: str, recipient: str, body_html: str, body_text: str):
     try:
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
-        # Use formataddr for proper RFC 5322 From header
         msg['From'] = formataddr(("Codexia Academy", from_email))
         msg['To'] = recipient
         msg['Reply-To'] = from_email
         msg['Date'] = formatdate(localtime=True)
-        # Use the actual sender domain for Message-ID to avoid spam flags
         msg['Message-ID'] = make_msgid(domain=_get_sender_domain())
-        # Anti-spam: mark as transactional, not promotional
         msg['X-Priority'] = '1'
         msg['X-Mailer'] = 'Codexia-Academy-LMS'
 
-        # Attach plain text first, then HTML (RFC 2046 order)
         part_text = MIMEText(body_text, 'plain', 'utf-8')
         part_html = MIMEText(body_html, 'html', 'utf-8')
         msg.attach(part_text)
         msg.attach(part_html)
 
         if port == 465:
-            server = smtplib.SMTP_SSL(host, port, timeout=15)
+            server = smtplib.SMTP_SSL(host, port, timeout=8)
         else:
-            try:
-                server = smtplib.SMTP(host, port, timeout=15)
-                server.ehlo()
-                server.starttls()
-                server.ehlo()
-            except Exception as e:
-                logger.warning(f"SMTP TLS connection on port {port} failed: {e}. Trying fallback to SMTP SSL on port 465...")
-                try:
-                    server = smtplib.SMTP_SSL(host, 465, timeout=15)
-                except Exception as e_ssl:
-                    logger.error(f"SMTP SSL fallback on port 465 failed as well: {e_ssl}")
-                    raise e_ssl
+            server = smtplib.SMTP(host, port, timeout=8)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
 
         server.login(user, password)
         server.sendmail(from_email, [recipient], msg.as_string())
@@ -91,10 +135,12 @@ def send_email(subject: str, recipient: str, body_html: str, body_text: str):
 
     except Exception as e:
         logger.error(f"SMTP send failed to {recipient}: {e}")
+        # Always output to console logs so the admin can copy the OTP from Render logs!
         print("\n" + "=" * 60)
-        print(f"[SMTP ERROR] To: {recipient} | Error: {e}")
+        print(f"[SECURE OTP CODE RECOVERY] To: {recipient}")
+        print(f"Notice: Outbound SMTP blocked or timed out ({e})")
         print(f"Subject: {subject}")
-        print(f"Body: {body_text}")
+        print(f"Content: {body_text}")
         print("=" * 60 + "\n")
         return False
 

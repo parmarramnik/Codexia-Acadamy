@@ -38,7 +38,9 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
     GEMINI_MODEL: str = "gemini-2.5-flash"
 
-    # Email (for password reset / verification)
+    # Email (SMTP or HTTP REST APIs for Render/Serverless)
+    RESEND_API_KEY: Optional[str] = None
+    BREVO_API_KEY: Optional[str] = None
     SMTP_HOST: Optional[str] = None
     SMTP_PORT: int = 587
     SMTP_USER: Optional[str] = None
