@@ -33,7 +33,9 @@ def send_email(subject: str, recipient: str, body_html: str, body_text: str):
     port = settings.SMTP_PORT
     user = settings.SMTP_USER
     password = settings.SMTP_PASSWORD
-    from_email = settings.FROM_EMAIL
+    from_email = settings.FROM_EMAIL or user or "noreply@codexia.com"
+    if host and "gmail.com" in host.lower() and user:
+        from_email = user
 
     if not host or not user or not password:
         logger.warning("SMTP not configured — falling back to console output.")
