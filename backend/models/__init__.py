@@ -13,6 +13,8 @@ from models.audit import AuditLog, SecurityLog
 from models.session import Session, LoginHistory
 from models.schedule import Reminder, StudyPlan
 from models.git import GitBranch, GitCommit, GitTag, GitMergeHistory
+import models.v3_models
+import models.v4_models
 
 __all__ = [
     "User", "Role", "Permission", "RolePermission",
@@ -25,3 +27,4 @@ __all__ = [
     "Session", "LoginHistory", "Reminder", "StudyPlan",
     "GitBranch", "GitCommit", "GitTag", "GitMergeHistory",
 ]
+

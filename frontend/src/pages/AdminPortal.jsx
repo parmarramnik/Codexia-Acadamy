@@ -52,9 +52,12 @@ export default function AdminPortal() {
       setUsers(usersRes.data.items || []);
       setTotalUsers(usersRes.data.total || 0);
       setRbacMap(rbacRes.data || {});
-      setSettings(settingsRes.data || {});
     } catch (err) {
-      toast.error('Forbidden: You need Administrator privileges to view this portal.');
+      if (err.response?.status === 403) {
+        toast.error('Forbidden: You need Administrator privileges to view this portal.');
+      } else {
+        toast.error(err.response?.data?.detail || 'Failed to load executive admin portal.');
+      }
     } finally {
       setIsLoading(false);
     }
