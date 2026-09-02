@@ -100,7 +100,7 @@ def create_app() -> FastAPI:
 
     # Persistent HTTP connection pool for high-throughput, low-latency microservice proxying
     limits = httpx.Limits(max_keepalive_connections=30, max_connections=150, keepalive_expiry=30.0)
-    http_client = httpx.AsyncClient(timeout=60.0, limits=limits)
+    http_client = httpx.AsyncClient(timeout=60.0, limits=limits, headers={"accept-encoding": "identity"})
 
     @app.on_event("startup")
     def on_startup():
@@ -168,6 +168,7 @@ def create_app() -> FastAPI:
 
         req_headers = dict(request.headers)
         req_headers.pop("host", None)
+        req_headers["accept-encoding"] = "identity"
 
         body = await request.body()
 

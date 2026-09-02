@@ -36,11 +36,19 @@ def list_my_courses(
     result = course_service.list_courses(
         db, page, page_size, instructor_id=current_user.id, published_only=False
     )
+    course_ids = [c.id for c in result.items]
+    enrollment_counts = {}
+    if course_ids:
+        from models.course import Enrollment
+        from sqlalchemy import func
+        counts = db.query(Enrollment.course_id, func.count(Enrollment.id)).filter(Enrollment.course_id.in_(course_ids)).group_by(Enrollment.course_id).all()
+        enrollment_counts = {cid: cnt for cid, cnt in counts}
+
     items = []
     for course in result.items:
         course_dict = CourseListResponse.model_validate(course).model_dump()
         course_dict["instructor_name"] = course.instructor.full_name if course.instructor else ""
-        course_dict["enrollment_count"] = course_service.get_enrollment_count(db, course.id)
+        course_dict["enrollment_count"] = enrollment_counts.get(course.id, 0)
         course_dict["is_published"] = course.is_published
         course_dict["is_approved"] = course.is_approved
         items.append(course_dict)
@@ -94,11 +102,19 @@ def list_courses(
     result = course_service.list_courses(
         db, page, page_size, category, difficulty, search, published_only=True
     )
+    course_ids = [c.id for c in result.items]
+    enrollment_counts = {}
+    if course_ids:
+        from models.course import Enrollment
+        from sqlalchemy import func
+        counts = db.query(Enrollment.course_id, func.count(Enrollment.id)).filter(Enrollment.course_id.in_(course_ids)).group_by(Enrollment.course_id).all()
+        enrollment_counts = {cid: cnt for cid, cnt in counts}
+
     items = []
     for course in result.items:
         course_dict = CourseListResponse.model_validate(course).model_dump()
         course_dict["instructor_name"] = course.instructor.full_name if course.instructor else ""
-        course_dict["enrollment_count"] = course_service.get_enrollment_count(db, course.id)
+        course_dict["enrollment_count"] = enrollment_counts.get(course.id, 0)
         items.append(course_dict)
     return {**result.to_dict(), "items": items}
 

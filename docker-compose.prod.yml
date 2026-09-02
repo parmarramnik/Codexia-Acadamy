@@ -3,7 +3,8 @@ version: "3.8"
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: codexia_db
+    container_name: codexia_prod_db
+    restart: always
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-codexia_lms}
       POSTGRES_USER: ${POSTGRES_USER:-codexia_admin}
@@ -11,7 +12,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_prod_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-codexia_admin} -d ${POSTGRES_DB:-codexia_lms}"]
       interval: 10s
@@ -20,11 +21,12 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: codexia_cache
+    container_name: codexia_prod_cache
+    restart: always
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
+      - redis_prod_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -35,7 +37,8 @@ services:
     build:
       context: ./backend
       dockerfile: microservices/auth_service/Dockerfile
-    container_name: codexia_auth_service
+    container_name: codexia_prod_auth
+    restart: always
     depends_on:
       postgres:
         condition: service_healthy
@@ -44,25 +47,24 @@ services:
     ports:
       - "8001:8001"
     environment:
-      - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
+      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia Auth Service
-      - DEBUG=${DEBUG:-true}
+      - DEBUG=false
       - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - FROM_EMAIL=${FROM_EMAIL:-noreply@codexia.com}
-      - ADMIN_EMAIL=${ADMIN_EMAIL:-parmarramnik408@gmail.com}
-      - INSTRUCTOR_EMAIL=${INSTRUCTOR_EMAIL:-23bce212@nirmauni.ac.in}
-    volumes:
-      - ./backend:/app
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+      - INSTRUCTOR_EMAIL=${INSTRUCTOR_EMAIL:-}
 
   course_service:
     build:
       context: ./backend
       dockerfile: microservices/course_service/Dockerfile
-    container_name: codexia_course_service
+    container_name: codexia_prod_course
+    restart: always
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,18 +73,19 @@ services:
     ports:
       - "8002:8002"
     environment:
-      - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
+      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia Course Service
-      - DEBUG=${DEBUG:-true}
+      - DEBUG=false
     volumes:
-      - ./backend:/app
+      - static_prod_data:/app/static
 
   quiz_service:
     build:
       context: ./backend
       dockerfile: microservices/quiz_service/Dockerfile
-    container_name: codexia_quiz_service
+    container_name: codexia_prod_quiz
+    restart: always
     depends_on:
       postgres:
         condition: service_healthy
@@ -91,18 +94,19 @@ services:
     ports:
       - "8003:8003"
     environment:
-      - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
+      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia Quiz Service
-      - DEBUG=${DEBUG:-true}
+      - DEBUG=false
     volumes:
-      - ./backend:/app
+      - static_prod_data:/app/static
 
   coding_service:
     build:
       context: ./backend
       dockerfile: microservices/coding_service/Dockerfile
-    container_name: codexia_coding_service
+    container_name: codexia_prod_coding
+    restart: always
     depends_on:
       postgres:
         condition: service_healthy
@@ -111,18 +115,17 @@ services:
     ports:
       - "8004:8004"
     environment:
-      - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
+      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia Coding Service
-      - DEBUG=${DEBUG:-true}
-    volumes:
-      - ./backend:/app
+      - DEBUG=false
 
   ai_service:
     build:
       context: ./backend
       dockerfile: microservices/ai_service/Dockerfile
-    container_name: codexia_ai_service
+    container_name: codexia_prod_ai
+    restart: always
     depends_on:
       postgres:
         condition: service_healthy
@@ -131,19 +134,18 @@ services:
     ports:
       - "8005:8005"
     environment:
-      - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
+      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia AI Service
-      - DEBUG=${DEBUG:-true}
+      - DEBUG=false
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-    volumes:
-      - ./backend:/app
 
   analytics_service:
     build:
       context: ./backend
       dockerfile: microservices/analytics_service/Dockerfile
-    container_name: codexia_analytics_service
+    container_name: codexia_prod_analytics
+    restart: always
     depends_on:
       postgres:
         condition: service_healthy
@@ -152,18 +154,17 @@ services:
     ports:
       - "8006:8006"
     environment:
-      - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
+      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia Analytics Service
-      - DEBUG=${DEBUG:-true}
-    volumes:
-      - ./backend:/app
+      - DEBUG=false
 
   gateway:
     build:
       context: ./backend
       dockerfile: microservices/gateway/Dockerfile
-    container_name: codexia_api_gateway
+    container_name: codexia_prod_gateway
+    restart: always
     depends_on:
       - auth_service
       - course_service
@@ -181,20 +182,23 @@ services:
       - AI_SERVICE_URL=http://ai_service:8005
       - ANALYTICS_SERVICE_URL=http://analytics_service:8006
       - APP_NAME=Codexia API Gateway
-      - DEBUG=true
+      - DEBUG=false
     volumes:
-      - ./backend:/app
+      - static_prod_data:/app/static
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: codexia_frontend
+    container_name: codexia_prod_frontend
+    restart: always
     depends_on:
       - gateway
     ports:
-      - "3000:80"
+      - "80:80"
+      - "443:443"
 
 volumes:
-  postgres_data:
-  redis_data:
+  postgres_prod_data:
+  redis_prod_data:
+  static_prod_data:
