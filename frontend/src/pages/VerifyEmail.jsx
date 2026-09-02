@@ -5,8 +5,8 @@ import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import { FiCheckCircle, FiShield, FiRotateCw, FiArrowLeft, FiAlertTriangle } from 'react-icons/fi';
 
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'admin@codexia.com';
-const INSTRUCTOR_EMAIL = import.meta.env.VITE_INSTRUCTOR_EMAIL || 'instructor@codexia.com';
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'parmarramnik408@gmail.com';
+const INSTRUCTOR_EMAIL = import.meta.env.VITE_INSTRUCTOR_EMAIL || '23bce212@nirmauni.ac.in';
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
