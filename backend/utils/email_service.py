@@ -37,12 +37,17 @@ def send_email(subject: str, recipient: str, body_html: str, body_text: str):
     # 1. Try Brevo HTTP API (HTTPS port 443 — NEVER blocked by Render)
     brevo_key = getattr(settings, "BREVO_API_KEY", None) or os.getenv("BREVO_API_KEY")
     if brevo_key:
+        brevo_key = str(brevo_key).strip().strip('"').strip("'")
         try:
             import httpx
             from_email = settings.FROM_EMAIL or "noreply@codexia.com"
             resp = httpx.post(
                 "https://api.brevo.com/v3/smtp/email",
-                headers={"api-key": brevo_key, "Content-Type": "application/json"},
+                headers={
+                    "accept": "application/json",
+                    "api-key": brevo_key,
+                    "content-type": "application/json",
+                },
                 json={
                     "sender": {"name": "Codexia Academy", "email": from_email},
                     "to": [{"email": recipient}],
@@ -57,6 +62,11 @@ def send_email(subject: str, recipient: str, body_html: str, body_text: str):
                 return True
             else:
                 logger.warning(f"[Brevo API Error] Status {resp.status_code}: {resp.text}")
+                print("\n" + "=" * 60)
+                print(f"[SECURE OTP ALERT - RENDER LOGS] To: {recipient}")
+                print(f"Brevo Status {resp.status_code}: {resp.text}")
+                print(f"{body_text}")
+                print("=" * 60 + "\n")
         except Exception as e_brevo:
             logger.warning(f"[Brevo API Exception]: {e_brevo}")
 
