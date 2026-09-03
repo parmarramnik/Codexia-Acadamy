@@ -26,45 +26,15 @@ def _get_sender_domain():
 
 def send_email(subject: str, recipient: str, body_html: str, body_text: str):
     """
-    Send an email via HTTP REST API (Resend / Brevo) or SMTP with fallback.
-    - Uses Resend/Brevo HTTP API over port 443 if configured (bypasses Render Free Tier SMTP block).
-    - Falls back to standard SMTP TLS/SSL.
+    Send an email via Brevo HTTP REST API (production/Render) or SMTP (local).
+    - Uses Brevo HTTP API over HTTPS (port 443) when BREVO_API_KEY is configured.
+      (Bypasses Render Free Tier outbound SMTP port restrictions).
+    - Falls back to standard SMTP TLS/SSL (works on local Docker and VPS).
     - If all fail, securely prints OTP to server application logs for instant access.
     """
     import os
 
-    # 1. Try Resend HTTP API (HTTPS port 443 — NEVER blocked by Render)
-    resend_key = getattr(settings, "RESEND_API_KEY", None) or os.getenv("RESEND_API_KEY")
-    if resend_key:
-        try:
-            import httpx
-            from_addr = getattr(settings, "RESEND_FROM", None) or os.getenv("RESEND_FROM") or "Codexia Academy <onboarding@resend.dev>"
-            resp = httpx.post(
-                "https://api.resend.com/emails",
-                headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"},
-                json={
-                    "from": from_addr,
-                    "to": [recipient],
-                    "subject": subject,
-                    "html": body_html,
-                    "text": body_text,
-                },
-                timeout=10,
-            )
-            if resp.status_code in (200, 201):
-                logger.info(f"[Resend API] Email delivered to {recipient}")
-                return True
-            else:
-                logger.warning(f"[Resend API Error] Status {resp.status_code}: {resp.text}")
-                print("\n" + "=" * 60)
-                print(f"[SECURE OTP ALERT - RENDER LOGS] To: {recipient}")
-                print(f"Resend Notice: {resp.text}")
-                print(f"{body_text}")
-                print("=" * 60 + "\n")
-        except Exception as e_resend:
-            logger.warning(f"[Resend API Exception]: {e_resend}")
-
-    # 2. Try Brevo HTTP API (HTTPS port 443 — NEVER blocked by Render)
+    # 1. Try Brevo HTTP API (HTTPS port 443 — NEVER blocked by Render)
     brevo_key = getattr(settings, "BREVO_API_KEY", None) or os.getenv("BREVO_API_KEY")
     if brevo_key:
         try:

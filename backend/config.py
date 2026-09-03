@@ -38,8 +38,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
     GEMINI_MODEL: str = "gemini-2.5-flash"
 
-    # Email (SMTP or HTTP REST APIs for Render/Serverless)
-    RESEND_API_KEY: Optional[str] = None
+    # Email (Brevo HTTP REST API for Render / SMTP for Local)
     BREVO_API_KEY: Optional[str] = None
     EMAIL_WEBHOOK_URL: Optional[str] = None
     SMTP_HOST: Optional[str] = None
