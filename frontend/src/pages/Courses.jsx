@@ -1,15 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
-import { toast } from 'react-hot-toast';
 import { FiBookOpen, FiSearch, FiChevronRight } from 'react-icons/fi';
+import { useCourses } from '../hooks/useQueries';
 
 export default function Courses() {
-  const [courses, setCourses] = useState([]);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [difficulty, setDifficulty] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
 
   const categories = [
     { value: '', label: 'All Categories' },
@@ -31,29 +28,8 @@ export default function Courses() {
     { value: 'advanced', label: 'Advanced' }
   ];
 
-  useEffect(() => {
-    async function fetchCourses() {
-      setIsLoading(true);
-      try {
-        const params = {};
-        if (search) params.search = search;
-        if (category) params.category = category;
-        if (difficulty) params.difficulty = difficulty;
-
-        const res = await api.get('/courses', { params });
-        setCourses(res.data.items || []);
-      } catch (err) {
-        toast.error('Failed to fetch courses');
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    const delayDebounceFn = setTimeout(() => {
-      fetchCourses();
-    }, 300);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [search, category, difficulty]);
+  const { data, isLoading } = useCourses({ search, category, difficulty });
+  const courses = data?.items || [];
 
   return (
     <div style={styles.container}>

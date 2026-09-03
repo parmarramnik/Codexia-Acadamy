@@ -17,6 +17,7 @@ from schemas.coding import (
 )
 from schemas.user import MessageResponse
 from services import coding_service
+from utils.cache import cache_get, cache_set, cache_invalidate_prefix
 
 router = APIRouter()
 
@@ -38,6 +39,11 @@ def list_problems(
     db: Session = Depends(get_db),
 ):
     """List coding problems with filtering."""
+    cache_key = f"coding:problems:{page}:{page_size}:{difficulty or 'all'}:{search or 'all'}:{course_id or 'all'}"
+    cached_payload = cache_get(cache_key)
+    if cached_payload is not None:
+        return cached_payload
+
     result = coding_service.list_problems(db, page, page_size, difficulty, search, course_id)
     items = []
     for p in result.items:
@@ -47,7 +53,9 @@ def list_problems(
             if p.total_submissions > 0 else 0
         )
         items.append(item)
-    return {**result.to_dict(), "items": items}
+    payload = {**result.to_dict(), "items": items}
+    cache_set(cache_key, payload, ttl=300)
+    return payload
 
 
 @router.get("/problems/favorites")
@@ -116,7 +124,9 @@ def create_problem(
     db: Session = Depends(get_db),
 ):
     """Create a coding problem (instructor or admin)."""
-    return coding_service.create_problem(db, data)
+    prob = coding_service.create_problem(db, data)
+    cache_invalidate_prefix("coding")
+    return prob
 
 
 @router.post("/problems/{problem_id}/run")

@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "sqlite:///./ai_lms.db"
 
+    # Redis Cache (Fast Caching for High Performance)
+    REDIS_URL: str = "redis://localhost:6379/0"
+    CACHE_ENABLED: bool = True
+    CACHE_DEFAULT_TTL: int = 300  # 5 minutes
+
     # JWT
     JWT_SECRET_KEY: str = "change-this-in-production-use-a-strong-random-key"
     JWT_ALGORITHM: str = "HS256"
