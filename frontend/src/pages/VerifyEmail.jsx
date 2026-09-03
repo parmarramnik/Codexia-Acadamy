@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import { FiCheckCircle, FiShield, FiRotateCw, FiArrowLeft, FiAlertTriangle } from 'react-icons/fi';
+import LoadingButton from '../components/common/LoadingButton';
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'admin@codexia.com';
 const INSTRUCTOR_EMAIL = import.meta.env.VITE_INSTRUCTOR_EMAIL || 'instructor@codexia.com';
@@ -274,17 +275,15 @@ export default function VerifyEmail() {
                 </button>
               </div>
 
-              <button
+              <LoadingButton
                 type="submit"
-                disabled={isVerifying || otp.join('').length !== 6}
-                style={{
-                  ...styles.submitBtn,
-                  opacity: isVerifying || otp.join('').length !== 6 ? 0.6 : 1,
-                  cursor: isVerifying || otp.join('').length !== 6 ? 'not-allowed' : 'pointer',
-                }}
+                loading={isVerifying}
+                loadingText="Verifying Code..."
+                disabled={otp.join('').length !== 6}
+                style={styles.submitBtn}
               >
-                {isVerifying ? 'Verifying Code...' : 'Verify & Continue'}
-              </button>
+                Verify & Continue
+              </LoadingButton>
             </form>
 
             <div style={styles.footer}>
