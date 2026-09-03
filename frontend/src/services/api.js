@@ -48,6 +48,15 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    const errorDetail = error.response?.data?.detail || '';
+    if (error.response?.status === 401 && typeof errorDetail === 'string' && errorDetail.includes('another device')) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      sessionStorage.setItem('logout_reason', 'You were logged out because your account was logged in from another device.');
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -85,6 +94,10 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
+        const refreshDetail = refreshError.response?.data?.detail || '';
+        if (typeof refreshDetail === 'string' && refreshDetail.includes('another device')) {
+          sessionStorage.setItem('logout_reason', 'You were logged out because your account was logged in from another device.');
+        }
         window.location.href = '/login';
         return Promise.reject(refreshError);
       } finally {

@@ -63,8 +63,26 @@ def login_user(
         record_login_attempt(db, email, "failed", ip_address, user_agent, "Invalid credentials")
         raise ValueError("Invalid email or password")
 
-    access_token = create_access_token(data={"sub": str(authenticated_user.id), "role": authenticated_user.role.value})
-    refresh_token = create_refresh_token(data={"sub": str(authenticated_user.id)})
+    from models.session import Session as UserSession
+    # Strict Single-Device enforcement: invalidate all previous active sessions
+    db.query(UserSession).filter(
+        UserSession.user_id == authenticated_user.id,
+        UserSession.is_active == True
+    ).update({"is_active": False})
+
+    # Increment token_version so any previously issued access/refresh tokens are immediately rejected
+    authenticated_user.token_version = (authenticated_user.token_version or 0) + 1
+    authenticated_user.last_login = datetime.now(timezone.utc)
+
+    access_token = create_access_token(data={
+        "sub": str(authenticated_user.id),
+        "role": authenticated_user.role.value,
+        "ver": authenticated_user.token_version,
+    })
+    refresh_token = create_refresh_token(data={
+        "sub": str(authenticated_user.id),
+        "ver": authenticated_user.token_version,
+    })
 
     # Store refresh token / session mapping on database
     create_user_session(db, authenticated_user.id, refresh_token, ip_address, user_agent, expires_in_days=7 if remember_me else 1)
@@ -72,7 +90,6 @@ def login_user(
 
     # Store refresh token hash on user (backward compatibility)
     authenticated_user.refresh_token = refresh_token
-    authenticated_user.last_login = datetime.now(timezone.utc)
     db.commit()
 
     return {
@@ -92,15 +109,20 @@ def signup_user(db: Session, user_data: UserCreate) -> User:
 def verify_account_otp(db: Session, email: str, otp: str) -> dict:
     """Verify 6-digit OTP for user account activation within 60 seconds."""
     from datetime import datetime, timezone
+    from models.session import Session as UserSession
     email_clean = email.strip().lower()
     user = db.query(User).filter(User.email == email_clean).first()
     if not user:
         raise ValueError("No account found with this email address.")
 
     if user.is_verified:
-        # Already verified, return login tokens directly
-        access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
-        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+        # Already verified, return login tokens with single-device enforcement
+        db.query(UserSession).filter(UserSession.user_id == user.id, UserSession.is_active == True).update({"is_active": False})
+        user.token_version = (user.token_version or 0) + 1
+        db.commit()
+
+        access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value, "ver": user.token_version})
+        refresh_token = create_refresh_token(data={"sub": str(user.id), "ver": user.token_version})
         return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "user": user}
 
     if user.verification_otp_expires:
@@ -120,10 +142,11 @@ def verify_account_otp(db: Session, email: str, otp: str) -> dict:
     user.is_verified = True
     user.verification_otp = None
     user.verification_otp_expires = None
+    user.token_version = (user.token_version or 0) + 1
     db.commit()
 
-    access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value, "ver": user.token_version})
+    refresh_token = create_refresh_token(data={"sub": str(user.id), "ver": user.token_version})
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -160,7 +183,7 @@ def refresh_access_token(
 ) -> dict:
     """
     Validate a refresh token, rotate it, and issue a new access token.
-    Raises ValueError if the refresh token is invalid.
+    Raises ValueError if the refresh token is invalid or superseded by another device.
     """
     from services.session_service import validate_and_rotate_session
 
@@ -176,15 +199,25 @@ def refresh_access_token(
     if not user or not user.is_active:
         raise ValueError("User not found or inactive")
 
+    # Strict single-device session check on refresh
+    token_ver = payload.get("ver")
+    if token_ver is not None and user.token_version is not None:
+        if token_ver != user.token_version:
+            raise ValueError("Session expired: Your account was logged in from another device.")
+
     # Rotate token session (RTR)
-    new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    new_refresh_token = create_refresh_token(data={"sub": str(user.id), "ver": user.token_version})
     validate_and_rotate_session(db, refresh_token, new_refresh_token, ip_address, user_agent)
 
     # For backward compatibility
     user.refresh_token = new_refresh_token
     db.commit()
 
-    new_access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
+    new_access_token = create_access_token(data={
+        "sub": str(user.id),
+        "role": user.role.value,
+        "ver": user.token_version,
+    })
     return {
         "access_token": new_access_token,
         "refresh_token": new_refresh_token,
@@ -193,10 +226,13 @@ def refresh_access_token(
 
 
 def logout_user(db: Session, user: User, refresh_token: Optional[str] = None) -> bool:
-    """Invalidate the specific active session or all sessions."""
+    """Invalidate the active device session and bump token_version."""
     from services.session_service import revoke_user_session
+    from models.session import Session as UserSession
     if refresh_token:
         revoke_user_session(db, refresh_token)
+    db.query(UserSession).filter(UserSession.user_id == user.id).update({"is_active": False})
+    user.token_version = (user.token_version or 0) + 1
     user.refresh_token = None
     db.commit()
     return True

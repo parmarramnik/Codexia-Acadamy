@@ -84,5 +84,7 @@ def create_tables():
                     conn.execute(text("ALTER TABLE users ADD COLUMN verification_otp VARCHAR(6)"))
                 if "verification_otp_expires" not in user_columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN verification_otp_expires TIMESTAMP WITH TIME ZONE"))
+                if "token_version" not in user_columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 1 NOT NULL"))
     except Exception as e:
         print(f"[Migration Warning] Dynamic schema migration failed: {str(e)}")

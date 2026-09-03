@@ -49,6 +49,16 @@ def get_current_user(
             detail="User account is inactive",
         )
 
+    # Strict single-device session check
+    token_ver = payload.get("ver")
+    if token_ver is not None and user.token_version is not None:
+        if token_ver != user.token_version:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session expired: Your account was logged in from another device.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
     return user
 
 
@@ -67,6 +77,9 @@ def get_current_user_optional(
         return None
     user = db.query(User).filter(User.id == int(user_id)).first()
     if user is None or not user.is_active:
+        return None
+    token_ver = payload.get("ver")
+    if token_ver is not None and user.token_version is not None and token_ver != user.token_version:
         return None
     return user
 

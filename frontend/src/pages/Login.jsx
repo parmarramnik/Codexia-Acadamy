@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -16,6 +16,14 @@ export default function Login() {
 
   const [showResend, setShowResend] = useState(false);
   const [isResending, setIsResending] = useState(false);
+
+  useEffect(() => {
+    const logoutReason = sessionStorage.getItem('logout_reason');
+    if (logoutReason) {
+      toast.error(logoutReason, { duration: 6000, icon: '⚠️' });
+      sessionStorage.removeItem('logout_reason');
+    }
+  }, []);
 
   const handleResendVerification = () => {
     if (!email) {
