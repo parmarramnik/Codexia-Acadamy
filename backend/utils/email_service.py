@@ -56,6 +56,11 @@ def send_email(subject: str, recipient: str, body_html: str, body_text: str):
                 return True
             else:
                 logger.warning(f"[Resend API Error] Status {resp.status_code}: {resp.text}")
+                print("\n" + "=" * 60)
+                print(f"[SECURE OTP ALERT - RENDER LOGS] To: {recipient}")
+                print(f"Resend Notice: {resp.text}")
+                print(f"{body_text}")
+                print("=" * 60 + "\n")
         except Exception as e_resend:
             logger.warning(f"[Resend API Exception]: {e_resend}")
 
