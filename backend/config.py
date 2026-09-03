@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     # Email (SMTP or HTTP REST APIs for Render/Serverless)
     RESEND_API_KEY: Optional[str] = None
     BREVO_API_KEY: Optional[str] = None
+    EMAIL_WEBHOOK_URL: Optional[str] = None
     SMTP_HOST: Optional[str] = None
     SMTP_PORT: int = 587
     SMTP_USER: Optional[str] = None

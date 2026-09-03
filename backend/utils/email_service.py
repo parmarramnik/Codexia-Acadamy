@@ -90,7 +90,26 @@ def send_email(subject: str, recipient: str, body_html: str, body_text: str):
         except Exception as e_brevo:
             logger.warning(f"[Brevo API Exception]: {e_brevo}")
 
-    # 3. Standard SMTP (Works on local Docker, VPS, and paid Render)
+    # 3. Try Webhook / Apps Script Relay (HTTPS port 443 — sends directly through Gmail to any recipient)
+    webhook_url = getattr(settings, "EMAIL_WEBHOOK_URL", None) or os.getenv("EMAIL_WEBHOOK_URL")
+    if webhook_url:
+        try:
+            import httpx
+            resp = httpx.post(
+                webhook_url,
+                json={"to": recipient, "subject": subject, "html": body_html, "text": body_text},
+                timeout=12,
+                follow_redirects=True,
+            )
+            if resp.status_code in (200, 201):
+                logger.info(f"[Email Webhook Relay] Email delivered to {recipient}")
+                return True
+            else:
+                logger.warning(f"[Email Webhook Error] Status {resp.status_code}: {resp.text}")
+        except Exception as e_web:
+            logger.warning(f"[Email Webhook Exception]: {e_web}")
+
+    # 4. Standard SMTP (Works on local Docker, VPS, and paid Render)
     host = settings.SMTP_HOST
     port = settings.SMTP_PORT
     user = settings.SMTP_USER
