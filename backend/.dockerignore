@@ -1,12 +1,46 @@
+# ==============================================================================
+# Codexia LMS - Backend Docker Ignore Rules
+# Security, Privacy & Microservice Build Isolation
+# ==============================================================================
+
 # Secrets and Environment Variables
 .env
 .env.*
 *.env
 !*.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+*.cert
+credentials*.json
+token*.json
+client_secrets*.json
+service_account*.json
+secrets*.json
+oauth*.json
+auth_tokens.json
 
-# Git and Version Control
-.git
-.gitignore
+# Student Data & Uploads (Privacy Protection)
+static/certificates/*
+static/uploads/*
+static/avatars/*
+static/videos/*
+static/thumbnails/*
+
+# Local Databases and Storage
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+ai_lms.db
+*.sql
+*.dump
+*.tar.gz
+*.bak
 
 # Python Virtual Environments & Caches
 __pycache__/
@@ -20,22 +54,26 @@ ENV/
 .coverage
 htmlcov/
 *.egg-info/
+.mypy_cache/
+.ruff_cache/
+tests/
 
-# Local Databases and Media files
-*.db
-*.sqlite
-*.sqlite3
-ai_lms.db
+# Git and Version Control
+.git
+.gitignore
+.dockerignore
 
-# IDE & Editor files
+# IDE & OS Files
 .vscode/
 .idea/
 *.swp
 *.swo
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Logs & Temp files
+# Logs & Temp Scratch
 *.log
 scratch/
 .scratch/
+run_smoke.py

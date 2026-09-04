@@ -23,10 +23,10 @@ self.addEventListener('push', (event) => {
     icon: '/favicon.ico',
     badge: '/favicon.ico',
     vibrate: [200, 100, 200, 100, 200],
-    tag: 'study-planner-reminder',
+    tag: 'codexia-study-reminder',
     renotify: true,
     data: {
-      url: data.url || '/planner',
+      url: data.url || '/dashboard',
     },
   };
 
@@ -41,12 +41,12 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url.includes('/planner') && 'focus' in client) {
+        if (client.url.includes('/dashboard') && 'focus' in client) {
           return client.focus();
         }
       }
       if (clients.openWindow) {
-        return clients.openWindow(event.notification.data?.url || '/planner');
+        return clients.openWindow(event.notification.data?.url || '/dashboard');
       }
     })
   );

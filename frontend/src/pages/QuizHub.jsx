@@ -14,15 +14,27 @@ import {
   FiCpu, 
   FiTrash2, 
   FiX, 
-  FiZap 
+  FiZap,
+  FiSearch
 } from 'react-icons/fi';
+
 import LoadingButton from '../components/common/LoadingButton';
+import PageLoader from '../components/common/PageLoader';
+import { useQuizzes, useCourses, useInvalidateCache } from '../hooks/useQueries';
 
 export default function QuizHub() {
   const { user } = useAuth();
-  const [quizzes, setQuizzes] = useState([]);
-  const [courses, setCourses] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: quizData, isLoading: isQuizzesLoading } = useQuizzes();
+  const { data: courseData, isLoading: isCoursesLoading } = useCourses();
+  const { invalidateQuizzes } = useInvalidateCache();
+
+  const quizzes = quizData || [];
+  const courses = courseData?.items || (Array.isArray(courseData) ? courseData : []);
+  const isLoading = (isQuizzesLoading && !quizData) || (isCoursesLoading && !courseData);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [courseFilter, setCourseFilter] = useState('');
+
 
   // Modals state
   const [showAiModal, setShowAiModal] = useState(false);
@@ -65,28 +77,6 @@ export default function QuizHub() {
 
   const isPrivileged = ['instructor', 'admin', 'super_admin'].includes(user?.role);
 
-  const loadQuizzesAndCourses = async () => {
-    setIsLoading(true);
-    try {
-      const [quizRes, courseRes] = await Promise.all([
-        api.get('/quizzes'),
-        api.get('/courses')
-      ]);
-      const quizItems = Array.isArray(quizRes.data) ? quizRes.data : (quizRes.data?.items || []);
-      const courseItems = Array.isArray(courseRes.data) ? courseRes.data : (courseRes.data?.items || []);
-      setQuizzes(quizItems);
-      setCourses(courseItems);
-    } catch (err) {
-      toast.error('Failed to load quiz catalog');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadQuizzesAndCourses();
-  }, []);
-
   // Delete Quiz
   const handleDeleteQuiz = async (quizId, title, e) => {
     e.preventDefault();
@@ -95,7 +85,7 @@ export default function QuizHub() {
     try {
       await api.delete(`/quizzes/${quizId}`);
       toast.success('Quiz deleted successfully');
-      loadQuizzesAndCourses();
+      invalidateQuizzes();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to delete quiz');
     }
@@ -129,7 +119,7 @@ export default function QuizHub() {
         time_limit_minutes: 15,
         passing_percentage: 70
       });
-      loadQuizzesAndCourses();
+      invalidateQuizzes();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to generate AI quiz.');
     } finally {
@@ -170,7 +160,7 @@ export default function QuizHub() {
       await api.post('/quizzes', payload);
       toast.success('Quiz created successfully!');
       setShowManualModal(false);
-      loadQuizzesAndCourses();
+      invalidateQuizzes();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to create quiz.');
     } finally {
@@ -201,35 +191,112 @@ export default function QuizHub() {
   };
 
   if (isLoading) {
-    return (
-      <div style={styles.loadingContainer}>
-        <p style={styles.loadingText}>Loading Quiz Catalog...</p>
-      </div>
-    );
+    return <PageLoader />;
   }
+
+  const filteredQuizzes = quizzes.filter((quiz) => {
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch = !q || 
+      (quiz.title || '').toLowerCase().includes(q) ||
+      (quiz.description || '').toLowerCase().includes(q) ||
+      (quiz.course_title || '').toLowerCase().includes(q);
+    const matchesCourse = !courseFilter || String(quiz.course_id) === String(courseFilter);
+    return matchesSearch && matchesCourse;
+  });
 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>
-            <FiCheckSquare style={{ color: 'var(--accent-primary)', marginRight: '10px' }} />
-            Interactive Quizzes & Assessments
+            <FiCheckSquare style={{ color: '#818CF8', marginRight: '10px' }} />
+            Quizzes & Assessments
           </h1>
           <p style={styles.subtitle}>
-            Test your skills across programming topics, measure your comprehension, and earn verified scores.
+            Test your programming knowledge, measure your comprehension, and track verified scores.
           </p>
         </div>
 
         {isPrivileged && (
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <button onClick={() => setShowAiModal(true)} style={styles.aiBtn}>
-              <FiZap size={16} /> ✨ AI Generate Quiz
+              <FiZap size={16} /> Quick Generator
             </button>
             <button onClick={() => setShowManualModal(true)} style={styles.createBtn}>
-              <FiPlus size={16} /> Create Quiz Manually
+              <FiPlus size={16} /> Create Quiz
             </button>
           </div>
+        )}
+      </div>
+
+      {/* Contextual Quiz Search & Filters Bar */}
+      <div style={{
+        display: 'flex',
+        gap: '12px',
+        marginBottom: '24px',
+        flexWrap: 'wrap',
+        alignItems: 'center'
+      }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
+          <FiSearch size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: searchQuery ? 'var(--accent-primary)' : 'var(--text-secondary)' }} />
+          <input
+            type="text"
+            placeholder="Search assessments by title, topic, or description..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-primary)',
+              borderRadius: 'var(--radius-md)',
+              padding: '10px 36px 10px 42px',
+              fontSize: '0.9rem',
+              color: 'var(--text-primary)',
+              outline: 'none',
+              boxSizing: 'border-box'
+            }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              style={{
+                position: 'absolute',
+                right: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontSize: '13px',
+                padding: '4px'
+              }}
+              title="Clear search"
+            >✕</button>
+          )}
+        </div>
+
+        {courses.length > 0 && (
+          <select
+            value={courseFilter}
+            onChange={(e) => setCourseFilter(e.target.value)}
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-primary)',
+              borderRadius: 'var(--radius-md)',
+              padding: '10px 16px',
+              fontSize: '0.88rem',
+              color: 'var(--text-primary)',
+              outline: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="">All Associated Courses</option>
+            {courses.map((c) => (
+              <option key={c.id} value={c.id}>{c.title}</option>
+            ))}
+          </select>
         )}
       </div>
 
@@ -238,33 +305,70 @@ export default function QuizHub() {
           <FiCheckSquare size={48} style={{ color: 'var(--text-secondary)' }} />
           <h3 style={{ margin: '1rem 0 0.5rem 0' }}>No Quizzes Available</h3>
           <p style={{ color: 'var(--text-secondary)' }}>
-            {isPrivileged ? 'Click AI Generate or Create Quiz Manually to add your first assessment!' : 'Check back soon as instructors publish new course assessments.'}
+            {isPrivileged ? 'Click Quick Generator or Create Quiz Manually to add your first assessment!' : 'Check back soon as instructors publish new course assessments.'}
           </p>
+        </div>
+      ) : filteredQuizzes.length === 0 ? (
+        <div style={styles.emptyCard}>
+          <FiSearch size={44} style={{ color: 'var(--text-secondary)' }} />
+          <h3 style={{ margin: '1rem 0 0.5rem 0' }}>No Assessments Found</h3>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            No assessments match "{searchQuery}". Try a different keyword or course filter.
+          </p>
+          <button
+            onClick={() => { setSearchQuery(''); setCourseFilter(''); }}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: 'var(--accent-primary)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: '0.85rem'
+            }}
+          >
+            Clear Filters
+          </button>
         </div>
       ) : (
         <div style={styles.quizGrid}>
-          {quizzes.map((quiz) => {
+          {filteredQuizzes.map((quiz) => {
+
             const hasScore = quiz.user_best_percentage !== null && quiz.user_best_percentage !== undefined;
             const isPassed = hasScore && quiz.user_best_percentage >= quiz.passing_percentage;
+            const cleanTitle = (quiz.title || '').replace(/^AI Quiz:\s*/i, '');
 
             return (
               <div key={quiz.id} style={styles.quizCard}>
+                {/* Top Badge & Status Bar */}
                 <div style={styles.cardHeader}>
-                  <span style={styles.courseTag}>
-                    <FiBookOpen size={12} style={{ marginRight: '4px' }} />
-                    {quiz.course_title}
-                  </span>
+                  <div style={styles.courseTag} title={quiz.course_title || 'General Assessment'}>
+                    <FiBookOpen size={12} style={{ flexShrink: 0 }} />
+                    <span style={styles.courseTagText}>
+                      {quiz.course_title || 'General Assessment'}
+                    </span>
+                  </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {hasScore && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {hasScore ? (
                       <span style={{
                         ...styles.statusBadge,
-                        backgroundColor: isPassed ? 'rgba(46, 204, 113, 0.15)' : 'rgba(231, 76, 60, 0.15)',
-                        color: isPassed ? '#2ECC71' : '#E74C3C',
-                        borderColor: isPassed ? 'rgba(46, 204, 113, 0.3)' : 'rgba(231, 76, 60, 0.3)',
+                        backgroundColor: isPassed ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                        color: isPassed ? '#10B981' : '#F59E0B',
+                        border: isPassed ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(245, 158, 11, 0.25)',
                       }}>
-                        <FiCheckCircle size={12} style={{ marginRight: '4px' }} />
-                        {isPassed ? 'Passed' : 'Attempted'}
+                        {isPassed ? <FiCheckCircle size={12} /> : <FiClock size={12} />}
+                        <span>{isPassed ? 'Passed' : 'Attempted'}</span>
+                      </span>
+                    ) : (
+                      <span style={{
+                        ...styles.statusBadge,
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        color: 'var(--text-muted)',
+                        border: '1px solid var(--border-primary)',
+                      }}>
+                        Ready
                       </span>
                     )}
 
@@ -280,36 +384,67 @@ export default function QuizHub() {
                   </div>
                 </div>
 
-                <h2 style={styles.quizTitle}>{quiz.title}</h2>
-                <p style={styles.quizDesc}>{quiz.description || 'Test your knowledge on this module.'}</p>
+                {/* Content Section */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <h2 style={styles.quizTitle} title={cleanTitle}>{cleanTitle}</h2>
+                  <p style={styles.quizDesc}>
+                    {quiz.description || 'Test your knowledge on key topic concepts and measure your progress.'}
+                  </p>
+                </div>
 
+                {/* Metadata Row */}
                 <div style={styles.metaRow}>
                   <div style={styles.metaItem}>
-                    <FiClock size={14} style={{ marginRight: '4px' }} />
-                    <span>{quiz.time_limit_minutes} mins</span>
+                    <FiClock size={13} style={{ color: '#38BDF8' }} />
+                    <span>{quiz.time_limit_minutes}m limit</span>
                   </div>
                   <div style={styles.metaItem}>
-                    <FiCheckSquare size={14} style={{ marginRight: '4px' }} />
-                    <span>{quiz.question_count} questions</span>
+                    <FiCheckSquare size={13} style={{ color: '#818CF8' }} />
+                    <span>{quiz.question_count} items</span>
                   </div>
                   <div style={styles.metaItem}>
-                    <FiAward size={14} style={{ marginRight: '4px' }} />
-                    <span>{quiz.passing_percentage}% pass mark</span>
+                    <FiAward size={13} style={{ color: '#FBBF24' }} />
+                    <span>{quiz.passing_percentage}% pass</span>
                   </div>
                 </div>
 
+                {/* Best Score Progress Box */}
                 {hasScore && (
                   <div style={styles.scoreRow}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Best Score:</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>
-                      {Math.round(quiz.user_best_percentage)}%
-                    </span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Best Score</span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: isPassed ? '#10B981' : '#F59E0B' }}>
+                        {Math.round(quiz.user_best_percentage)}%
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400, marginLeft: '4px' }}>
+                          (pass: {quiz.passing_percentage}%)
+                        </span>
+                      </span>
+                    </div>
+                    <div style={styles.progressBarBg}>
+                      <div style={{
+                        ...styles.progressBarFill,
+                        width: `${Math.min(100, Math.round(quiz.user_best_percentage))}%`,
+                        backgroundColor: isPassed ? '#10B981' : '#F59E0B',
+                      }} />
+                    </div>
                   </div>
                 )}
 
-                <Link to={`/quizzes/${quiz.id}`} style={styles.startBtn}>
-                  <FiPlay size={14} style={{ marginRight: '6px' }} />
-                  {hasScore ? 'Retake Quiz' : 'Start Quiz'}
+                {/* Action Button */}
+                <Link
+                  to={`/quizzes/${quiz.id}`}
+                  style={{
+                    ...styles.startBtn,
+                    background: isPassed
+                      ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+                      : 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+                    boxShadow: isPassed
+                      ? '0 4px 12px rgba(16, 185, 129, 0.22)'
+                      : '0 4px 12px rgba(99, 102, 241, 0.22)',
+                  }}
+                >
+                  <FiPlay size={14} />
+                  <span>{hasScore ? 'Retake Quiz' : 'Start Assessment'}</span>
                 </Link>
               </div>
             );
@@ -544,37 +679,140 @@ export default function QuizHub() {
 
 const styles = {
   container: { padding: '2rem', maxWidth: '1200px', margin: '0 auto' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' },
-  title: { fontSize: '1.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center' },
-  subtitle: { color: 'var(--text-secondary)', marginTop: '0.5rem' },
-  aiBtn: { backgroundColor: '#8E44AD', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' },
-  createBtn: { backgroundColor: 'var(--accent-primary)', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' },
-  emptyCard: { backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-primary)', borderRadius: '12px', padding: '3rem', textAlign: 'center' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2.25rem', flexWrap: 'wrap', gap: '1rem' },
+  title: { fontSize: '1.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', color: 'var(--text-primary)', margin: 0 },
+  subtitle: { color: 'var(--text-secondary)', marginTop: '0.4rem', fontSize: '0.92rem' },
+  aiBtn: { backgroundColor: '#4F46E5', color: '#fff', border: 'none', padding: '0.55rem 1.15rem', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.86rem', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)' },
+  createBtn: { backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)', padding: '0.55rem 1.15rem', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.86rem' },
+  emptyCard: { backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-primary)', borderRadius: '16px', padding: '3.5rem 2rem', textAlign: 'center' },
   quizGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' },
-  quizCard: { backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-primary)', borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', position: 'relative' },
-  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' },
-  courseTag: { backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-secondary)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', display: 'flex', alignItems: 'center' },
-  statusBadge: { padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', border: '1px solid', display: 'flex', alignItems: 'center' },
-  deleteBtn: { backgroundColor: 'rgba(244, 67, 54, 0.15)', color: '#F44336', border: '1px solid rgba(244, 67, 54, 0.3)', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' },
-  quizTitle: { fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '0.5rem' },
-  quizDesc: { color: 'var(--text-secondary)', fontSize: '0.88rem', flex: 1, marginBottom: '1.2rem', lineHeight: '1.4' },
-  metaRow: { display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-primary)', borderBottom: '1px solid var(--border-primary)', padding: '0.8rem 0', marginBottom: '1rem' },
-  metaItem: { display: 'flex', alignItems: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' },
-  scoreRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', backgroundColor: 'rgba(255, 161, 22, 0.05)', padding: '6px 12px', borderRadius: '6px' },
-  startBtn: { backgroundColor: 'var(--accent-primary)', color: '#fff', textAlign: 'center', padding: '0.7rem', borderRadius: '8px', textDecoration: 'none', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  loadingContainer: { display: 'flex', justifyContent: 'center', padding: '5rem' },
-  loadingText: { color: 'var(--text-secondary)' },
+  quizCard: {
+    backgroundColor: 'var(--bg-card)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: '16px',
+    padding: '1.4rem',
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.22)',
+    transition: 'all 0.2s ease',
+  },
+  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', gap: '8px' },
+  courseTag: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '0.74rem',
+    fontWeight: 600,
+    color: '#38BDF8',
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    padding: '4px 9px',
+    borderRadius: '8px',
+    maxWidth: '60%',
+    overflow: 'hidden',
+  },
+  courseTagText: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  statusBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '5px',
+    padding: '3px 8px',
+    borderRadius: '9999px',
+    fontSize: '0.72rem',
+    fontWeight: 700,
+    letterSpacing: '0.02em',
+  },
+  deleteBtn: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    color: '#EF4444',
+    border: '1px solid rgba(239, 68, 68, 0.25)',
+    padding: '4px 7px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quizTitle: {
+    fontSize: '1.15rem',
+    fontWeight: 700,
+    color: 'var(--text-primary)',
+    margin: '0.35rem 0 0.4rem 0',
+    lineHeight: 1.3,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  quizDesc: {
+    color: 'var(--text-secondary)',
+    fontSize: '0.84rem',
+    lineHeight: 1.5,
+    margin: '0 0 1rem 0',
+    minHeight: '38px',
+    display: '-webkit-box',
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical',
+    overflow: 'hidden',
+  },
+  metaRow: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '6px',
+    borderTop: '1px solid var(--border-primary)',
+    borderBottom: '1px solid var(--border-primary)',
+    padding: '0.7rem 0',
+    marginBottom: '1rem',
+  },
+  metaItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+    color: 'var(--text-secondary)',
+    fontSize: '0.76rem',
+    fontWeight: 500,
+  },
+  scoreRow: {
+    marginBottom: '1rem',
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: '10px',
+    padding: '0.6rem 0.85rem',
+  },
+  progressBarBg: {
+    height: '5px',
+    borderRadius: '3px',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: '3px',
+    transition: 'width 0.3s ease',
+  },
+  startBtn: {
+    color: '#ffffff',
+    textAlign: 'center',
+    padding: '0.65rem 1rem',
+    borderRadius: '10px',
+    textDecoration: 'none',
+    fontWeight: 600,
+    fontSize: '0.88rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    transition: 'all 0.2s ease',
+  },
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.75)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '1rem' },
-  modalContent: { backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-primary)', borderRadius: '14px', width: '100%', maxWidth: '540px', padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto' },
-  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' },
+  modalContent: { backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-primary)', borderRadius: '16px', width: '100%', maxWidth: '540px', padding: '1.75rem', maxHeight: '90vh', overflowY: 'auto' },
+  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' },
   closeBtn: { background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' },
   form: { display: 'flex', flexDirection: 'column', gap: '1rem' },
   inputGroup: { display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: 1 },
   label: { fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '500' },
-  input: { backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-primary)', borderRadius: '6px', padding: '0.6rem 0.8rem', color: 'var(--text-primary)' },
-  select: { backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-primary)', borderRadius: '6px', padding: '0.6rem 0.8rem', color: 'var(--text-primary)' },
+  input: { backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-primary)', borderRadius: '8px', padding: '0.6rem 0.8rem', color: 'var(--text-primary)' },
+  select: { backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-primary)', borderRadius: '8px', padding: '0.6rem 0.8rem', color: 'var(--text-primary)' },
   row: { display: 'flex', gap: '1rem' },
-  aiSubmitBtn: { backgroundColor: '#8E44AD', color: '#fff', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
-  questionBlock: { backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-primary)', borderRadius: '8px', padding: '10px' },
-  addQBtn: { backgroundColor: 'transparent', color: 'var(--accent-primary)', border: '1px dashed var(--accent-primary)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }
+  aiSubmitBtn: { backgroundColor: '#4F46E5', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' },
+  questionBlock: { backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-primary)', borderRadius: '10px', padding: '12px' },
+  addQBtn: { backgroundColor: 'transparent', color: 'var(--accent-primary)', border: '1px dashed var(--accent-primary)', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }
 };

@@ -16,6 +16,7 @@ from schemas.quiz import (
 )
 from schemas.user import MessageResponse
 from services import quiz_service, course_service
+from utils.cache import cache_get, cache_set, cache_invalidate_prefix
 
 router = APIRouter()
 
@@ -26,6 +27,11 @@ def list_all_quizzes(
     db: Session = Depends(get_db),
 ):
     """List all published quizzes with course titles and question counts."""
+    cache_key = f"quizzes:list:{current_user.id}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     from models.quiz import Quiz, Question, QuizAttempt
     quizzes = db.query(Quiz).all()
     res = []
@@ -52,6 +58,7 @@ def list_all_quizzes(
             "user_attempts_count": len(attempts),
             "max_attempts": q.max_attempts
         })
+    cache_set(cache_key, res, ttl=300)
     return res
 
 
@@ -62,6 +69,11 @@ def get_quiz(
     db: Session = Depends(get_db),
 ):
     """Get a quiz with its questions (answers without correct flag)."""
+    cache_key = f"quizzes:detail:{quiz_id}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     quiz = quiz_service.get_quiz_by_id(db, quiz_id)
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
@@ -85,6 +97,8 @@ def get_quiz(
         "question_count": len(questions),
         "questions": question_list,
     }
+    cache_set(cache_key, payload, ttl=600)
+    return payload
 
 
 @router.post("/{quiz_id}/attempt", response_model=QuizAttemptResult)
@@ -98,9 +112,28 @@ def submit_attempt(
     attempt = quiz_service.submit_quiz_attempt(db, quiz_id, current_user.id, data)
     
     # Log study time and completed quiz status
-    from services.analytics_service import log_study_activity
+    from services.analytics_service import log_study_activity, create_notification
     log_study_activity(db, current_user.id, duration_delta_minutes=10, completed_quiz=True)
+    try:
+        quiz = quiz_service.get_quiz_by_id(db, quiz_id)
+        quiz_title = quiz.title if quiz else "Quiz Assessment"
+        score_val = attempt.score if hasattr(attempt, 'score') else 100
+        create_notification(
+            db=db,
+            user_id=current_user.id,
+            title=f"Quiz Completed: {quiz_title}",
+            message=f"You scored {score_val:.0f}% on '{quiz_title}'. Keep up the momentum!",
+            notification_type="quiz_result",
+            link="/quizzes",
+        )
+    except Exception:
+        pass
     
+    # Invalidate student quiz and analytics caches
+    cache_invalidate_prefix(f"quizzes:list:{current_user.id}")
+    cache_invalidate_prefix(f"analytics:dashboard:{current_user.id}")
+    cache_invalidate_prefix(f"analytics:student:{current_user.id}")
+
     return attempt
 
 
@@ -157,6 +190,7 @@ def create_quiz_manual(
     quiz.is_published = True
     db.commit()
     db.refresh(quiz)
+    cache_invalidate_prefix("quizzes:")
     return {"message": "Quiz created successfully", "quiz_id": quiz.id}
 
 
@@ -229,6 +263,7 @@ def create_quiz_ai(
 
     db.commit()
     db.refresh(quiz)
+    cache_invalidate_prefix("quizzes:")
     return {"message": f"AI Quiz generated successfully with {len(generated_q_list)} questions", "quiz_id": quiz.id}
 
 
@@ -252,6 +287,7 @@ def update_quiz(
     for field, value in update_dict.items():
         setattr(quiz, field, value)
     db.commit()
+    cache_invalidate_prefix("quizzes:")
     return {"message": "Quiz updated successfully"}
 
 
@@ -279,4 +315,5 @@ def delete_quiz(
 
     db.delete(quiz)
     db.commit()
+    cache_invalidate_prefix("quizzes:")
     return {"message": "Quiz deleted successfully"}

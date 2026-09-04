@@ -7,14 +7,30 @@ import {
   FiDownload, FiCpu, FiEdit3, FiEye, FiCheckCircle, FiActivity
 } from 'react-icons/fi';
 import LoadingButton from '../components/common/LoadingButton';
+import { useNotes, useCourses, useInvalidateCache } from '../hooks/useQueries';
 
 export default function Notes() {
-  const [notes, setNotes] = useState([]);
-  const [courses, setCourses] = useState([]);
   const [search, setSearch] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
   const [showBookmarkedOnly, setShowBookmarkedOnly] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+
+  // TanStack Query for notes caching
+  const { data: notesData, isLoading: isNotesLoading } = useNotes({
+    courseId: selectedCourse || null,
+    bookmarked: showBookmarkedOnly || null,
+    search: search || null
+  });
+  const { data: coursesData, isLoading: isCoursesLoading } = useCourses();
+  const { invalidateNotes } = useInvalidateCache();
+
+  const [notes, setNotes] = useState([]);
+  const courses = coursesData?.items || (Array.isArray(coursesData) ? coursesData : []);
+
+  useEffect(() => {
+    if (notesData) {
+      setNotes(notesData);
+    }
+  }, [notesData]);
 
   // Form state
   const [showCreate, setShowCreate] = useState(false);
@@ -83,34 +99,7 @@ export default function Notes() {
   const [autoCommitOnMajorEdit, setAutoCommitOnMajorEdit] = useState(true);
   const [autoCommitBeforeAi, setAutoCommitBeforeAi] = useState(true);
 
-  async function loadData() {
-    setIsLoading(true);
-    try {
-      const params = {};
-      if (search) params.search = search;
-      if (selectedCourse) params.course_id = selectedCourse;
-      if (showBookmarkedOnly) params.bookmarked = true;
-
-      const [notesRes, coursesRes] = await Promise.all([
-        api.get('/notes', { params }),
-        api.get('/courses')
-      ]);
-
-      setNotes(notesRes.data || []);
-      setCourses(coursesRes.data.items || []);
-      if (coursesRes.data.items?.length > 0 && !newNote.course_id) {
-        setNewNote(prev => ({ ...prev, course_id: coursesRes.data.items[0].id }));
-      }
-    } catch (err) {
-      toast.error('Failed to load notes');
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadData();
-  }, [search, selectedCourse, showBookmarkedOnly]);
+  const isLoading = isNotesLoading && !notesData;
 
   const handleCreateNote = async (e) => {
     e.preventDefault();
@@ -129,6 +118,7 @@ export default function Notes() {
       toast.success('Note saved successfully!');
       setShowCreate(false);
       setNewNote({ title: '', content: '', course_id: courses[0]?.id || '' });
+      invalidateNotes();
       // Automatically open the workspace for the new note
       handleOpenWorkspace(res.data);
     } catch (err) {
@@ -147,7 +137,7 @@ export default function Notes() {
       if (selectedNote && selectedNote.id === noteId) {
         setSelectedNote(prev => ({ ...prev, is_bookmarked: !currentStatus }));
       }
-      loadData();
+      invalidateNotes();
     } catch (err) {
       toast.error('Failed to update note');
     }
@@ -161,7 +151,7 @@ export default function Notes() {
       if (selectedNote && selectedNote.id === noteId) {
         setSelectedNote(null);
       }
-      loadData();
+      invalidateNotes();
     } catch (err) {
       toast.error('Failed to delete note');
     }

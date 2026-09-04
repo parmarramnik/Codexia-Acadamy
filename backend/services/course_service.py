@@ -9,7 +9,7 @@ from sqlalchemy import or_, func
 from models.course import Course, Module, Lecture, Enrollment, CourseCategory, CourseDifficulty
 from models.content import Video
 from models.user import User
-from schemas.course import CourseCreate, CourseUpdate, ModuleCreate, LectureCreate
+from schemas.course import CourseCreate, CourseUpdate, ModuleCreate, ModuleUpdate, LectureCreate, LectureUpdate
 from utils.helpers import generate_slug, paginate_query, PaginatedResponse
 
 
@@ -21,6 +21,7 @@ def create_course(db: Session, data: CourseCreate, instructor: User) -> Course:
         slug=slug,
         description=data.description,
         short_description=data.short_description,
+        thumbnail_url=data.thumbnail_url,
         instructor_id=instructor.id,
         category=data.category,
         difficulty=data.difficulty,
@@ -80,13 +81,41 @@ def list_courses(
         query = query.filter(Course.instructor_id == instructor_id)
     if search:
         search_term = f"%{search}%"
-        query = query.filter(
-            or_(
-                Course.title.ilike(search_term),
-                Course.description.ilike(search_term),
-                Course.tags.ilike(search_term),
+        es_matched = False
+        try:
+            from utils.elasticsearch_client import is_es_available, get_es_client, INDEX_COURSES
+            if is_es_available():
+                client = get_es_client()
+                es_res = client.search(
+                    index=INDEX_COURSES,
+                    body={
+                        "query": {
+                            "multi_match": {
+                                "query": search.strip(),
+                                "fields": ["title^4", "tags^2", "short_description", "description", "instructor_name"],
+                                "fuzziness": "AUTO"
+                            }
+                        },
+                        "_source": ["id"],
+                        "size": 100
+                    }
+                )
+                hits = es_res.get("hits", {}).get("hits", [])
+                ids = [int(h["_source"]["id"]) for h in hits if h.get("_source", {}).get("id")]
+                query = query.filter(Course.id.in_(ids) if ids else Course.id == -1)
+                es_matched = True
+        except Exception:
+            pass
+
+        if not es_matched:
+            query = query.filter(
+                or_(
+                    Course.title.ilike(search_term),
+                    Course.description.ilike(search_term),
+                    Course.tags.ilike(search_term),
+                )
             )
-        )
+
 
     total = query.count()
     query = query.order_by(Course.created_at.desc())
@@ -196,6 +225,25 @@ def create_module(db: Session, course_id: int, data: ModuleCreate) -> Module:
     return module
 
 
+def update_module(db: Session, module: Module, data: ModuleUpdate) -> Module:
+    """Update module details."""
+    update_dict = data.model_dump(exclude_unset=True)
+    for field, value in update_dict.items():
+        setattr(module, field, value)
+    db.commit()
+    db.refresh(module)
+    return module
+
+
+def delete_module(db: Session, module: Module) -> bool:
+    """Delete a module and all its associated lectures."""
+    course_id = module.course_id
+    db.delete(module)
+    db.commit()
+    _update_course_lecture_count(db, course_id)
+    return True
+
+
 def get_course_modules(db: Session, course_id: int) -> List[Module]:
     """Get all modules for a course, with their lectures."""
     return (
@@ -210,7 +258,7 @@ def get_course_modules(db: Session, course_id: int) -> List[Module]:
 # --- Lecture operations ---
 
 def create_lecture(db: Session, module_id: int, data: LectureCreate) -> Lecture:
-    """Create a new lecture in a module."""
+    """Create a new lecture in a module with optional video URL."""
     module = db.query(Module).filter(Module.id == module_id).first()
     if not module:
         raise ValueError("Module not found")
@@ -224,10 +272,65 @@ def create_lecture(db: Session, module_id: int, data: LectureCreate) -> Lecture:
         is_preview=data.is_preview,
     )
     db.add(lecture)
+    db.flush()
+
+    if data.video_url and data.video_url.strip():
+        video = Video(
+            lecture_id=lecture.id,
+            file_url=data.video_url.strip(),
+            file_name=f"Video - {data.title}",
+            duration_seconds=data.duration_seconds,
+            mime_type="video/mp4",
+        )
+        db.add(video)
+
     db.commit()
     db.refresh(lecture)
     _update_course_lecture_count(db, module.course_id)
     return lecture
+
+
+def update_lecture(db: Session, lecture: Lecture, data: LectureUpdate) -> Lecture:
+    """Update lecture details and associated video URL."""
+    update_dict = data.model_dump(exclude_unset=True)
+    video_url = update_dict.pop("video_url", None)
+
+    for field, value in update_dict.items():
+        setattr(lecture, field, value)
+
+    if video_url is not None:
+        clean_url = video_url.strip()
+        existing_video = db.query(Video).filter(Video.lecture_id == lecture.id).first()
+        if existing_video:
+            if clean_url:
+                existing_video.file_url = clean_url
+                existing_video.duration_seconds = lecture.duration_seconds
+            else:
+                db.delete(existing_video)
+        elif clean_url:
+            new_video = Video(
+                lecture_id=lecture.id,
+                file_url=clean_url,
+                file_name=f"Video - {lecture.title}",
+                duration_seconds=lecture.duration_seconds,
+                mime_type="video/mp4",
+            )
+            db.add(new_video)
+
+    db.commit()
+    db.refresh(lecture)
+    return lecture
+
+
+def delete_lecture(db: Session, lecture: Lecture) -> bool:
+    """Delete a lecture and associated video/progress records."""
+    module = db.query(Module).filter(Module.id == lecture.module_id).first()
+    course_id = module.course_id if module else None
+    db.delete(lecture)
+    db.commit()
+    if course_id:
+        _update_course_lecture_count(db, course_id)
+    return True
 
 
 def _update_course_lecture_count(db: Session, course_id: int) -> None:

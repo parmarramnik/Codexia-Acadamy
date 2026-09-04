@@ -2,10 +2,10 @@
 Analytics, notification, note, flashcard, and certificate schemas.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 
 
 # --- Notes ---
@@ -100,12 +100,16 @@ class CertificateResponse(BaseModel):
 
 
 class CertificateVerifyResponse(BaseModel):
-    is_valid: bool
+    is_valid: bool = True
     certificate_uid: str
     user_full_name: str
     course_title: str
     instructor_name: str
     completion_date: datetime
+    certificate_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 
 # --- Analytics ---
@@ -153,6 +157,12 @@ class NotificationResponse(BaseModel):
     is_read: bool
     link: Optional[str] = None
     created_at: datetime
+
+    @field_serializer("created_at")
+    def serialize_created_at(self, dt: datetime, _info):
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat()
 
     class Config:
         from_attributes = True

@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     CACHE_ENABLED: bool = True
     CACHE_DEFAULT_TTL: int = 300  # 5 minutes
 
+    # Elasticsearch (Full-Text, Fuzzy & Contextual Search)
+    ELASTICSEARCH_URL: str = "http://localhost:9200"
+
+
     # JWT
     JWT_SECRET_KEY: str = "change-this-in-production-use-a-strong-random-key"
     JWT_ALGORITHM: str = "HS256"

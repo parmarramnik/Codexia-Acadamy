@@ -35,8 +35,10 @@ export default function DashboardLayout() {
     }
   };
 
+  const isEdgeToEdge = location.pathname.startsWith('/coding/') && location.pathname !== '/coding';
+
   return (
-    <div className="dashboard-layout">
+    <div className={`dashboard-layout ${isEdgeToEdge ? 'edge-to-edge-layout' : ''}`}>
       {/* Sidebar Overlay on mobile */}
       {isMobileOpen && (
         <div 
@@ -51,9 +53,9 @@ export default function DashboardLayout() {
         onToggleSidebar={handleToggleSidebar}
       />
 
-      <div className={`dashboard-main ${isCollapsed ? 'collapsed' : ''}`}>
+      <div className={`dashboard-main ${isCollapsed ? 'collapsed' : ''} ${isEdgeToEdge ? 'edge-to-edge-main' : ''}`}>
         <DashboardNavbar onToggleSidebar={handleToggleSidebar} />
-        <main className="dashboard-content">
+        <main className={`dashboard-content ${isEdgeToEdge ? 'edge-to-edge' : ''}`}>
           <Outlet />
         </main>
       </div>

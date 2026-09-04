@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -8,10 +6,13 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-codexia_lms}
       POSTGRES_USER: ${POSTGRES_USER:-codexia_admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin_secure_pwd}
+    # Security: Bind database strictly to localhost (127.0.0.1) to avoid exposure to LAN/public
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - codexia_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-codexia_admin} -d ${POSTGRES_DB:-codexia_lms}"]
       interval: 10s
@@ -21,15 +22,38 @@ services:
   redis:
     image: redis:7-alpine
     container_name: codexia_cache
+    # Security: Bind Redis strictly to localhost (127.0.0.1) to prevent unauthenticated access
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - codexia_network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: codexia_search
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms256m -Xmx512m"
+    # Security: Bind Elasticsearch strictly to localhost (127.0.0.1)
+    ports:
+      - "127.0.0.1:9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - codexia_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cat/health | grep -q 'green\\|yellow'"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
 
   auth_service:
     build:
@@ -42,7 +66,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
     environment:
       - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
@@ -57,6 +81,8 @@ services:
       - INSTRUCTOR_EMAIL=${INSTRUCTOR_EMAIL:-instructor@codexia.com}
     volumes:
       - ./backend:/app
+    networks:
+      - codexia_network
 
   course_service:
     build:
@@ -69,7 +95,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8002:8002"
+      - "127.0.0.1:8002:8002"
     environment:
       - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
@@ -77,6 +103,8 @@ services:
       - DEBUG=${DEBUG:-true}
     volumes:
       - ./backend:/app
+    networks:
+      - codexia_network
 
   quiz_service:
     build:
@@ -89,7 +117,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8003:8003"
+      - "127.0.0.1:8003:8003"
     environment:
       - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
@@ -97,6 +125,8 @@ services:
       - DEBUG=${DEBUG:-true}
     volumes:
       - ./backend:/app
+    networks:
+      - codexia_network
 
   coding_service:
     build:
@@ -109,7 +139,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8004:8004"
+      - "127.0.0.1:8004:8004"
     environment:
       - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
@@ -117,6 +147,8 @@ services:
       - DEBUG=${DEBUG:-true}
     volumes:
       - ./backend:/app
+    networks:
+      - codexia_network
 
   ai_service:
     build:
@@ -129,7 +161,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8005:8005"
+      - "127.0.0.1:8005:8005"
     environment:
       - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
@@ -138,6 +170,8 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
     volumes:
       - ./backend:/app
+    networks:
+      - codexia_network
 
   analytics_service:
     build:
@@ -150,14 +184,17 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8006:8006"
+      - "127.0.0.1:8006:8006"
     environment:
       - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elasticsearch:9200}
       - APP_NAME=Codexia Analytics Service
       - DEBUG=${DEBUG:-true}
     volumes:
       - ./backend:/app
+    networks:
+      - codexia_network
 
   gateway:
     build:
@@ -172,7 +209,7 @@ services:
       - ai_service
       - analytics_service
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       - AUTH_SERVICE_URL=http://auth_service:8001
       - COURSE_SERVICE_URL=http://course_service:8002
@@ -184,6 +221,8 @@ services:
       - DEBUG=true
     volumes:
       - ./backend:/app
+    networks:
+      - codexia_network
 
   frontend:
     build:
@@ -194,7 +233,14 @@ services:
       - gateway
     ports:
       - "3000:3000"
+    networks:
+      - codexia_network
 
 volumes:
   postgres_data:
   redis_data:
+  elasticsearch_data:
+
+networks:
+  codexia_network:
+    driver: bridge

@@ -47,12 +47,15 @@ class CodingProblemCreate(BaseModel):
     output_format: Optional[str] = None
     starter_code_python: Optional[str] = None
     starter_code_cpp: Optional[str] = None
+    starter_code_c: Optional[str] = None
     starter_code_java: Optional[str] = None
     starter_code_javascript: Optional[str] = None
+    starter_code_go: Optional[str] = None
     solution: Optional[str] = None
     hints: Optional[str] = None
     tags: Optional[str] = None
     test_cases: List[TestCaseCreate] = []
+    set_as_daily: Optional[bool] = False
 
 
 class CodingProblemUpdate(BaseModel):
@@ -64,8 +67,10 @@ class CodingProblemUpdate(BaseModel):
     output_format: Optional[str] = None
     starter_code_python: Optional[str] = None
     starter_code_cpp: Optional[str] = None
+    starter_code_c: Optional[str] = None
     starter_code_java: Optional[str] = None
     starter_code_javascript: Optional[str] = None
+    starter_code_go: Optional[str] = None
     solution: Optional[str] = None
     hints: Optional[str] = None
     tags: Optional[str] = None
@@ -84,14 +89,17 @@ class CodingProblemResponse(BaseModel):
     output_format: Optional[str] = None
     starter_code_python: Optional[str] = None
     starter_code_cpp: Optional[str] = None
+    starter_code_c: Optional[str] = None
     starter_code_java: Optional[str] = None
     starter_code_javascript: Optional[str] = None
+    starter_code_go: Optional[str] = None
     hints: Optional[str] = None
     tags: Optional[str] = None
     is_published: bool
     total_submissions: int
     accepted_submissions: int
     acceptance_rate: float = 0.0
+    is_solved: bool = False
     created_at: datetime
 
     class Config:
@@ -107,6 +115,7 @@ class CodingProblemListResponse(BaseModel):
     total_submissions: int
     accepted_submissions: int
     acceptance_rate: float = 0.0
+    is_solved: bool = False
 
     class Config:
         from_attributes = True

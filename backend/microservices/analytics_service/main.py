@@ -50,6 +50,26 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     def on_startup():
         create_tables()
+        # Non-blocking background initialization and synchronization of Elasticsearch
+        import threading
+        def init_es_background():
+            import time
+            from database import SessionLocal
+            from utils.elasticsearch_client import init_indices, is_es_available
+            from services.search_service import sync_all_to_elasticsearch
+            for _ in range(15):
+                if is_es_available():
+                    init_indices()
+                    db = SessionLocal()
+                    try:
+                        sync_all_to_elasticsearch(db)
+                    finally:
+                        db.close()
+                    break
+                time.sleep(2)
+
+        threading.Thread(target=init_es_background, daemon=True).start()
+
 
     @app.get("/", tags=["Root"])
     def root():

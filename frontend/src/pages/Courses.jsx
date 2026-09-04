@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiBookOpen, FiSearch, FiChevronRight } from 'react-icons/fi';
+import { FiBookOpen, FiSearch, FiChevronRight, FiClock, FiAward } from 'react-icons/fi';
 import { useCourses } from '../hooks/useQueries';
+import PageLoader from '../components/common/PageLoader';
 
 export default function Courses() {
   const [search, setSearch] = useState('');
@@ -35,7 +36,7 @@ export default function Courses() {
     <div style={styles.container}>
       <div style={styles.header}>
         <h1 style={styles.title}>All Courses</h1>
-        <p style={styles.subtitle}>Browse structured curriculum lectures and step-by-step programming paths.</p>
+        <p style={styles.subtitle}>Explore available courses.</p>
       </div>
 
       {/* Filters Bar */}
@@ -44,7 +45,7 @@ export default function Courses() {
           <FiSearch size={18} style={styles.searchIcon} />
           <input
             type="text"
-            placeholder="Search courses..."
+            placeholder="Search courses, technologies, topics..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={styles.searchInput}
@@ -76,9 +77,7 @@ export default function Courses() {
 
       {/* Courses List */}
       {isLoading ? (
-        <div style={styles.loadingContainer}>
-          <p style={styles.loadingText}>Fetching courses...</p>
-        </div>
+        <PageLoader />
       ) : courses.length === 0 ? (
         <div style={styles.emptyState}>
           <FiBookOpen size={48} style={styles.emptyIcon} />
@@ -89,24 +88,33 @@ export default function Courses() {
         <div style={styles.grid}>
           {courses.map((course) => (
             <div key={course.id} style={styles.card}>
-              {course.thumbnail_url ? (
-                <img src={course.thumbnail_url} alt={course.title} style={styles.thumbnail} />
-              ) : (
-                <div style={styles.thumbnailPlaceholder}>
-                  <FiBookOpen size={32} style={styles.placeholderIcon} />
-                </div>
-              )}
+              <div>
+                {course.thumbnail_url ? (
+                  <img src={course.thumbnail_url} alt={course.title} loading="lazy" style={styles.thumbnail} />
+                ) : (
+                  <div style={styles.thumbnailPlaceholder}>
+                    <FiBookOpen size={32} style={styles.placeholderIcon} />
+                  </div>
+                )}
+              </div>
               <div style={styles.cardBody}>
                 <div style={styles.tagRow}>
                   <span style={styles.categoryBadge}>{course.category.replace('_', ' ')}</span>
                   <span style={styles.difficultyBadge}>{course.difficulty}</span>
                 </div>
                 <h3 style={styles.courseTitle}>{course.title}</h3>
-                <p style={styles.courseDesc}>{course.short_description || 'Master software development with curated lectures and quizzes.'}</p>
+                <p style={styles.courseDesc}>{course.short_description || 'Master modern skills with curated video lectures and exercises.'}</p>
+                
+                <div style={styles.courseMetaRow}>
+                  <span style={styles.courseMetaItem}><FiClock size={13} /> {course.duration_hours || 10}h</span>
+                  <span style={styles.courseMetaItem}><FiBookOpen size={13} /> {course.total_lectures || 0} Lectures</span>
+                  <span style={styles.courseMetaItem}><FiAward size={13} /> Certificate</span>
+                </div>
+
                 <div style={styles.footerRow}>
                   <span style={styles.instructor}>By {course.instructor_name || 'Codexia'}</span>
                   <Link to={`/courses/${course.slug}`} style={styles.detailsLink}>
-                    View Details <FiChevronRight size={16} />
+                    View Course <FiChevronRight size={16} />
                   </Link>
                 </div>
               </div>
@@ -120,15 +128,15 @@ export default function Courses() {
 
 const styles = {
   container: {
-    padding: '2rem',
-    maxWidth: 'var(--max-content-width)',
-    margin: '0 auto',
+    padding: '0 0 2.5rem 0',
+    maxWidth: '100%',
+    margin: '0',
     width: '100%',
     backgroundColor: 'var(--bg-primary)',
     color: 'var(--text-primary)',
   },
   header: {
-    marginBottom: '2.5rem',
+    marginBottom: '1.5rem',
   },
   title: {
     fontSize: '2rem',
@@ -226,11 +234,12 @@ const styles = {
   card: {
     backgroundColor: 'var(--bg-card)',
     border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
+    borderRadius: 'var(--radius-lg)',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    transition: 'all var(--transition-fast)',
+    transition: 'all var(--transition-base)',
+    boxShadow: 'var(--shadow-sm)',
   },
   thumbnail: {
     width: '100%',
@@ -308,5 +317,42 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.25rem',
+  },
+  freeHeaderBadge: {
+    fontSize: '0.78rem',
+    fontWeight: '700',
+    color: '#10B981',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    border: '1px solid rgba(16, 185, 129, 0.3)',
+    borderRadius: '12px',
+    padding: '3px 10px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+  },
+  freeBadgeOverlay: {
+    position: 'absolute',
+    top: '10px',
+    right: '10px',
+    backgroundColor: '#10B981',
+    color: '#FFFFFF',
+    fontSize: '0.7rem',
+    fontWeight: '800',
+    letterSpacing: '0.05em',
+    padding: '3px 8px',
+    borderRadius: '4px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+  },
+  courseMetaRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    fontSize: '0.75rem',
+    color: 'var(--text-secondary)',
+    margin: '4px 0',
+  },
+  courseMetaItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
   }
 };

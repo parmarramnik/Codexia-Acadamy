@@ -1,4 +1,7 @@
-version: "3.8"
+# ==============================================================================
+# Codexia LMS - Production Compose Configuration
+# Zero-Trust Network Isolation & Strict Security Policy
+# ==============================================================================
 
 services:
   postgres:
@@ -8,11 +11,12 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-codexia_lms}
       POSTGRES_USER: ${POSTGRES_USER:-codexia_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin_secure_pwd}
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Error POSTGRES_PASSWORD environment variable must be set in production}"
+    # Security: No ports exposed to host. Internal communication only.
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
+    networks:
+      - codexia_prod_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-codexia_admin} -d ${POSTGRES_DB:-codexia_lms}"]
       interval: 10s
@@ -23,10 +27,11 @@ services:
     image: redis:7-alpine
     container_name: codexia_prod_cache
     restart: always
-    ports:
-      - "6379:6379"
+    # Security: No ports exposed to host. Internal communication only.
     volumes:
       - redis_prod_data:/data
+    networks:
+      - codexia_prod_network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -44,10 +49,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports:
-      - "8001:8001"
+    # Security: Internal microservice - no host port binding
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-codexia_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-codexia_lms}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia Auth Service
       - DEBUG=false
@@ -58,6 +62,8 @@ services:
       - FROM_EMAIL=${FROM_EMAIL:-noreply@codexia.com}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-}
       - INSTRUCTOR_EMAIL=${INSTRUCTOR_EMAIL:-}
+    networks:
+      - codexia_prod_network
 
   course_service:
     build:
@@ -70,15 +76,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports:
-      - "8002:8002"
+    # Security: Internal microservice - no host port binding
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-codexia_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-codexia_lms}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia Course Service
       - DEBUG=false
     volumes:
       - static_prod_data:/app/static
+    networks:
+      - codexia_prod_network
 
   quiz_service:
     build:
@@ -91,15 +98,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports:
-      - "8003:8003"
+    # Security: Internal microservice - no host port binding
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-codexia_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-codexia_lms}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia Quiz Service
       - DEBUG=false
     volumes:
       - static_prod_data:/app/static
+    networks:
+      - codexia_prod_network
 
   coding_service:
     build:
@@ -112,13 +120,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports:
-      - "8004:8004"
+    # Security: Internal microservice - no host port binding
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-codexia_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-codexia_lms}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia Coding Service
       - DEBUG=false
+    networks:
+      - codexia_prod_network
 
   ai_service:
     build:
@@ -131,14 +140,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports:
-      - "8005:8005"
+    # Security: Internal microservice - no host port binding
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-codexia_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-codexia_lms}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia AI Service
       - DEBUG=false
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_API_KEY="${GEMINI_API_KEY:?Error GEMINI_API_KEY must be set in production}"
+    networks:
+      - codexia_prod_network
 
   analytics_service:
     build:
@@ -151,13 +161,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports:
-      - "8006:8006"
+    # Security: Internal microservice - no host port binding
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-codexia_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-codexia_lms}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=Codexia Analytics Service
       - DEBUG=false
+    networks:
+      - codexia_prod_network
 
   gateway:
     build:
@@ -172,8 +183,10 @@ services:
       - coding_service
       - ai_service
       - analytics_service
+    # Security: Internal gateway. Only frontend reverse-proxies to it.
+    # If host access is needed for administration, bind strictly to 127.0.0.1.
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       - AUTH_SERVICE_URL=http://auth_service:8001
       - COURSE_SERVICE_URL=http://course_service:8002
@@ -185,6 +198,8 @@ services:
       - DEBUG=false
     volumes:
       - static_prod_data:/app/static
+    networks:
+      - codexia_prod_network
 
   frontend:
     build:
@@ -194,11 +209,18 @@ services:
     restart: always
     depends_on:
       - gateway
+    # Public web ingress ports for production traffic
     ports:
       - "80:80"
       - "443:443"
+    networks:
+      - codexia_prod_network
 
 volumes:
   postgres_prod_data:
   redis_prod_data:
   static_prod_data:
+
+networks:
+  codexia_prod_network:
+    driver: bridge

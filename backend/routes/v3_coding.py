@@ -142,6 +142,7 @@ def get_coding_dashboard_statistics(
 
     return {
         "total_solved": total_solved,
+        "solved_problem_ids": list(solved_problem_ids),
         "total_submissions": total_submissions,
         "acceptance_rate": acceptance_rate,
         "difficulty_distribution": {

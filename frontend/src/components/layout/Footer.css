@@ -4,6 +4,12 @@
   padding: var(--space-16) 0 var(--space-8);
 }
 
+.footer .container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
 .footer-grid {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1fr;

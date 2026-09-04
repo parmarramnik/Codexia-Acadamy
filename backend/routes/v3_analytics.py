@@ -15,6 +15,7 @@ from models.course import Course, Enrollment, Lecture
 from models.quiz import QuizAttempt
 from models.coding import Submission, CodingProblem
 from models.analytics import StudySession
+from utils.cache import cache_get, cache_set, cache_invalidate_prefix
 
 router = APIRouter(prefix="/analytics", tags=["Analytics Platform"])
 
@@ -24,6 +25,11 @@ def get_student_analytics(current_user: User = Depends(get_current_user), db: Se
     """
     Fetch comprehensive student study progress statistics including activity heatmap logs.
     """
+    cache_key = f"analytics:student:{current_user.id}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     # 1. Study hours from study sessions
     sessions = db.query(StudySession).filter(StudySession.user_id == current_user.id).all()
     total_mins = sum(s.duration_minutes for s in sessions)
@@ -60,7 +66,7 @@ def get_student_analytics(current_user: User = Depends(get_current_user), db: Se
             cat = e.course.category.lower()
             course_cat_map[cat] = max(course_cat_map.get(cat, 0), e.completion_percentage)
 
-    # 6. Skill radar metrics dynamically counted from tags & submissions
+    # 6. Skill radar metrics dynamically calculated from true user progress and problem completions
     solved_tags = db.query(CodingProblem.tags)\
         .join(Submission, Submission.problem_id == CodingProblem.id)\
         .filter(Submission.user_id == current_user.id, Submission.status == "accepted").all()
@@ -72,27 +78,78 @@ def get_student_analytics(current_user: User = Depends(get_current_user), db: Se
                 t = tag.strip().lower()
                 cat_map[t] = cat_map.get(t, 0) + 1
 
-    # Map scores dynamically
-    algorithms_score = min(cat_map.get("algorithms", 0) * 20 + course_cat_map.get("algorithms", 0) * 0.8 + (10 if solved_problems > 0 else 0), 100)
-    ds_score = min((cat_map.get("arrays", 0) + cat_map.get("recursion", 0) + cat_map.get("trees", 0)) * 15 + course_cat_map.get("programming", 0) * 0.8 + (10 if solved_problems > 0 else 0), 100)
-    sys_design_score = min(course_cat_map.get("system-design", 0) * 0.8 + (15 if len(enrollments) > 0 else 0), 100)
-    database_score = min(cat_map.get("database", 0) * 25 + course_cat_map.get("database", 0) * 0.8 + (10 if solved_problems > 0 else 0), 100)
-    web_dev_score = min(course_cat_map.get("web-development", 0) * 0.8 + course_cat_map.get("frontend", 0) * 0.8 + (15 if len(enrollments) > 0 else 0), 100)
+    # Total problems per topic domain in the database for true ratio calculation
+    total_algo_problems = max(1, db.query(CodingProblem).filter(
+        (CodingProblem.tags.ilike("%dynamic programming%")) | 
+        (CodingProblem.tags.ilike("%binary search%")) | 
+        (CodingProblem.tags.ilike("%recursion%")) | 
+        (CodingProblem.tags.ilike("%divide and conquer%")) |
+        (CodingProblem.tags.ilike("%greedy%"))
+    ).count())
+
+    total_ds_problems = max(1, db.query(CodingProblem).filter(
+        (CodingProblem.tags.ilike("%array%")) | 
+        (CodingProblem.tags.ilike("%string%")) | 
+        (CodingProblem.tags.ilike("%hash table%")) | 
+        (CodingProblem.tags.ilike("%stack%")) | 
+        (CodingProblem.tags.ilike("%linked list%")) | 
+        (CodingProblem.tags.ilike("%two pointers%"))
+    ).count())
+
+    algo_solved = (
+        cat_map.get("dynamic programming", 0) + 
+        cat_map.get("binary search", 0) + 
+        cat_map.get("recursion", 0) + 
+        cat_map.get("divide and conquer", 0) + 
+        cat_map.get("greedy", 0)
+    )
+    ds_solved = (
+        cat_map.get("array", 0) + 
+        cat_map.get("string", 0) + 
+        cat_map.get("hash table", 0) + 
+        cat_map.get("stack", 0) + 
+        cat_map.get("linked list", 0) + 
+        cat_map.get("two pointers", 0)
+    )
+
+    # Calculate authentic percentages without artificial bonuses
+    algo_course_pct = course_cat_map.get("algorithms", 0.0)
+    algo_prob_pct = min(100.0, (algo_solved / total_algo_problems) * 100.0)
+    algorithms_score = max(algo_course_pct, algo_prob_pct) if (algo_course_pct > 0 or algo_prob_pct > 0) else 0.0
+
+    ds_course_pct = max(course_cat_map.get("data structures", 0.0), course_cat_map.get("data-structures", 0.0))
+    ds_prob_pct = min(100.0, (ds_solved / total_ds_problems) * 100.0)
+    ds_score = max(ds_course_pct, ds_prob_pct) if (ds_course_pct > 0 or ds_prob_pct > 0) else 0.0
+
+    sys_design_score = max(course_cat_map.get("system-design", 0.0), course_cat_map.get("system design", 0.0))
+
+    db_course_pct = max(course_cat_map.get("database", 0.0), course_cat_map.get("databases", 0.0))
+    db_prob_pct = min(100.0, (cat_map.get("database", 0) / max(1, db.query(CodingProblem).filter(CodingProblem.tags.ilike("%database%")).count())) * 100.0)
+    database_score = max(db_course_pct, db_prob_pct) if (db_course_pct > 0 or db_prob_pct > 0) else 0.0
+
+    web_dev_score = max(
+        course_cat_map.get("web-development", 0.0),
+        course_cat_map.get("web development", 0.0),
+        course_cat_map.get("frontend", 0.0),
+        course_cat_map.get("backend", 0.0)
+    )
 
     skills = [
-        {"subject": "Algorithms", "A": int(algorithms_score), "fullMark": 100},
-        {"subject": "Data Structures", "A": int(ds_score), "fullMark": 100},
-        {"subject": "System Design", "A": int(sys_design_score), "fullMark": 100},
-        {"subject": "Database", "A": int(database_score), "fullMark": 100},
-        {"subject": "Web Development", "A": int(web_dev_score), "fullMark": 100}
+        {"subject": "Algorithms", "A": int(round(algorithms_score)), "fullMark": 100},
+        {"subject": "Data Structures", "A": int(round(ds_score)), "fullMark": 100},
+        {"subject": "System Design", "A": int(round(sys_design_score)), "fullMark": 100},
+        {"subject": "Database", "A": int(round(database_score)), "fullMark": 100},
+        {"subject": "Web Development", "A": int(round(web_dev_score)), "fullMark": 100}
     ]
 
     from models.certificate import Certificate
+    from services.analytics_service import _calculate_streak
     certs_count = db.query(Certificate).filter(Certificate.user_id == current_user.id).count()
+    real_streak = _calculate_streak(db, current_user.id)
 
-    return {
+    result = {
         "study_hours": round(total_mins / 60.0, 1),
-        "streak_days": getattr(current_user, "submissions_streak", 0) or 1,
+        "streak_days": real_streak,
         "heatmap": heatmap,
         "quizzes_taken": len(quiz_attempts),
         "avg_quiz_score": avg_score,
@@ -101,6 +158,8 @@ def get_student_analytics(current_user: User = Depends(get_current_user), db: Se
         "course_progress": progress_list,
         "skills_radar": skills
     }
+    cache_set(cache_key, result, ttl=60)
+    return result
 
 
 @router.get("/instructor")
@@ -111,6 +170,11 @@ def get_instructor_analytics(
     """
     Fetch course performance statistics for instructor dashboard.
     """
+    cache_key = f"analytics:instructor:{current_user.id}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     courses = db.query(Course).filter(Course.instructor_id == current_user.id).all()
     course_ids = [c.id for c in courses]
 
@@ -121,7 +185,7 @@ def get_instructor_analytics(
         if total_enrollments > 0:
             avg_completion = sum(e.completion_percentage for e in instructor_enrollments) / total_enrollments
             course_completion_rate = round(avg_completion, 1)
-            lecture_watch_rate = round(min(avg_completion + 5.0, 100.0), 1)
+            lecture_watch_rate = round(avg_completion, 1)
         else:
             course_completion_rate = 0.0
             lecture_watch_rate = 0.0
@@ -131,7 +195,6 @@ def get_instructor_analytics(
         lecture_watch_rate = 0.0
 
     # Average quiz attempts performance inside instructor's courses
-    # Query matching quiz attempts
     from models.quiz import Quiz
     attempts = (
         db.query(QuizAttempt)
@@ -142,7 +205,7 @@ def get_instructor_analytics(
     
     avg_score = (
         round(sum(a.score for a in attempts) / len(attempts), 1)
-        if attempts else 78.5  # default baseline if no attempts
+        if attempts else 0.0
     )
 
     return {
@@ -158,6 +221,8 @@ def get_instructor_analytics(
             } for c in courses
         ]
     }
+    cache_set(cache_key, result, ttl=180)
+    return result
 
 
 @router.get("/admin")
@@ -168,6 +233,11 @@ def get_admin_analytics(
     """
     Fetch system-wide performance and traffic metrics.
     """
+    cache_key = "analytics:admin:overview"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     total_users = db.query(User).count()
     student_count = db.query(User).filter(User.role == "student").count()
     instructor_count = db.query(User).filter(User.role == "instructor").count()
@@ -192,3 +262,5 @@ def get_admin_analytics(
             {"category": row[0], "count": row[1]} for row in popular_categories
         ]
     }
+    cache_set(cache_key, result, ttl=180)
+    return result

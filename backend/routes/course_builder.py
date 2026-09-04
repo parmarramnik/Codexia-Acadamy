@@ -39,7 +39,7 @@ class StatusUpdateRequest(BaseModel):
 @router.get("/{course_id}/curriculum")
 def get_curriculum(
     course_id: int,
-    current_user: User = Depends(require_permission("course:edit")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Retrieve full curriculum hierarchy for reordering dashboard (owner/admin only)."""
@@ -78,7 +78,7 @@ def get_curriculum(
 def reorder_curriculum(
     course_id: int,
     data: CurriculumReorderRequest,
-    current_user: User = Depends(require_permission("course:edit")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Updates order indices for course modules and child lectures (owner/admin only)."""
@@ -110,7 +110,7 @@ def reorder_curriculum(
 def update_course_status(
     course_id: int,
     data: StatusUpdateRequest,
-    current_user: User = Depends(require_permission("course:publish")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Toggle course draft/published status (owner/admin only)."""

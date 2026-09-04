@@ -2,8 +2,9 @@ import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
-/* Query Provider for TanStack Client Caching */
+/* Query & Notification Providers */
 import QueryProvider from './context/QueryProvider';
+import { NotificationProvider } from './context/NotificationContext';
 
 /* Layouts & Common */
 import MainLayout from './components/layout/MainLayout';
@@ -33,6 +34,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const VideoPlayer = lazy(() => import('./pages/VideoPlayer'));
 const QuizHub = lazy(() => import('./pages/QuizHub'));
 const Quiz = lazy(() => import('./pages/Quiz'));
+const ProblemSetHub = lazy(() => import('./pages/ProblemSetHub'));
 const CodingPractice = lazy(() => import('./pages/CodingPractice'));
 const Notes = lazy(() => import('./pages/Notes'));
 const Flashcards = lazy(() => import('./pages/Flashcards'));
@@ -42,7 +44,6 @@ const Analytics = lazy(() => import('./pages/Analytics'));
 const Leaderboard = lazy(() => import('./pages/Leaderboard'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Settings = lazy(() => import('./pages/Settings'));
-const StudyPlanner = lazy(() => import('./pages/StudyPlanner'));
 const DiscussionForum = lazy(() => import('./pages/DiscussionForum'));
 const EnterpriseAI = lazy(() => import('./pages/EnterpriseAI'));
 
@@ -55,18 +56,19 @@ const AdminPortal = lazy(() => import('./pages/AdminPortal'));
 function App() {
   return (
     <QueryProvider>
-      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 2500,
-            style: {
-              background: '#2D2D2D',
-              color: '#F5F5F5',
-              border: '1px solid #3C3C3C',
-            },
-          }}
-        />
+      <NotificationProvider>
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 2500,
+              style: {
+                background: '#141E33',
+                color: '#F8FAFC',
+                border: '1px solid #2A364F',
+              },
+            }}
+          />
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Public routes with main layout */}
@@ -79,8 +81,6 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/courses" element={<Courses />} />
-              <Route path="/courses/:slug" element={<CourseDetails />} />
             </Route>
 
             {/* Public standalone verification pages */}
@@ -93,11 +93,13 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<DashboardLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/courses" element={<Courses />} />
+                <Route path="/courses/:slug" element={<CourseDetails />} />
                 <Route path="/my-courses" element={<Courses />} />
                 <Route path="/courses/:slug/learn/:lectureId" element={<VideoPlayer />} />
                 <Route path="/quizzes" element={<QuizHub />} />
                 <Route path="/quizzes/:id" element={<Quiz />} />
-                <Route path="/coding" element={<CodingPractice />} />
+                <Route path="/coding" element={<ProblemSetHub />} />
                 <Route path="/coding/:slug" element={<CodingPractice />} />
                 <Route path="/notes" element={<Notes />} />
                 <Route path="/flashcards" element={<Flashcards />} />
@@ -107,7 +109,6 @@ function App() {
                 <Route path="/leaderboard" element={<Leaderboard />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Settings />} />
-                <Route path="/planner" element={<StudyPlanner />} />
                 <Route path="/discussion" element={<DiscussionForum />} />
                 <Route path="/ai-workspace" element={<EnterpriseAI />} />
               </Route>
@@ -136,6 +137,7 @@ function App() {
           </Routes>
         </Suspense>
       </Router>
+      </NotificationProvider>
     </QueryProvider>
   );
 }

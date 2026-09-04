@@ -1,7 +1,14 @@
-# Production Multi-Stage Dockerfile for Codexia backend
+# ==============================================================================
+# Production Multi-Stage Dockerfile for Codexia Backend (Root Context)
+# Security Hardened: Non-root execution & minimal runner image
+# ==============================================================================
+
 FROM python:3.11-slim AS builder
 
 WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -9,22 +16,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # Final stage
 FROM python:3.11-slim AS runner
 
 WORKDIR /app
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH=/install/bin:$PATH \
+    PYTHONPATH=/install/lib/python3.11/site-packages:/app \
+    PORT=8000
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
-    && rm -rf /var/lib/apt/lists/*
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -u 1001 -m appuser
 
-COPY --from=builder /root/.local /root/.local
-COPY backend/ .
+# Copy installed packages from builder
+COPY --from=builder /install /install
+COPY backend/ /app
 
-ENV PATH=/root/.local/bin:$PATH
-ENV PORT=8000
+# Ensure proper permissions and switch to non-root user
+RUN chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 8000
 
 CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]

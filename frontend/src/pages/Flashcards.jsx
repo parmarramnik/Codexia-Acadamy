@@ -3,48 +3,33 @@ import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import { FiPlus, FiStar, FiCheck, FiRefreshCw, FiBookOpen, FiArrowRight, FiCheckCircle } from 'react-icons/fi';
 import LoadingButton from '../components/common/LoadingButton';
+import { useFlashcards, useCourses, useInvalidateCache } from '../hooks/useQueries';
 
 export default function Flashcards() {
-  const [cards, setCards] = useState([]);
-  const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+
+  // TanStack Query hooks for caching
+  const { data: cardsData, isLoading: isCardsLoading } = useFlashcards(selectedCourse || null);
+  const { data: coursesData, isLoading: isCoursesLoading } = useCourses();
+  const { invalidateFlashcards } = useInvalidateCache();
+
+  const [cards, setCards] = useState([]);
+  const courses = coursesData?.items || (Array.isArray(coursesData) ? coursesData : []);
+
+  useEffect(() => {
+    if (cardsData) {
+      setCards(cardsData);
+      setCurrentIndex(0);
+      setIsFlipped(false);
+    }
+  }, [cardsData]);
 
   // Form state
   const [showCreate, setShowCreate] = useState(false);
   const [newCard, setNewCard] = useState({ question: '', answer: '', course_id: '' });
   const [isSaving, setIsSaving] = useState(false);
-
-  async function loadData() {
-    setIsLoading(true);
-    try {
-      const params = {};
-      if (selectedCourse) params.course_id = selectedCourse;
-
-      const [cardsRes, coursesRes] = await Promise.all([
-        api.get('/flashcards', { params }),
-        api.get('/courses')
-      ]);
-
-      setCards(cardsRes.data || []);
-      setCourses(coursesRes.data.items || []);
-      if (coursesRes.data.items?.length > 0 && !newCard.course_id) {
-        setNewCard(prev => ({ ...prev, course_id: coursesRes.data.items[0].id }));
-      }
-      setCurrentIndex(0);
-      setIsFlipped(false);
-    } catch (err) {
-      toast.error('Failed to load flashcards');
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadData();
-  }, [selectedCourse]);
 
   const handleCreateCard = async (e) => {
     e.preventDefault();
@@ -63,7 +48,7 @@ export default function Flashcards() {
       toast.success('Flashcard added successfully!');
       setShowCreate(false);
       setNewCard({ question: '', answer: '', course_id: courses[0]?.id || '' });
-      loadData();
+      invalidateFlashcards();
     } catch (err) {
       toast.error('Failed to add flashcard');
     } finally {
@@ -102,6 +87,8 @@ export default function Flashcards() {
     setIsFlipped(false);
     toast.success('Flashcards shuffled!');
   };
+
+  const isLoading = isCardsLoading && !cardsData;
 
   if (isLoading && cards.length === 0) {
     return (

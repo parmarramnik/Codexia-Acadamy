@@ -19,6 +19,8 @@ class ProgrammingLanguage(str, enum.Enum):
     CPP = "cpp"
     JAVA = "java"
     JAVASCRIPT = "javascript"
+    C = "c"
+    GO = "go"
 
 
 class ProblemDifficulty(str, enum.Enum):
@@ -51,8 +53,10 @@ class CodingProblem(Base):
     output_format = Column(Text, nullable=True)
     starter_code_python = Column(Text, nullable=True)
     starter_code_cpp = Column(Text, nullable=True)
+    starter_code_c = Column(Text, nullable=True)
     starter_code_java = Column(Text, nullable=True)
     starter_code_javascript = Column(Text, nullable=True)
+    starter_code_go = Column(Text, nullable=True)
     solution = Column(Text, nullable=True)
     hints = Column(Text, nullable=True)
     tags = Column(String(500), nullable=True)

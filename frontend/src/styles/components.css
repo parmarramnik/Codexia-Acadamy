@@ -25,12 +25,13 @@
 }
 
 .btn-primary {
-  background-color: var(--accent-primary);
-  color: var(--text-inverse);
+  background: var(--accent-primary);
+  color: #ffffff;
+  font-weight: var(--fw-semibold);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--accent-hover);
+  background: var(--accent-hover);
 }
 
 .btn-secondary {
@@ -153,13 +154,16 @@
 .card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-primary);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  transition: border-color var(--transition-fast);
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-sm);
 }
 
 .card:hover {
   border-color: var(--border-light);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .card-header {
@@ -193,22 +197,22 @@
 }
 
 .badge-success {
-  background-color: rgba(46, 204, 113, 0.1);
+  background-color: #14291F;
   color: var(--color-success);
 }
 
 .badge-error {
-  background-color: rgba(231, 76, 60, 0.1);
+  background-color: #33161A;
   color: var(--color-error);
 }
 
 .badge-warning {
-  background-color: rgba(243, 156, 18, 0.1);
+  background-color: #332512;
   color: var(--color-warning);
 }
 
 .badge-info {
-  background-color: rgba(78, 161, 255, 0.1);
+  background-color: #16253B;
   color: var(--color-info);
 }
 
@@ -216,7 +220,7 @@
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: #0A0E1A;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -226,13 +230,23 @@
 
 .modal {
   background-color: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
   overflow-y: auto;
   z-index: var(--z-modal);
+}
+
+@keyframes fadeInModal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleUpModal {
+  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .modal-header {
@@ -458,7 +472,7 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  border: 3px solid rgba(245, 158, 11, 0.15);
+  border: 3px solid #2A3245;
   border-top-color: var(--accent-primary, #FF9800);
   border-right-color: var(--accent-primary, #FF9800);
   animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;

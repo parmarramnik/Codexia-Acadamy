@@ -1,22 +1,13 @@
-# Dependency Directories
-node_modules/
-venv/
-.venv/
-env/
-ENV/
+# ==============================================================================
+# Codexia LMS - Comprehensive Git Ignore Rules
+# Security, Privacy & Clean Repository Standards
+# ==============================================================================
 
-# Build and Output Directories
-dist/
-build/
-out/
-.next/
-
-# Environment Configurations & Secrets
+# ------------------------------------------------------------------------------
+# 1. Environment Configurations & Secrets (NEVER COMMIT)
+# ------------------------------------------------------------------------------
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
 *.env
 !*.env.example
 *.pem
@@ -25,39 +16,117 @@ out/
 *.p12
 *.crt
 *.cert
-credentials.json
-token.json
-client_secrets.json
-service_account.json
-secrets.json
+*.cer
+credentials*.json
+token*.json
+client_secrets*.json
+service_account*.json
+secrets*.json
+oauth*.json
+id_rsa*
+id_ed25519*
+*.gpg
+*.asc
+secring*
+auth_tokens.json
 
-# Local databases
+# ------------------------------------------------------------------------------
+# 2. Student Data, Private Certificates & Uploads (PRIVACY PROTECTION)
+# ------------------------------------------------------------------------------
+backend/static/certificates/*
+!backend/static/certificates/.gitkeep
+backend/static/uploads/*
+!backend/static/uploads/.gitkeep
+backend/static/avatars/*
+!backend/static/avatars/.gitkeep
+backend/static/videos/*
+!backend/static/videos/.gitkeep
+backend/static/thumbnails/*
+!backend/static/thumbnails/.gitkeep
+
+# ------------------------------------------------------------------------------
+# 3. Databases, Data Dumps & Storage Volumes
+# ------------------------------------------------------------------------------
 *.db
 *.sqlite
 *.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+ai_lms.db
+backend/ai_lms.db
+postgres_data/
+redis_data/
+elasticsearch_data/
+postgres_prod_data/
+redis_prod_data/
+static_prod_data/
+*.sql
+*.dump
+*.tar.gz
+*.bak
 
-# Python Caches & Compiled files
+# ------------------------------------------------------------------------------
+# 4. Dependency Directories
+# ------------------------------------------------------------------------------
+node_modules/
+.pnp
+.pnp.js
+venv/
+.venv/
+env/
+ENV/
+__pypackages__/
+
+# ------------------------------------------------------------------------------
+# 5. Build, Bundler & Output Directories
+# ------------------------------------------------------------------------------
+dist/
+build/
+out/
+.next/
+*.egg-info/
+.eggs/
+
+# ------------------------------------------------------------------------------
+# 6. Python & Test Caches
+# ------------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
 .cache/
 
-# User Upload Assets & Temp Scratch
-backend/static/
-!backend/static/.gitkeep
+# ------------------------------------------------------------------------------
+# 7. Logs & Temporary Scratch Files
+# ------------------------------------------------------------------------------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 scratch/
 .scratch/
-*.log
 
-# IDEs & System Files
+# ------------------------------------------------------------------------------
+# 8. IDE, Editor & Operating System Files
+# ------------------------------------------------------------------------------
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
 *.suo
-*.ntvs*
-*.njsproj
 *.sln
-*.sw?
 
+# ------------------------------------------------------------------------------
+# 9. Docker Local Overrides
+# ------------------------------------------------------------------------------
+docker-compose.override.yml

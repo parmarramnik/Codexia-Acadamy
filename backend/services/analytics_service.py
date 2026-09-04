@@ -2,12 +2,12 @@
 Analytics service — dashboard stats, study sessions, progress tracking.
 """
 
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from models.analytics import Progress, StudySession, Notification, ChatHistory
+from models.analytics import Progress, StudySession, Notification, NotificationType, ChatHistory
 from models.course import Enrollment, Course
 from models.quiz import QuizAttempt
 from models.coding import Submission, SubmissionStatus
@@ -203,12 +203,84 @@ def _update_enrollment_completion(db: Session, user_id: int, lecture_id: int) ->
         db.commit()
 
 
+def seed_user_initial_notifications(db: Session, user_id: int) -> List[Notification]:
+    """Seed real role-specific initial onboarding notifications for a user."""
+    from models.user import User
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return []
+
+    role_str = user.role.value if hasattr(user.role, "value") else str(user.role).lower()
+    notifs_to_add = []
+
+    if role_str in ["admin", "super_admin"]:
+        notifs_to_add = [
+            Notification(
+                user_id=user_id,
+                notification_type=NotificationType.SUCCESS,
+                title="Platform Administration Active",
+                message=f"Welcome {user.full_name}. Administrative audit logging and single-device security are active.",
+                link="/admin",
+            ),
+            Notification(
+                user_id=user_id,
+                notification_type=NotificationType.INFO,
+                title="User Registry & System Overview",
+                message="You can audit platform users, verify instructor accounts, and review system health.",
+                link="/admin",
+            ),
+        ]
+    elif role_str == "instructor":
+        notifs_to_add = [
+            Notification(
+                user_id=user_id,
+                notification_type=NotificationType.SUCCESS,
+                title="Instructor Workspace Ready",
+                message=f"Welcome {user.full_name}. You can author courses, publish coding problems, and evaluate quizzes.",
+                link="/instructor",
+            ),
+            Notification(
+                user_id=user_id,
+                notification_type=NotificationType.INFO,
+                title="Course Studio Access",
+                message="Build curriculum modules, attach code exercises, and track student enrollments.",
+                link="/instructor",
+            ),
+        ]
+    else:  # Student
+        notifs_to_add = [
+            Notification(
+                user_id=user_id,
+                notification_type=NotificationType.SUCCESS,
+                title="Welcome to Codexia Academy",
+                message=f"Welcome {user.full_name}! Explore our interactive course catalog and begin learning.",
+                link="/courses",
+            ),
+            Notification(
+                user_id=user_id,
+                notification_type=NotificationType.INFO,
+                title="Code Sandbox & Practice Ready",
+                message="Solve algorithmic challenges, run test cases, and build your study streak.",
+                link="/coding",
+            ),
+        ]
+
+    for n in notifs_to_add:
+        db.add(n)
+    db.commit()
+    for n in notifs_to_add:
+        db.refresh(n)
+
+    return notifs_to_add
+
+
 def get_user_notifications(db: Session, user_id: int, unread_only: bool = False) -> List[Notification]:
-    """Get notifications for a user."""
+    """Get real notifications for a user."""
     query = db.query(Notification).filter(Notification.user_id == user_id)
     if unread_only:
         query = query.filter(Notification.is_read == False)
-    return query.order_by(Notification.created_at.desc()).limit(50).all()
+    notifications = query.order_by(Notification.created_at.desc()).limit(50).all()
+    return notifications
 
 
 def mark_notification_read(db: Session, notification_id: int, user_id: int) -> bool:
@@ -225,15 +297,43 @@ def mark_notification_read(db: Session, notification_id: int, user_id: int) -> b
     return False
 
 
+def mark_all_notifications_read(db: Session, user_id: int) -> int:
+    """Mark all unread notifications for a user as read."""
+    count = (
+        db.query(Notification)
+        .filter(Notification.user_id == user_id, Notification.is_read == False)
+        .update({Notification.is_read: True}, synchronize_session=False)
+    )
+    db.commit()
+    return count
+
+
+def clear_user_notifications(db: Session, user_id: int) -> int:
+    """Delete all notifications for a user."""
+    count = (
+        db.query(Notification)
+        .filter(Notification.user_id == user_id)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return count
+
+
 def create_notification(
     db: Session,
     user_id: int,
     title: str,
     message: str,
-    notification_type: str = "info",
+    notification_type: Union[str, NotificationType] = NotificationType.INFO,
     link: Optional[str] = None,
 ) -> Notification:
-    """Create a notification for a user."""
+    """Create a real notification for a user."""
+    if isinstance(notification_type, str):
+        try:
+            notification_type = NotificationType(notification_type.lower())
+        except ValueError:
+            notification_type = NotificationType.INFO
+
     notification = Notification(
         user_id=user_id,
         notification_type=notification_type,
@@ -245,6 +345,24 @@ def create_notification(
     db.commit()
     db.refresh(notification)
     return notification
+
+
+def notify_admins(db: Session, title: str, message: str, link: Optional[str] = "/admin"):
+    """Create a notification for all admin and super_admin users."""
+    from models.user import User, UserRole
+    admins = db.query(User).filter(User.role.in_([UserRole.ADMIN, UserRole.SUPER_ADMIN])).all()
+    for admin in admins:
+        try:
+            create_notification(
+                db=db,
+                user_id=admin.id,
+                title=title,
+                message=message,
+                notification_type=NotificationType.INFO,
+                link=link,
+            )
+        except Exception:
+            pass
 
 
 def log_study_activity(

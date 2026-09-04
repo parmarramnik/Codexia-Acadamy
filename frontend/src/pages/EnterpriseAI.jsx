@@ -6,46 +6,43 @@ import LoadingButton from '../components/common/LoadingButton';
 import { 
   FiCpu, 
   FiMessageSquare, 
-  FiFileText, 
-  FiBriefcase, 
-  FiCalendar, 
   FiSend, 
-  FiPlay, 
-  FiAward,
-  FiTrash2,
-  FiUploadCloud,
-  FiCopy,
-  FiMic,
-  FiMicOff,
-  FiCode,
+  FiTrash2, 
+  FiCopy, 
+  FiMic, 
+  FiMicOff, 
+  FiCode, 
+  FiClock, 
+  FiBookOpen,
+  FiTerminal,
   FiCheckCircle,
-  FiClock,
-  FiBookOpen
+  FiAlertCircle
 } from 'react-icons/fi';
 
 export default function EnterpriseAI() {
-  const [activeTab, setActiveTab] = useState('tutor'); // tutor | resume | planner
+  const [activeTab, setActiveTab] = useState('tutor'); // 'tutor' | 'debugger'
   
+  // Real Database Courses
+  const [courses, setCourses] = useState([]);
+  const [isCoursesLoading, setIsCoursesLoading] = useState(true);
+
   // AI Tutor state
   const [tutorSession, setTutorSession] = useState(() => `tutor_${Date.now()}`);
   const [tutorMsg, setTutorMsg] = useState('');
   const [tutorChat, setTutorChat] = useState([
-    { role: 'assistant', content: 'Hello! I am your AI Tutor. Ask me any conceptual questions or code debugging questions!' }
+    { 
+      role: 'assistant', 
+      content: 'Hello! I am your AI Study Assistant at Codexia Academy. Ask me any conceptual programming questions, algorithm explanations, or code debugging challenges!' 
+    }
   ]);
   const [isTutorLoading, setIsTutorLoading] = useState(false);
 
-
-
-  // Resume state
-  const [resumeText, setResumeText] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [resumeFeedback, setResumeFeedback] = useState(null);
-  const [isResumeLoading, setIsResumeLoading] = useState(false);
-
-  // Study Planner state
-  const [courseTitle, setCourseTitle] = useState('');
-  const [studyPlan, setStudyPlan] = useState(null);
-  const [isPlannerLoading, setIsPlannerLoading] = useState(false);
+  // Code Debugger state
+  const [debugCode, setDebugCode] = useState('def binary_search(arr, target):\n    low = 0\n    high = len(arr) # bug: off by one\n    while low <= high:\n        mid = (low + high) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            low = mid + 1\n        else:\n            high = mid - 1\n    return -1');
+  const [debugLang, setDebugLang] = useState('python');
+  const [debugError, setDebugError] = useState('IndexError: list index out of range when target is not in array');
+  const [debugResult, setDebugResult] = useState(null);
+  const [isDebugLoading, setIsDebugLoading] = useState(false);
 
   // Speech Recognition state
   const [isListening, setIsListening] = useState(false);
@@ -60,6 +57,22 @@ export default function EnterpriseAI() {
   useEffect(() => {
     tutorEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [tutorChat, isTutorLoading]);
+
+  // Fetch real courses from database on mount
+  useEffect(() => {
+    async function fetchPlatformCourses() {
+      try {
+        const res = await api.get('/courses');
+        const items = res.data?.items || res.data || [];
+        setCourses(items.slice(0, 5));
+      } catch (err) {
+        console.error('Failed to load courses for AI Assistant:', err);
+      } finally {
+        setIsCoursesLoading(false);
+      }
+    }
+    fetchPlatformCourses();
+  }, []);
 
   // Speech Recognition Handler
   const startSpeechRecognition = (setInputVal) => {
@@ -89,11 +102,11 @@ export default function EnterpriseAI() {
       setIsListening(false);
       console.error('[Speech Recognition Error]', event);
       if (event.error === 'not-allowed') {
-        toast.error('Microphone blocked. Please click the microphone lock in your browser address bar and grant access.');
+        toast.error('Microphone blocked. Please allow microphone access in your browser address bar.');
       } else if (event.error === 'no-speech') {
-        toast.error('No speech detected. Please try again.');
+        toast.error('No speech detected. Please speak closer to your mic.');
       } else if (event.error === 'aborted') {
-        toast.error('Speech recognition stopped.');
+        toast.error('Speech recognition cancelled.');
       } else {
         toast.error(`Mic Error: ${event.error || 'check audio settings'}`);
       }
@@ -106,7 +119,7 @@ export default function EnterpriseAI() {
     recognition.start();
   };
 
-  // Structured Content Formatter
+  // Structured Content Formatter with Code Canvas trigger
   const renderFormattedContent = (text) => {
     return (
       <div className="markdown-content">
@@ -120,19 +133,30 @@ export default function EnterpriseAI() {
                   <div style={styles.codeWrapper}>
                     <div style={styles.codeHeader}>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>{match[1].toUpperCase()}</span>
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          setActiveCanvasCode(codeString);
-                          setActiveCanvasLanguage(match[1]);
-                          setActiveCanvasTitle("Code Workspace");
-                        }}
-                        style={styles.openCanvasBtn}
-                      >
-                        <FiCode size={12} /> Open in Canvas ↗
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button 
+                          type="button" 
+                          onClick={() => copyToClipboard(codeString)}
+                          style={styles.codeHeaderBtn}
+                          title="Copy Code"
+                        >
+                          <FiCopy size={12} /> Copy
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            setActiveCanvasCode(codeString);
+                            setActiveCanvasLanguage(match[1]);
+                            setActiveCanvasTitle("Code Canvas");
+                          }}
+                          style={styles.openCanvasBtn}
+                          title="Open in Code Canvas"
+                        >
+                          <FiCode size={12} /> Open in Canvas ↗
+                        </button>
+                      </div>
                     </div>
-                    <pre style={{ margin: 0, borderRadius: '0 0 6px 6px' }}>
+                    <pre style={{ margin: 0, borderRadius: '0 0 6px 6px', background: '#0B0F17', padding: '0.85rem' }}>
                       <code className={className} {...props}>{children}</code>
                     </pre>
                   </div>
@@ -152,79 +176,78 @@ export default function EnterpriseAI() {
   const handleClearTutorChat = () => {
     setTutorSession(`tutor_${Date.now()}`);
     setTutorChat([
-      { role: 'assistant', content: 'Tutor memory cleared! Let\'s begin a new conceptual lesson.' }
+      { role: 'assistant', content: "Conversation reset! Let's start a new conceptual or debugging lesson." }
     ]);
     setActiveCanvasCode(null);
-    toast.success('Conversation memory reset.');
+    toast.success('Session memory reset.');
   };
 
-  // Send Tutor Chat
-  const handleTutorSend = async (e) => {
-    e.preventDefault();
-    if (!tutorMsg.trim()) return;
-    const userMsg = tutorMsg;
-    setTutorChat(prev => [...prev, { role: 'user', content: userMsg }]);
+  // Send message to AI Tutor
+  const handleTutorSend = async (customMsg = null) => {
+    const messageToSend = typeof customMsg === 'string' ? customMsg : tutorMsg;
+    if (!messageToSend.trim()) return;
+
+    setTutorChat(prev => [...prev, { role: 'user', content: messageToSend }]);
     setTutorMsg('');
     setIsTutorLoading(true);
+
     try {
       const res = await api.post('/ai/tutor/chat', null, {
-        params: { message: userMsg, session_token: tutorSession }
+        params: { message: messageToSend, session_token: tutorSession }
       });
       setTutorChat(prev => [...prev, { role: 'assistant', content: res.data.reply }]);
     } catch (err) {
-      toast.error('AI Tutor failed to respond');
+      // Fallback to /ai/chat if available
+      try {
+        const fallbackRes = await api.post('/ai/chat', {
+          message: messageToSend,
+          session_id: tutorSession
+        });
+        setTutorChat(prev => [...prev, { role: 'assistant', content: fallbackRes.data.response }]);
+      } catch (fallbackErr) {
+        toast.error('AI Tutor failed to respond. Please try again.');
+      }
     } finally {
       setIsTutorLoading(false);
     }
   };
 
-
-
-  // Analyze Resume
-  const handleAnalyzeResume = async (e) => {
+  // Analyze and Debug Code
+  const handleDebugCode = async (e) => {
     e.preventDefault();
-    if (!resumeText.trim() && !selectedFile) {
-      toast.error('Please paste resume text or upload a PDF file.');
+    if (!debugCode.trim()) {
+      toast.error('Please provide code to analyze.');
       return;
     }
-    setIsResumeLoading(true);
-    try {
-      const formData = new FormData();
-      if (selectedFile) {
-        formData.append('file', selectedFile);
-      } else {
-        formData.append('resume_text', resumeText);
-      }
-      
-      const res = await api.post('/ai/career/resume', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      setResumeFeedback(res.data);
-      toast.success('Resume analyzed successfully!');
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Resume audit failed');
-    } finally {
-      setIsResumeLoading(false);
-    }
-  };
+    setIsDebugLoading(true);
+    setDebugResult(null);
 
-  // Generate Plan
-  const handleGeneratePlan = async (e) => {
-    e.preventDefault();
-    if (!courseTitle.trim()) return;
-    setIsPlannerLoading(true);
     try {
-      const res = await api.post('/ai/planner/weekly', null, {
-        params: { course_title: courseTitle, hours_weekly: 12 }
+      // Send to debug endpoint
+      const res = await api.post('/ai/debug', {
+        code: debugCode,
+        language: debugLang,
+        error_message: debugError.trim() || undefined
       });
-      setStudyPlan(res.data);
-      toast.success('Weekly plan generated!');
+      setDebugResult(res.data);
+      toast.success('Code analysis complete!');
     } catch (err) {
-      toast.error('Failed to generate study planner');
+      // Fallback to tutor chat debug prompt
+      try {
+        const prompt = `Please debug and explain this ${debugLang} code:\n\`\`\`${debugLang}\n${debugCode}\n\`\`\`\nError: ${debugError || 'None specified'}\nProvide: 1. Diagnosis of bugs, 2. Corrected code, 3. Explanation and time/space complexity.`;
+        const res = await api.post('/ai/tutor/chat', null, {
+          params: { message: prompt, session_token: `debug_${Date.now()}` }
+        });
+        setDebugResult({
+          explanation: res.data.reply,
+          fixed_code: null
+        });
+        toast.success('Code analysis complete!');
+      } catch (fallbackErr) {
+        toast.error('Code debugging failed. Check service connectivity.');
+      }
     } finally {
-      setIsPlannerLoading(false);
+      setIsDebugLoading(false);
     }
   };
 
@@ -258,14 +281,14 @@ export default function EnterpriseAI() {
         }
         .markdown-content code {
           font-family: var(--font-mono);
-          background-color: rgba(255, 255, 255, 0.08);
+          background-color: #283142;
           padding: 0.15rem 0.35rem;
           border-radius: 4px;
           font-size: 0.85rem;
           color: var(--accent-primary);
         }
         .markdown-content pre {
-          background-color: rgba(0, 0, 0, 0.4);
+          background-color: #0B0F17;
           border: 1px solid var(--border-primary);
           padding: 0.75rem;
           border-radius: 8px;
@@ -276,7 +299,7 @@ export default function EnterpriseAI() {
         .markdown-content pre code {
           background-color: transparent;
           padding: 0;
-          font-size: 0.8rem;
+          font-size: 0.82rem;
           color: #E2E8F0;
         }
         .markdown-content h1, .markdown-content h2, .markdown-content h3 {
@@ -290,32 +313,22 @@ export default function EnterpriseAI() {
         .markdown-content h3 { font-size: 1rem; }
         .markdown-content blockquote {
           border-left: 4px solid var(--accent-primary);
-          background-color: rgba(255, 255, 255, 0.02);
+          background-color: #161B26;
           margin: 0.75rem 0;
           padding: 0.4rem 0.8rem;
           border-radius: 0 4px 4px 0;
           color: var(--text-secondary);
         }
-        .markdown-content table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 1rem 0;
-          font-size: 0.8rem;
-        }
-        .markdown-content th, .markdown-content td {
-          border: 1px solid var(--border-primary);
-          padding: 0.5rem 0.75rem;
-          text-align: left;
-        }
-        .markdown-content th {
-          background-color: rgba(255, 255, 255, 0.04);
-        }
       `}</style>
       
       {/* Top Banner Header */}
       <div style={styles.header}>
-        <h1 style={styles.title}><FiCpu style={{ color: 'var(--accent-primary)', marginRight: '8px' }} /> Enterprise AI Suite</h1>
-        <p style={styles.subtitle}>Unlock resume gap analysis, custom roadmaps, and context-aware coding tutors.</p>
+        <h1 style={styles.title}>
+          <FiCpu style={{ color: 'var(--accent-primary)', marginRight: '10px' }} /> Study Assistant
+        </h1>
+        <p style={styles.subtitle}>
+          Ask conceptual programming questions, debug code, or explore topics from your courses.
+        </p>
       </div>
 
       {/* Main split-screen panel (Sidebar Left, Workspace Right) */}
@@ -324,22 +337,84 @@ export default function EnterpriseAI() {
         {/* Left Navigation Sidebar */}
         <div style={styles.sidebar}>
           <div style={styles.sidebarBrand}>
-            <span>AI ASSISTANTS</span>
+            <span>AI TOOLS</span>
           </div>
+
           <div style={styles.sidebarMenu}>
-            <button onClick={() => setActiveTab('tutor')} style={activeTab === 'tutor' ? { ...styles.sidebarTab, ...styles.sidebarTabActive } : styles.sidebarTab}>
+            <button 
+              onClick={() => setActiveTab('tutor')} 
+              style={activeTab === 'tutor' ? { ...styles.sidebarTab, ...styles.sidebarTabActive } : styles.sidebarTab}
+            >
               <FiMessageSquare size={16} /> <span>AI Tutor Chat</span>
             </button>
-            <button onClick={() => setActiveTab('planner')} style={activeTab === 'planner' ? { ...styles.sidebarTab, ...styles.sidebarTabActive } : styles.sidebarTab}>
-              <FiCalendar size={16} /> <span>Roadmap Planner</span>
+            <button 
+              onClick={() => setActiveTab('debugger')} 
+              style={activeTab === 'debugger' ? { ...styles.sidebarTab, ...styles.sidebarTabActive } : styles.sidebarTab}
+            >
+              <FiCode size={16} /> <span>Code Debugger</span>
             </button>
+          </div>
+
+          {/* Real Courses from Database */}
+          <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+            <div style={styles.sidebarBrand}>
+              <span>COURSE TOPICS</span>
+            </div>
+            <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.4rem' }}>
+              {courses.length > 0 ? (
+                courses.map(course => (
+                  <button
+                    key={course.id}
+                    onClick={() => {
+                      setActiveTab('tutor');
+                      handleTutorSend(`Explain the core principles and concepts of "${course.title}".`);
+                    }}
+                    style={styles.courseChipBtn}
+                    title={`Ask about ${course.title}`}
+                  >
+                    <FiBookOpen size={14} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                    <span style={styles.courseChipText}>{course.title}</span>
+                  </button>
+                ))
+              ) : (
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '0.5rem 0.75rem' }}>
+                  {isCoursesLoading ? 'Loading courses...' : 'Browse catalog for topics.'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Prompts */}
+          <div style={{ borderTop: '1px solid var(--border-primary)', paddingTop: '0.75rem', marginTop: 'auto' }}>
+            <div style={styles.sidebarBrand}>
+              <span>QUICK PROMPTS</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.4rem' }}>
+              {[
+                'Explain Big-O Complexity',
+                'How Recursion Works',
+                'REST vs GraphQL APIs',
+                'Clean Code Principles'
+              ].map((promptText, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setActiveTab('tutor');
+                    handleTutorSend(promptText);
+                  }}
+                  style={styles.quickPromptBtn}
+                >
+                  {promptText} →
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Right Content Workspace Panel */}
         <div style={styles.mainPanel}>
           
-          {/* Workspace Area: 1. AI Tutor */}
+          {/* Workspace Area: 1. AI Tutor Chat */}
           {activeTab === 'tutor' && (
             <div style={styles.workspace}>
               <div style={styles.workspaceHeader}>
@@ -347,7 +422,7 @@ export default function EnterpriseAI() {
                   <h3 style={styles.workspaceTitle}>AI Tutor Chat</h3>
                   <span style={styles.workspaceSubtitle}>Interactive debugging tutor and conceptual guide</span>
                 </div>
-                <button onClick={handleClearTutorChat} style={styles.clearBtn}>
+                <button onClick={handleClearTutorChat} style={styles.clearBtn} title="Clear conversation memory">
                   <FiTrash2 /> Reset Session
                 </button>
               </div>
@@ -357,7 +432,7 @@ export default function EnterpriseAI() {
                   <div key={idx} style={{
                     ...styles.chatBubble,
                     alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-                    backgroundColor: m.role === 'user' ? 'rgba(255, 161, 22, 0.15)' : 'rgba(255,255,255,0.02)',
+                    backgroundColor: m.role === 'user' ? '#272F45' : '#161B26',
                     borderColor: m.role === 'user' ? 'var(--accent-primary)' : 'var(--border-primary)',
                     borderRadius: m.role === 'user' ? '12px 12px 0 12px' : '12px 12px 12px 0',
                     maxWidth: '85%'
@@ -366,7 +441,7 @@ export default function EnterpriseAI() {
                       <strong style={{ fontSize: '0.75rem', color: m.role === 'user' ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
                         {m.role === 'user' ? 'You' : 'AI Tutor'}
                       </strong>
-                      <button onClick={() => copyToClipboard(m.content)} style={styles.copyBtn} title="Copy explanation">
+                      <button onClick={() => copyToClipboard(m.content)} style={styles.copyBtn} title="Copy response">
                         <FiCopy size={12} />
                       </button>
                     </div>
@@ -374,19 +449,19 @@ export default function EnterpriseAI() {
                   </div>
                 ))}
                 {isTutorLoading && (
-                  <div style={{ alignSelf: 'flex-start', color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: 'rgba(255,255,255,0.01)', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
+                  <div style={{ alignSelf: 'flex-start', color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#161B26', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
                     <FiClock className="spin-icon" /> AI is drafting explanation...
                   </div>
                 )}
                 <div ref={tutorEndRef} />
               </div>
 
-              <form onSubmit={handleTutorSend} style={styles.inputForm}>
+              <form onSubmit={(e) => { e.preventDefault(); handleTutorSend(); }} style={styles.inputForm}>
                 <button 
                   type="button" 
                   onClick={() => startSpeechRecognition(setTutorMsg)} 
-                  style={{ ...styles.speechBtn, backgroundColor: isListening ? 'var(--color-error)' : 'rgba(255,255,255,0.03)' }}
-                  title="Speak message"
+                  style={{ ...styles.speechBtn, backgroundColor: isListening ? 'var(--color-error)' : '#1E2533' }}
+                  title="Voice dictation"
                 >
                   {isListening ? <FiMicOff /> : <FiMic />}
                 </button>
@@ -397,184 +472,125 @@ export default function EnterpriseAI() {
                   placeholder="Ask your tutor anything (or use the microphone button to dictate)..."
                   style={styles.chatInput}
                 />
-                <LoadingButton type="submit" loading={isTutorLoading} loadingText="" style={styles.sendBtn} aria-label="Send"><FiSend /></LoadingButton>
+                <LoadingButton type="submit" loading={isTutorLoading} loadingText="" style={styles.sendBtn} aria-label="Send">
+                  <FiSend />
+                </LoadingButton>
               </form>
             </div>
           )}
 
-
-
-          {/* Workspace Area: 3. Resume Gap Analyzer */}
-          {activeTab === 'resume' && (
-            <div style={styles.splitWorkspace}>
+          {/* Workspace Area: 2. Code Debugger */}
+          {activeTab === 'debugger' && (
+            <div style={styles.debuggerWorkspace}>
               
-              {/* Form Input panel */}
-              <div style={styles.formPanel}>
-                <div style={styles.panelHeader}>
-                  <h3 style={styles.panelTitle}>AI Resume Auditor</h3>
-                  <span style={styles.panelSubtitle}>Bridge skills gaps with recommended courses</span>
+              {/* Left Input Pane */}
+              <div style={styles.debugInputPane}>
+                <div style={styles.workspaceHeader}>
+                  <div>
+                    <h3 style={styles.workspaceTitle}>Code Debugger</h3>
+                    <span style={styles.workspaceSubtitle}>Identify syntax errors, logic flaws, and optimize algorithms</span>
+                  </div>
+                  <select 
+                    value={debugLang} 
+                    onChange={(e) => setDebugLang(e.target.value)}
+                    style={styles.langSelect}
+                  >
+                    <option value="python">Python</option>
+                    <option value="javascript">JavaScript</option>
+                    <option value="typescript">TypeScript</option>
+                    <option value="cpp">C++</option>
+                    <option value="java">Java</option>
+                    <option value="go">Go</option>
+                  </select>
                 </div>
-                
-                <form onSubmit={handleAnalyzeResume} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div style={styles.uploadBox}>
-                    <FiUploadCloud size={24} style={{ color: 'var(--accent-primary)', marginBottom: '0.25rem' }} />
-                    <span style={{ fontSize: '0.8rem', fontWeight: '500' }}>Drop PDF Resume here or click to browse</span>
-                    <input 
-                      type="file" 
-                      accept=".pdf"
-                      onChange={(e) => {
-                        setSelectedFile(e.target.files[0]);
-                        setResumeText(''); // clear text choice
-                      }}
-                      style={styles.fileInput}
+
+                <form onSubmit={handleDebugCode} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                    <label style={styles.inputLabel}>Code to Debug:</label>
+                    <textarea 
+                      value={debugCode}
+                      onChange={(e) => setDebugCode(e.target.value)}
+                      placeholder="Paste your code snippet here..."
+                      style={styles.codeTextarea}
+                      spellCheck="false"
+                      required
                     />
-                    {selectedFile && (
-                      <span style={{ fontSize: '0.8rem', color: 'var(--color-success)', marginTop: '0.4rem', fontWeight: 'bold' }}>
-                        Selected: {selectedFile.name}
-                      </span>
-                    )}
                   </div>
 
-                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.7rem', fontWeight: 'bold' }}>— OR PASTE TEXT —</div>
+                  <div style={{ flexShrink: 0 }}>
+                    <label style={styles.inputLabel}>Error Message or Traceback (Optional):</label>
+                    <input 
+                      type="text"
+                      value={debugError}
+                      onChange={(e) => setDebugError(e.target.value)}
+                      placeholder="e.g. TypeError, IndexError, or test case failure"
+                      style={styles.chatInput}
+                    />
+                  </div>
 
-                  <textarea 
-                    value={resumeText} 
-                    onChange={(e) => {
-                      setResumeText(e.target.value);
-                      setSelectedFile(null); // clear file choice
-                    }} 
-                    placeholder="Paste plain resume markdown or text contents here..."
-                    style={styles.textarea}
-                    disabled={!!selectedFile}
-                  />
-
-                  <LoadingButton type="submit" loading={isResumeLoading} loadingText="Performing Audit..." style={styles.startBtn}>
-                    Analyze Resume
+                  <LoadingButton 
+                    type="submit" 
+                    loading={isDebugLoading} 
+                    loadingText="Analyzing Code..." 
+                    style={styles.debugSubmitBtn}
+                  >
+                    <FiTerminal /> Analyze & Debug Code
                   </LoadingButton>
                 </form>
               </div>
 
-              {/* Feedback panel */}
-              <div style={styles.resultsPanel}>
-                {resumeFeedback ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
-                    <div>
-                      <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem' }}>Audit Scorecard</h4>
-                      <div style={{ display: 'flex', gap: '1rem' }}>
-                        <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-primary)', padding: '1rem', borderRadius: '6px', textAlign: 'center', flex: 1 }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Resume Score</span>
-                          <div style={{ fontSize: '1.75rem', fontWeight: 'bold', color: 'var(--accent-primary)', marginTop: '0.25rem' }}>{resumeFeedback.score}/100</div>
-                        </div>
-                        <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-primary)', padding: '1rem', borderRadius: '6px', flex: 2 }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.4rem' }}>Identified Skillsets</span>
-                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                            {resumeFeedback.skills_found?.map((s, idx) => (
-                              <span key={idx} style={styles.tag}>{s}</span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>AI Placement Suggestions</h4>
-                      <div style={{ backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-primary)', padding: '1.25rem', borderRadius: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                        <div className="markdown-content">
-                          <ReactMarkdown>{resumeFeedback.suggestions}</ReactMarkdown>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>Gap Bridging Courses</h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {resumeFeedback.recommended_courses && resumeFeedback.recommended_courses.length > 0 ? (
-                          resumeFeedback.recommended_courses.map(c => (
-                            <a key={c.id} href={`/courses/${c.slug}`} style={styles.courseLinkCard}>
-                              <FiBookOpen size={16} style={{ color: 'var(--accent-primary)' }} />
-                              <div>
-                                <strong style={{ fontSize: '0.85rem' }}>{c.title}</strong>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Learn topics & get certified →</div>
-                              </div>
-                            </a>
-                          ))
-                        ) : (
-                          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No courses found inside catalog matching gap analysis.</div>
-                        )}
-                      </div>
-                    </div>
+              {/* Right Output Pane */}
+              <div style={styles.debugOutputPane}>
+                <div style={styles.workspaceHeader}>
+                  <div>
+                    <h3 style={styles.workspaceTitle}>Diagnostic Result</h3>
+                    <span style={styles.workspaceSubtitle}>AI breakdown, bug identification, and fix</span>
                   </div>
-                ) : (
-                  <div style={styles.emptyResultsBox}>
-                    <FiFileText size={48} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
-                    <p>No audit results yet. Fill in your resume details on the left to begin.</p>
-                  </div>
-                )}
-              </div>
-
-            </div>
-          )}
-
-          {/* Workspace Area: 4. Study Planner */}
-          {activeTab === 'planner' && (
-            <div style={styles.splitWorkspace}>
-              
-              {/* Form Input panel */}
-              <div style={styles.formPanel}>
-                <div style={styles.panelHeader}>
-                  <h3 style={styles.panelTitle}>Roadmap Planner</h3>
-                  <span style={styles.panelSubtitle}>Personalized curriculum scheduler and timeline path</span>
                 </div>
-                
-                <form onSubmit={handleGeneratePlan} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <label style={styles.label}>What do you want to learn?</label>
-                  <input 
-                    type="text" 
-                    value={courseTitle}
-                    onChange={(e) => setCourseTitle(e.target.value)}
-                    placeholder="e.g. AWS Kubernetes Architect, Go Microservices"
-                    style={styles.input}
-                    required
-                  />
-                  
-                  <LoadingButton type="submit" loading={isPlannerLoading} loadingText="Planning Path..." style={styles.startBtn}>
-                    Generate Study Planner
-                  </LoadingButton>
-                </form>
-              </div>
 
-              {/* Planner roadmap display */}
-              <div style={styles.resultsPanel}>
-                {studyPlan ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                    <div style={{ borderBottom: '1px solid var(--border-primary)', paddingBottom: '0.75rem' }}>
-                      <h4 style={{ margin: 0, fontSize: '1.1rem' }}>Weekly Roadmap: {studyPlan.course}</h4>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Target Time Commitment: {studyPlan.target_hours} Hours/Week</span>
-                    </div>
-
-                    <div style={styles.roadmapSequence}>
-                      {studyPlan.schedule?.map((day, idx) => (
-                        <div key={idx} style={styles.roadmapStepCard}>
-                          <div style={styles.roadmapStepBullet}>
-                            <FiCheckCircle size={18} style={{ color: 'var(--accent-primary)' }} />
+                <div style={styles.debugResultBody}>
+                  {debugResult ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {debugResult.fixed_code && (
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                            <strong style={{ fontSize: '0.8rem', color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <FiCheckCircle /> Corrected Code:
+                            </strong>
+                            <button 
+                              onClick={() => copyToClipboard(debugResult.fixed_code)}
+                              style={styles.copyBtn}
+                              title="Copy fixed code"
+                            >
+                              <FiCopy size={12} /> Copy Code
+                            </button>
                           </div>
-                          <div style={styles.roadmapStepContent}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                              <strong>{day.day}</strong>
-                              <span style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-light)', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 'bold' }}>{day.mins} Mins</span>
-                            </div>
-                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{day.topic}</div>
+                          <pre style={styles.resultPre}>
+                            <code>{debugResult.fixed_code}</code>
+                          </pre>
+                        </div>
+                      )}
+
+                      {debugResult.explanation && (
+                        <div>
+                          <strong style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem' }}>
+                            Explanation & Fix:
+                          </strong>
+                          <div style={styles.resultExplanation}>
+                            {renderFormattedContent(debugResult.explanation)}
                           </div>
                         </div>
-                      ))}
+                      )}
                     </div>
-                  </div>
-                ) : (
-                  <div style={styles.emptyResultsBox}>
-                    <FiCalendar size={48} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
-                    <p>No study plans generated yet. Enter your target topic on the left to start.</p>
-                  </div>
-                )}
+                  ) : (
+                    <div style={styles.emptyDebugState}>
+                      <FiCode size={40} style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }} />
+                      <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                        Paste code on the left and click <strong>Analyze & Debug Code</strong> to get instant AI diagnostics.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
             </div>
@@ -617,24 +633,25 @@ export default function EnterpriseAI() {
 
 const styles = {
   container: {
-    padding: '1rem 1.5rem',
-    maxWidth: 'var(--max-content-width)',
-    margin: '0 auto',
+    padding: '0.25rem 0 1rem 0',
+    maxWidth: '100%',
+    margin: '0',
     width: '100%',
     color: 'var(--text-primary)',
     display: 'flex',
     flexDirection: 'column',
-    height: 'calc(100vh - 165px)',
-    minHeight: 0
+    height: 'calc(100vh - 130px)',
+    minHeight: 0,
+    boxSizing: 'border-box'
   },
   header: {
-    marginBottom: '1rem',
+    marginBottom: '0.65rem',
     flexShrink: 0
   },
   title: {
-    fontSize: '1.75rem',
+    fontSize: '1.5rem',
     fontWeight: 'var(--fw-semibold)',
-    marginBottom: '0.25rem',
+    marginBottom: '0.2rem',
     display: 'flex',
     alignItems: 'center'
   },
@@ -645,31 +662,32 @@ const styles = {
   workspaceSplit: {
     display: 'flex',
     flex: 1,
-    gap: '1.5rem',
+    gap: '1.25rem',
     minHeight: 0,
     overflow: 'hidden'
   },
   
   // Left Navigation Sidebar
   sidebar: {
-    width: '240px',
+    width: '250px',
     backgroundColor: 'var(--bg-card)',
     border: '1px solid var(--border-primary)',
     borderRadius: 'var(--radius-md)',
-    padding: '1rem 0.75rem',
+    padding: '0.85rem 0.75rem',
     display: 'flex',
     flexDirection: 'column',
-    gap: '1rem',
+    gap: '0.65rem',
     flexShrink: 0,
     minHeight: 0
   },
   sidebarBrand: {
-    fontSize: '0.75rem',
+    fontSize: '0.7rem',
     textTransform: 'uppercase',
-    letterSpacing: '0.1em',
+    letterSpacing: '0.08em',
     color: 'var(--text-muted)',
     fontWeight: 'var(--fw-bold)',
-    paddingLeft: '0.75rem'
+    paddingLeft: '0.5rem',
+    marginBottom: '0.25rem'
   },
   sidebarMenu: {
     display: 'flex',
@@ -679,22 +697,50 @@ const styles = {
   sidebarTab: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.75rem',
-    padding: '0.65rem 1rem',
+    gap: '0.65rem',
+    padding: '0.6rem 0.85rem',
     backgroundColor: 'transparent',
     color: 'var(--text-secondary)',
     borderRadius: 'var(--radius-sm)',
-    fontSize: '0.875rem',
+    fontSize: '0.85rem',
     fontWeight: 'var(--fw-medium)',
     border: 'none',
     textAlign: 'left',
-    cursor: 'pointer',
-    transition: 'all 0.2s'
+    cursor: 'pointer'
   },
   sidebarTabActive: {
-    backgroundColor: 'rgba(255, 161, 22, 0.1)',
+    backgroundColor: '#272F45',
     color: 'var(--accent-primary)',
     fontWeight: 'var(--fw-semibold)'
+  },
+  courseChipBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.45rem 0.65rem',
+    backgroundColor: '#161B26',
+    border: '1px solid var(--border-primary)',
+    borderRadius: '6px',
+    color: 'var(--text-secondary)',
+    cursor: 'pointer',
+    textAlign: 'left',
+    fontSize: '0.78rem'
+  },
+  courseChipText: {
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    flex: 1
+  },
+  quickPromptBtn: {
+    padding: '0.4rem 0.65rem',
+    backgroundColor: 'transparent',
+    border: 'none',
+    color: 'var(--text-muted)',
+    fontSize: '0.75rem',
+    textAlign: 'left',
+    cursor: 'pointer',
+    borderRadius: '4px'
   },
 
   // Main panel wrapper
@@ -702,12 +748,11 @@ const styles = {
     flex: 1,
     display: 'flex',
     minWidth: 0,
-    gap: '1.5rem',
     height: '100%',
     minHeight: 0
   },
 
-  // Single Panel Workspace (Tutor/Interview)
+  // Single Panel Workspace (Tutor)
   workspace: {
     display: 'flex',
     flexDirection: 'column',
@@ -723,13 +768,14 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '1rem',
+    marginBottom: '0.85rem',
     borderBottom: '1px solid var(--border-primary)',
-    paddingBottom: '0.75rem'
+    paddingBottom: '0.65rem',
+    flexShrink: 0
   },
   workspaceTitle: {
     margin: 0,
-    fontSize: '1.1rem',
+    fontSize: '1.05rem',
     fontWeight: 'var(--fw-semibold)'
   },
   workspaceSubtitle: {
@@ -742,8 +788,9 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '0.75rem',
-    marginBottom: '1rem',
-    paddingRight: '0.5rem'
+    marginBottom: '0.85rem',
+    paddingRight: '0.5rem',
+    minHeight: 0
   },
   chatBubble: {
     padding: '0.75rem 1rem',
@@ -762,9 +809,8 @@ const styles = {
     border: '1px solid var(--border-primary)',
     color: 'var(--text-primary)',
     borderRadius: 'var(--radius-sm)',
-    padding: '0 1rem',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s'
+    padding: '0 0.85rem',
+    cursor: 'pointer'
   },
   chatInput: {
     flex: 1,
@@ -772,12 +818,12 @@ const styles = {
     border: '1px solid var(--border-primary)',
     borderRadius: 'var(--radius-sm)',
     color: 'var(--text-primary)',
-    padding: '0.75rem',
+    padding: '0.65rem 0.85rem',
     outline: 'none',
     fontSize: '0.875rem'
   },
   sendBtn: {
-    padding: '0 1.25rem',
+    padding: '0 1.15rem',
     backgroundColor: 'var(--accent-primary)',
     color: 'white',
     border: 'none',
@@ -802,335 +848,221 @@ const styles = {
     color: 'var(--text-muted)',
     cursor: 'pointer',
     display: 'inline-flex',
-    alignItems: 'center'
+    alignItems: 'center',
+    gap: '3px',
+    fontSize: '0.72rem'
   },
 
-  // Mock Interview Setup Layout
-  setupView: {
+  // Code Debugger Two-Pane Workspace
+  debuggerWorkspace: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    width: '100%'
-  },
-  setupCard: {
-    backgroundColor: 'rgba(255,255,255,0.01)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    padding: '2.5rem',
-    width: '450px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center'
-  },
-  select: {
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-sm)',
-    color: 'var(--text-primary)',
-    padding: '0.75rem 1rem',
-    fontSize: '0.875rem',
-    outline: 'none',
-    width: '100%'
-  },
-  startBtn: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: 'var(--accent-primary)',
-    color: 'white',
-    border: 'none',
-    borderRadius: 'var(--radius-sm)',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.5rem'
-  },
-  dialogueLogs: {
-    flex: 1,
-    overflowY: 'auto',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.75rem',
-    marginBottom: '1rem',
-    paddingRight: '0.5rem'
-  },
-  feedbackCard: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.02)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    padding: '2rem',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    textAlign: 'center',
-    gap: '1rem',
-    height: '100%'
-  },
-  scoreText: {
-    fontSize: '1.8rem',
-    fontWeight: 'bold',
-    color: 'var(--accent-primary)'
-  },
-  feedbackBody: {
-    fontSize: '0.85rem',
-    color: 'var(--text-secondary)',
-    lineHeight: '1.5',
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    padding: '1rem 1.5rem',
-    borderRadius: '6px',
-    border: '1px solid var(--border-primary)',
-    textAlign: 'left'
-  },
-
-  // Split Panel Workspace (Resume/Planner)
-  splitWorkspace: {
-    display: 'flex',
-    gap: '2rem',
+    gap: '1.25rem',
     height: '100%',
     width: '100%',
     minHeight: 0,
     flex: 1
   },
-  formPanel: {
+  debugInputPane: {
     flex: 1,
-    backgroundColor: 'var(--bg-card)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    padding: '1.5rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.75rem',
-    overflowY: 'auto'
-  },
-  panelHeader: {
-    borderBottom: '1px solid var(--border-primary)',
-    paddingBottom: '0.75rem',
-    marginBottom: '0.5rem'
-  },
-  panelTitle: {
-    margin: 0,
-    fontSize: '1.1rem',
-    fontWeight: 'var(--fw-semibold)'
-  },
-  panelSubtitle: {
-    fontSize: '0.75rem',
-    color: 'var(--text-muted)'
-  },
-  resultsPanel: {
-    flex: 1.5,
     backgroundColor: 'var(--bg-card)',
     border: '1px solid var(--border-primary)',
     borderRadius: 'var(--radius-md)',
     padding: '1.25rem',
-    overflowY: 'auto',
-    height: '100%'
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: 0
   },
-  emptyResultsBox: {
+  debugOutputPane: {
+    flex: 1,
+    backgroundColor: 'var(--bg-card)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: 'var(--radius-md)',
+    padding: '1.25rem',
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: 0
+  },
+  inputLabel: {
+    fontSize: '0.75rem',
+    fontWeight: 'var(--fw-semibold)',
+    color: 'var(--text-secondary)',
+    marginBottom: '0.35rem'
+  },
+  codeTextarea: {
+    flex: 1,
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: 'var(--radius-sm)',
+    color: 'var(--text-primary)',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.82rem',
+    padding: '0.75rem',
+    resize: 'none',
+    outline: 'none',
+    lineHeight: '1.45',
+    minHeight: '180px'
+  },
+  langSelect: {
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: '4px',
+    color: 'var(--text-primary)',
+    fontSize: '0.75rem',
+    padding: '0.25rem 0.5rem',
+    outline: 'none'
+  },
+  debugSubmitBtn: {
+    padding: '0.65rem 1.25rem',
+    backgroundColor: 'var(--accent-primary)',
+    color: 'white',
+    border: 'none',
+    borderRadius: 'var(--radius-sm)',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.5rem',
+    fontSize: '0.85rem',
+    fontWeight: 'var(--fw-semibold)'
+  },
+  debugResultBody: {
+    flex: 1,
+    overflowY: 'auto',
+    minHeight: 0
+  },
+  resultPre: {
+    backgroundColor: '#0B0F17',
+    border: '1px solid var(--border-primary)',
+    padding: '0.85rem',
+    borderRadius: '6px',
+    overflowX: 'auto',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.82rem',
+    color: '#34D399',
+    margin: 0
+  },
+  resultExplanation: {
+    backgroundColor: '#161B26',
+    border: '1px solid var(--border-primary)',
+    borderRadius: '6px',
+    padding: '0.85rem',
+    fontSize: '0.85rem',
+    lineHeight: '1.5'
+  },
+  emptyDebugState: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
-    color: 'var(--text-muted)',
     textAlign: 'center',
     padding: '2rem'
   },
 
-  // Resume Auditing Styles
-  uploadBox: {
-    border: '2px dashed var(--border-primary)',
-    borderRadius: '6px',
-    padding: '1rem',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    cursor: 'pointer',
-    position: 'relative',
-    backgroundColor: 'rgba(255,255,255,0.01)',
-    transition: 'background-color 0.2s'
-  },
-  fileInput: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    width: '100%',
-    height: '100%',
-    opacity: 0,
-    cursor: 'pointer'
-  },
-  textarea: {
-    width: '100%',
-    height: '100px',
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-sm)',
-    color: 'var(--text-primary)',
-    padding: '0.75rem',
-    outline: 'none',
-    fontSize: '0.85rem',
-    resize: 'none'
-  },
-  tag: {
-    backgroundColor: 'rgba(255, 161, 22, 0.1)',
-    border: '1px solid var(--accent-primary)',
-    padding: '0.2rem 0.5rem',
-    borderRadius: '4px',
-    fontSize: '0.75rem',
-    color: 'var(--accent-primary)'
-  },
-  courseLinkCard: {
-    color: 'var(--text-primary)',
-    textDecoration: 'none',
-    backgroundColor: 'rgba(255,255,255,0.01)',
-    padding: '0.75rem 1rem',
-    borderRadius: '6px',
-    border: '1px solid var(--border-primary)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    transition: 'all 0.2s'
-  },
-  input: {
-    width: '100%',
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-sm)',
-    color: 'var(--text-primary)',
-    padding: '0.75rem',
-    outline: 'none',
-    fontSize: '0.875rem'
-  },
-  label: {
-    fontSize: '0.875rem',
-    fontWeight: 'var(--fw-medium)',
-    color: 'var(--text-secondary)'
-  },
-
-  // Roadmap Sequence List
-  roadmapSequence: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
-    marginTop: '0.5rem'
-  },
-  roadmapStepCard: {
-    display: 'flex',
-    gap: '1rem',
-    alignItems: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.01)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: '6px',
-    padding: '1rem'
-  },
-  roadmapStepBullet: {
-    marginTop: '2px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0
-  },
-  roadmapStepContent: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column'
-  },
-
-  // Code wrapper header block in message stream
+  // Code Block Inside Tutor Messages
   codeWrapper: {
+    margin: '0.75rem 0',
     border: '1px solid var(--border-primary)',
     borderRadius: '6px',
-    margin: '1rem 0',
     overflow: 'hidden'
   },
   codeHeader: {
+    backgroundColor: '#1E2533',
+    padding: '0.4rem 0.75rem',
+    borderBottom: '1px solid var(--border-primary)',
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderBottom: '1px solid var(--border-primary)',
-    padding: '0.5rem 1rem'
+    alignItems: 'center'
   },
-  openCanvasBtn: {
-    backgroundColor: 'transparent',
+  codeHeaderBtn: {
+    background: 'none',
     border: 'none',
-    color: 'var(--accent-primary)',
+    color: 'var(--text-secondary)',
+    fontSize: '0.72rem',
     cursor: 'pointer',
-    fontSize: '0.75rem',
-    fontWeight: 'bold',
     display: 'flex',
     alignItems: 'center',
-    gap: '4px'
+    gap: '3px'
+  },
+  openCanvasBtn: {
+    background: '#272F45',
+    border: '1px solid var(--border-primary)',
+    color: 'var(--accent-primary)',
+    fontSize: '0.72rem',
+    cursor: 'pointer',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '3px'
   },
 
-  // Side Canvas Panel Styles
+  // Interactive Side Canvas Panel
   canvasPanel: {
-    width: '40%',
-    borderLeft: '1px solid var(--border-primary)',
+    width: '380px',
     backgroundColor: 'var(--bg-card)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: 'var(--radius-md)',
     display: 'flex',
     flexDirection: 'column',
     flexShrink: 0,
-    height: '100%'
+    minHeight: 0
   },
   canvasHeader: {
+    padding: '0.75rem 1rem',
+    borderBottom: '1px solid var(--border-primary)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '1.25rem 1.5rem',
-    borderBottom: '1px solid var(--border-primary)',
-    backgroundColor: 'var(--bg-secondary)'
+    flexShrink: 0
   },
   canvasTitle: {
     margin: 0,
-    fontSize: '1rem',
-    fontWeight: 'var(--fw-semibold)',
-    color: 'var(--text-primary)'
+    fontSize: '0.95rem',
+    fontWeight: 'var(--fw-semibold)'
   },
   canvasSubtitle: {
-    fontSize: '0.75rem',
-    color: 'var(--text-secondary)'
+    fontSize: '0.7rem',
+    color: 'var(--text-muted)'
   },
   canvasActionBtn: {
+    background: 'transparent',
+    border: '1px solid var(--border-primary)',
+    color: 'var(--text-secondary)',
+    borderRadius: '4px',
+    padding: '3px 7px',
+    fontSize: '0.72rem',
+    cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
-    gap: '4px',
-    backgroundColor: 'transparent',
-    border: '1px solid var(--border-primary)',
-    borderRadius: '4px',
-    color: 'var(--text-primary)',
-    padding: '0.4rem 0.8rem',
-    cursor: 'pointer',
-    fontSize: '0.8rem',
-    fontWeight: 'bold'
+    gap: '3px'
   },
   canvasCloseBtn: {
-    backgroundColor: 'rgba(231, 76, 60, 0.15)',
-    border: 'none',
+    background: 'transparent',
+    border: '1px solid var(--border-primary)',
+    color: 'var(--text-muted)',
     borderRadius: '4px',
-    color: 'var(--color-error)',
-    padding: '0.4rem 0.8rem',
-    cursor: 'pointer',
-    fontSize: '0.8rem',
-    fontWeight: 'bold'
+    padding: '3px 7px',
+    fontSize: '0.72rem',
+    cursor: 'pointer'
   },
   canvasBody: {
     flex: 1,
-    padding: '1.5rem',
-    backgroundColor: '#0F0F13'
+    minHeight: 0,
+    padding: '0.5rem'
   },
   canvasTextarea: {
     width: '100%',
     height: '100%',
-    backgroundColor: 'transparent',
-    border: 'none',
-    outline: 'none',
-    color: '#D4D4D4',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: 'var(--radius-sm)',
+    color: 'var(--text-primary)',
     fontFamily: 'var(--font-mono)',
-    fontSize: '0.875rem',
-    lineHeight: '1.5',
-    resize: 'none'
+    fontSize: '0.82rem',
+    padding: '0.75rem',
+    resize: 'none',
+    outline: 'none',
+    lineHeight: '1.45'
   }
 };

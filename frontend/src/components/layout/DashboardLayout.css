@@ -11,7 +11,6 @@
   flex-direction: column;
   margin-left: var(--sidebar-width);
   min-height: 100vh;
-  transition: margin-left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dashboard-main.collapsed {
@@ -20,8 +19,37 @@
 
 .dashboard-content {
   flex: 1;
-  padding: var(--space-6);
+  padding: 1.25rem 1.75rem 2rem 1.75rem;
   overflow-y: auto;
+}
+
+/* Eliminate artificial blank spaces, centered gutters, and double-padding across all pages */
+.dashboard-content > * {
+  max-width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Edge-to-edge mode for Coding Practice IDE: touch left bar and top bar, zero right scroll */
+.dashboard-layout.edge-to-edge-layout {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.dashboard-main.edge-to-edge-main {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.dashboard-content.edge-to-edge {
+  padding: 0 !important;
+  overflow: hidden !important;
+  height: calc(100vh - var(--navbar-height));
+  max-height: calc(100vh - var(--navbar-height));
+  display: flex;
+  flex-direction: column;
 }
 
 /* Overlay for Mobile Sidebar drawer */
@@ -31,9 +59,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: #0A0E1A;
   z-index: 299; /* Just below Sidebar's z-index */
-  transition: opacity 0.25s ease;
 }
 
 @media (max-width: 768px) {

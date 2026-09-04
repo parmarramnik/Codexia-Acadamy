@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
-import { FiUser, FiLock, FiSliders, FiSave, FiCheckCircle } from 'react-icons/fi';
+import { FiUser, FiLock, FiSliders, FiSave, FiCheckCircle, FiSun, FiMoon } from 'react-icons/fi';
 import LoadingButton from '../components/common/LoadingButton';
 
 const PRESET_AVATARS = [
@@ -16,6 +17,7 @@ const PRESET_AVATARS = [
 
 export default function Settings() {
   const { user, updateUser } = useAuth();
+  const { theme, setThemeMode } = useTheme();
   const [activeTab, setActiveTab] = useState('profile');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -202,7 +204,7 @@ export default function Settings() {
                         style={isSelected ? { ...styles.avatarBtn, ...styles.selectedAvatar } : styles.avatarBtn}
                         title={avatar.name}
                       >
-                        <img src={avatar.url} alt={avatar.name} style={styles.avatarImg} />
+                        <img src={avatar.url} alt={avatar.name} loading="lazy" style={styles.avatarImg} />
                         {isSelected && <FiCheckCircle style={styles.checkBadge} />}
                       </button>
                     );
@@ -278,6 +280,59 @@ export default function Settings() {
 
           {activeTab === 'preferences' && (
             <form onSubmit={handlePrefsSubmit} style={styles.form}>
+              <h2 style={styles.sectionTitle}>Appearance & Theme</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div
+                  onClick={() => setThemeMode('dark')}
+                  style={{
+                    padding: '1.25rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: theme === 'dark' ? '2px solid var(--accent-primary)' : '1px solid var(--border-primary)',
+                    backgroundColor: theme === 'dark' ? 'var(--bg-tertiary)' : 'var(--bg-secondary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.85rem',
+                    transition: 'all var(--transition-fast)',
+                    boxShadow: theme === 'dark' ? 'var(--shadow-md)' : 'none',
+                  }}
+                >
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#1e293b', color: '#60a5fa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                    <FiMoon />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.925rem' }}>Dark Theme</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Deep dark aesthetic</div>
+                  </div>
+                  {theme === 'dark' && <FiCheckCircle style={{ marginLeft: 'auto', color: 'var(--accent-primary)', fontSize: '1.2rem' }} />}
+                </div>
+
+                <div
+                  onClick={() => setThemeMode('light')}
+                  style={{
+                    padding: '1.25rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: theme === 'light' ? '2px solid var(--accent-primary)' : '1px solid var(--border-primary)',
+                    backgroundColor: theme === 'light' ? 'var(--bg-tertiary)' : 'var(--bg-secondary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.85rem',
+                    transition: 'all var(--transition-fast)',
+                    boxShadow: theme === 'light' ? 'var(--shadow-md)' : 'none',
+                  }}
+                >
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                    <FiSun />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.925rem' }}>Light Theme</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Crisp high contrast</div>
+                  </div>
+                  {theme === 'light' && <FiCheckCircle style={{ marginLeft: 'auto', color: 'var(--accent-primary)', fontSize: '1.2rem' }} />}
+                </div>
+              </div>
+
               <h2 style={styles.sectionTitle}>Notification & Role Preferences</h2>
 
               {/* Student Preferences */}

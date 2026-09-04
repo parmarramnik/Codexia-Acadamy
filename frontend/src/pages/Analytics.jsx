@@ -5,8 +5,10 @@ import { toast } from 'react-hot-toast';
 import { 
   FiTrendingUp, FiActivity, FiClock, 
   FiCheckSquare, FiAward, FiCode, 
-  FiCalendar, FiUser, FiBook, FiLayers 
+  FiCalendar, FiUser, FiBook, FiLayers,
+  FiBookOpen, FiCheckCircle
 } from 'react-icons/fi';
+import { useStudentAnalytics, useStudySessions } from '../hooks/useQueries';
 
 export default function Analytics() {
   const { user } = useAuth();
@@ -14,8 +16,23 @@ export default function Analytics() {
 
   const [isLoading, setIsLoading] = useState(true);
 
+  // TanStack Query for Student Analytics caching
+  const { data: studentData, isLoading: isStudentLoading } = useStudentAnalytics();
+  const { data: sessionsData, isLoading: isSessionsLoading } = useStudySessions(30);
+
   // Student specific state
-  const [stats, setStats] = useState({
+  const rawStats = studentData ? {
+    total_courses_enrolled: studentData.course_progress?.length || 0,
+    completed_courses: (studentData.course_progress || []).filter(c => c.progress_percent === 100).length,
+    total_study_hours: studentData.study_hours || 0,
+    quizzes_taken: studentData.quizzes_taken || 0,
+    average_quiz_score: studentData.avg_quiz_score || 0,
+    problems_solved: studentData.problems_solved || 0,
+    current_streak: studentData.streak_days || 0,
+    certificates_earned: studentData.certificates_earned || 0,
+    skills_radar: studentData.skills_radar || [],
+    course_progress: studentData.course_progress || []
+  } : {
     total_courses_enrolled: 0,
     completed_courses: 0,
     total_study_hours: 0,
@@ -24,9 +41,11 @@ export default function Analytics() {
     problems_solved: 0,
     current_streak: 0,
     certificates_earned: 0,
-    skills_radar: []
-  });
-  const [sessions, setSessions] = useState([]);
+    skills_radar: [],
+    course_progress: []
+  };
+
+  const sessions = sessionsData || [];
 
   // Instructor specific state
   const [instructorData, setInstructorData] = useState({
@@ -49,26 +68,13 @@ export default function Analytics() {
 
   useEffect(() => {
     async function loadAnalytics() {
+      if (role === 'student') {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       try {
-        if (role === 'student') {
-          const [statsRes, sessionsRes] = await Promise.all([
-            api.get('/analytics/student'),
-            api.get('/analytics/sessions?days=30').catch(() => ({ data: [] }))
-          ]);
-          setStats({
-            total_courses_enrolled: statsRes.data.course_progress?.length || 0,
-            completed_courses: (statsRes.data.course_progress || []).filter(c => c.progress_percent === 100).length,
-            total_study_hours: statsRes.data.study_hours || 0,
-            quizzes_taken: statsRes.data.quizzes_taken || 0,
-            average_quiz_score: statsRes.data.avg_quiz_score || 0,
-            problems_solved: statsRes.data.problems_solved || 0,
-            current_streak: statsRes.data.streak_days || 0,
-            certificates_earned: statsRes.data.certificates_earned || 0,
-            skills_radar: statsRes.data.skills_radar || []
-          });
-          setSessions(sessionsRes.data || []);
-        } else if (role === 'instructor') {
+        if (role === 'instructor') {
           const res = await api.get('/analytics/instructor');
           setInstructorData(res.data || {
             active_students: 0,
@@ -97,13 +103,18 @@ export default function Analytics() {
     loadAnalytics();
   }, [role]);
 
-  if (isLoading) {
+  const effectiveLoading = role === 'student' ? (isStudentLoading && !studentData) : isLoading;
+
+  if (effectiveLoading) {
     return (
       <div style={styles.loadingContainer}>
-        <p style={styles.loadingText}>Compiling analytics indices...</p>
+        <div style={styles.spinner} />
+        <p style={{ color: 'var(--text-secondary)' }}>Loading analytics...</p>
       </div>
     );
   }
+
+  const stats = rawStats;
 
   // --- RENDER ROLES CONDITIONALLY ---
 
@@ -186,27 +197,67 @@ export default function Analytics() {
           </div>
 
           <div style={styles.sideCard}>
-            <h2 style={styles.sectionHeading}><FiTrendingUp /> Topic Summary</h2>
-            {(stats.skills_radar && stats.skills_radar.length > 0
-              ? stats.skills_radar
-              : [
-                  { subject: 'Algorithms', A: 0 },
-                  { subject: 'Data Structures', A: 0 },
-                  { subject: 'System Design', A: 0 },
-                  { subject: 'Database', A: 0 },
-                  { subject: 'Web Development', A: 0 },
-                ]
-            ).map((item, idx) => (
-              <div key={idx} style={styles.topicRow}>
-                <span style={styles.topicTitle}>{item.subject}</span>
-                <div style={styles.progressRow}>
-                  <div style={styles.progressBarBg}>
-                    <div style={{ ...styles.progressBarFill, width: `${Math.min(item.A || 0, 100)}%` }}></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+              <h2 style={styles.sectionHeading}><FiBookOpen /> Course Progress</h2>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, backgroundColor: 'var(--bg-secondary)', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
+                {stats.course_progress?.length || 0} Enrolled
+              </span>
+            </div>
+
+            {(!stats.course_progress || stats.course_progress.length === 0) ? (
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', padding: '1rem 0' }}>
+                No active courses enrolled yet. Browse our catalog to start learning.
+              </p>
+            ) : (
+              stats.course_progress.map((item, idx) => {
+                const pct = Math.round(item.progress_percent || 0);
+                const isComplete = pct >= 100;
+                return (
+                  <div key={idx} style={styles.topicRow}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ ...styles.topicTitle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '210px' }} title={item.title}>
+                        {item.title}
+                      </span>
+                      {isComplete ? (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--color-success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <FiCheckCircle size={12} /> Done
+                        </span>
+                      ) : null}
+                    </div>
+                    <div style={styles.progressRow}>
+                      <div style={styles.progressBarBg}>
+                        <div style={{
+                          ...styles.progressBarFill,
+                          width: `${Math.min(pct, 100)}%`,
+                          backgroundColor: isComplete ? 'var(--color-success)' : 'var(--accent-primary)'
+                        }}></div>
+                      </div>
+                      <span style={styles.progressText}>{pct}%</span>
+                    </div>
                   </div>
-                  <span style={styles.progressText}>{item.A || 0}%</span>
-                </div>
+                );
+              })
+            )}
+
+            {/* Real Skill Mastery: Only show if user has real problem or course activity */}
+            {stats.skills_radar && stats.skills_radar.some(s => (s.A || 0) > 0) && (
+              <div style={{ marginTop: '0.75rem', paddingTop: '0.85rem', borderTop: '1px solid var(--border-secondary)' }}>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <FiTrendingUp /> Verified Topic Mastery
+                </h3>
+                {stats.skills_radar.filter(s => (s.A || 0) > 0).map((skill, sIdx) => (
+                  <div key={sIdx} style={{ ...styles.topicRow, marginBottom: '0.65rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                      <span style={{ color: 'var(--text-primary)' }}>{skill.subject}</span>
+                      <span style={{ color: 'var(--text-muted)' }}>{skill.A}%</span>
+                    </div>
+                    <div style={styles.progressBarBg}>
+                      <div style={{ ...styles.progressBarFill, width: `${Math.min(skill.A, 100)}%`, height: '4px' }}></div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>

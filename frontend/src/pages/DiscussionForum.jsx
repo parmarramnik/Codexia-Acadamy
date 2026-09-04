@@ -8,34 +8,32 @@ import {
   FiCheckCircle, 
   FiSend, 
   FiUser, 
-  FiMessageCircle,
   FiX,
-  FiTrash2
+  FiTrash2,
+  FiSearch
 } from 'react-icons/fi';
+
 import LoadingButton from '../components/common/LoadingButton';
 
 export default function DiscussionForum() {
   const { user } = useAuth();
   
   const [discussions, setDiscussions] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all');
   const [selectedThread, setSelectedThread] = useState(null);
   const [threadReplies, setThreadReplies] = useState([]);
   const [newReply, setNewReply] = useState('');
+
   
   // Doubt Creation state
   const [showAskModal, setShowAskModal] = useState(false);
   const [askForm, setAskForm] = useState({ title: '', content: '', is_doubt: false });
   
-  // Messaging state
-  const [chatUser, setChatUser] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [newMsg, setNewMsg] = useState('');
-  
   // Loading states
   const [isLoading, setIsLoading] = useState(true);
   const [isReplying, setIsReplying] = useState(false);
   const [isAsking, setIsAsking] = useState(false);
-  const [isSendingMsg, setIsSendingMsg] = useState(false);
 
   // Load threads
   const loadThreads = async () => {
@@ -138,56 +136,14 @@ export default function DiscussionForum() {
     }
   };
 
-  // Fetch messages
-  const startChat = async (targetUser) => {
-    setChatUser(targetUser);
-    try {
-      const res = await api.get('/comms/messages', {
-        params: { with_user_id: targetUser.id }
-      });
-      setMessages(res.data || []);
-    } catch (err) {
-      toast.error('Could not load chat logs');
-    }
-  };
-
-  // Send message
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!newMsg.trim()) return;
-    setIsSendingMsg(true);
-    try {
-      await api.post('/comms/messages', null, {
-        params: {
-          receiver_id: chatUser.id,
-          message: newMsg
-        }
-      });
-      const sentMsg = {
-        sender_id: 'me',
-        message: newMsg,
-        created_at: new Date().toISOString()
-      };
-      setMessages(prev => [...prev, sentMsg]);
-      setNewMsg('');
-    } catch (err) {
-      toast.error('Failed to send message');
-    } finally {
-      setIsSendingMsg(false);
-    }
-  };
-
   // Dynamic process description in the upper left header
   const getDynamicSubtitle = () => {
-    if (!user) return 'Ask doubts, participate in group discussions, or message classmates directly.';
+    if (!user) return 'Ask doubts, share solutions, and participate in technical peer discussions.';
     
     const roleName = user.role === 'student' ? 'Student' : 
                      user.role === 'instructor' ? 'Instructor' : 'Administrator';
     const name = user.full_name || user.username || 'User';
 
-    if (chatUser) {
-      return `${roleName} ${name} is direct messaging with ${chatUser.full_name}.`;
-    }
     if (showAskModal) {
       return `${roleName} ${name} is writing a new doubt / question.`;
     }
@@ -202,7 +158,7 @@ export default function DiscussionForum() {
       return `${roleName} ${name} is participating in a discussion started by ${authorName}.`;
     }
 
-    return `${roleName} ${name} is active in the Collaboration Hub. Ask doubts, participate in discussions, or direct message peers.`;
+    return `${roleName} ${name} is active in the Collaboration Hub. Ask doubts, share solutions, and participate in discussions.`;
   };
 
   return (
@@ -220,16 +176,101 @@ export default function DiscussionForum() {
       <div style={styles.grid}>
         {/* Left Side: Threads List */}
         <div style={styles.threadsBox}>
-          <h3 style={styles.sidebarTitle}>
-            <FiMessageSquare style={{ marginRight: '6px' }} /> Discussion Threads
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <h3 style={{ ...styles.sidebarTitle, margin: 0 }}>
+              <FiMessageSquare style={{ marginRight: '6px' }} /> Discussions
+            </h3>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              {discussions.filter(t => {
+                if (filterType === 'doubts' && !t.is_doubt) return false;
+                if (filterType === 'discussions' && t.is_doubt) return false;
+                if (!searchQuery.trim()) return true;
+                const q = searchQuery.toLowerCase();
+                return (t.title || '').toLowerCase().includes(q) || (t.content || '').toLowerCase().includes(q);
+              }).length} threads
+            </span>
+          </div>
+
+          {/* Contextual Forum Search */}
+          <div style={{ position: 'relative', width: '100%', marginBottom: '10px' }}>
+            <FiSearch size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+            <input
+              type="text"
+              placeholder="Search discussions & doubts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid var(--border-primary)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '7px 28px 7px 30px',
+                fontSize: '0.8rem',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  padding: '2px'
+                }}
+              >✕</button>
+            )}
+          </div>
+
+          {/* Filter Pills */}
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+            {['all', 'doubts', 'discussions'].map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilterType(f)}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '0.74rem',
+                  borderRadius: '12px',
+                  border: '1px solid',
+                  borderColor: filterType === f ? 'var(--accent-primary)' : 'var(--border-primary)',
+                  backgroundColor: filterType === f ? 'rgba(255, 161, 22, 0.12)' : 'transparent',
+                  color: filterType === f ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  fontWeight: filterType === f ? 600 : 400,
+                  textTransform: 'capitalize'
+                }}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+
           {isLoading ? (
             <p style={styles.loadingText}>Loading threads...</p>
           ) : discussions.length === 0 ? (
             <p style={styles.loadingText}>No discussions yet. Be the first to start a thread!</p>
           ) : (
             <div style={styles.list}>
-              {discussions.map(t => (
+              {discussions
+                .filter(t => {
+                  if (filterType === 'doubts' && !t.is_doubt) return false;
+                  if (filterType === 'discussions' && t.is_doubt) return false;
+                  if (!searchQuery.trim()) return true;
+                  const q = searchQuery.toLowerCase();
+                  return (t.title || '').toLowerCase().includes(q) || (t.content || '').toLowerCase().includes(q);
+                })
+                .map(t => (
                 <div 
                   key={t.id} 
                   onClick={() => selectThread(t.id)}
@@ -239,6 +280,7 @@ export default function DiscussionForum() {
                     backgroundColor: selectedThread?.id === t.id ? 'rgba(255, 161, 22, 0.04)' : 'rgba(255, 255, 255, 0.01)'
                   }}
                 >
+
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                     <span style={{
                       ...styles.threadTitle,
@@ -296,14 +338,11 @@ export default function DiscussionForum() {
           {selectedThread ? (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div style={styles.threadMainHeader}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <FiUser style={{ color: 'var(--accent-primary)' }} />
                     <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{selectedThread.user.full_name}</span>
                   </div>
-                  <button onClick={() => startChat(selectedThread.user)} style={styles.dmBtn} title="Start direct message">
-                    <FiMessageCircle size={14} style={{ marginRight: '4px' }} /> Chat
-                  </button>
                 </div>
                 <h2 style={styles.mainTitle}>{selectedThread.title}</h2>
                 <p style={styles.mainContent}>{selectedThread.content}</p>
@@ -399,49 +438,6 @@ export default function DiscussionForum() {
         </div>
       )}
 
-      {/* Direct Messaging Drawer Overlay */}
-      {chatUser && (
-        <div style={styles.chatDrawer}>
-          <div style={styles.chatHeader}>
-            <span style={{ fontWeight: '600' }}>Chatting with {chatUser.full_name}</span>
-            <button onClick={() => setChatUser(null)} style={styles.closeChatBtn}>
-              <FiX size={18} />
-            </button>
-          </div>
-          <div style={styles.chatBody}>
-            {messages.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textAlign: 'center', marginTop: 'auto', marginBottom: 'auto' }}>
-                No messages yet. Send a direct message to start chatting!
-              </p>
-            ) : (
-              messages.map((m, idx) => {
-                const isMe = m.sender_id === 'me' || m.sender_id === 1; // dummy validation
-                return (
-                  <div key={m.id || idx} style={{
-                    ...styles.chatBubble,
-                    alignSelf: isMe ? 'flex-end' : 'flex-start',
-                    backgroundColor: isMe ? 'var(--accent-primary)' : 'var(--bg-secondary)',
-                    color: isMe ? 'var(--text-inverse)' : 'var(--text-primary)',
-                    border: isMe ? 'none' : '1px solid var(--border-primary)'
-                  }}>
-                    {m.message}
-                  </div>
-                );
-              })
-            )}
-          </div>
-          <form onSubmit={handleSendMessage} style={styles.chatForm}>
-            <input 
-              type="text" 
-              value={newMsg}
-              onChange={(e) => setNewMsg(e.target.value)}
-              placeholder="Send message..."
-              style={styles.chatInput}
-            />
-            <LoadingButton type="submit" loading={isSendingMsg} loadingText="" style={styles.chatSendBtn}><FiSend /></LoadingButton>
-          </form>
-        </div>
-      )}
     </div>
   );
 }
@@ -762,88 +758,5 @@ const styles = {
     fontSize: '0.875rem',
     fontWeight: 'var(--fw-medium)',
     transition: 'all 0.15s ease'
-  },
-  chatDrawer: {
-    position: 'fixed',
-    bottom: '24px',
-    right: '24px',
-    width: '340px',
-    height: '460px',
-    backgroundColor: 'var(--bg-card)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-lg)',
-    boxShadow: 'var(--shadow-xl)',
-    display: 'flex',
-    flexDirection: 'column',
-    zIndex: 1010,
-    overflow: 'hidden'
-  },
-  chatHeader: {
-    backgroundColor: 'var(--bg-secondary)',
-    padding: '0.9rem 1.2rem',
-    borderBottom: '1px solid var(--border-primary)',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    fontSize: '0.875rem',
-    color: 'var(--text-primary)'
-  },
-  closeChatBtn: {
-    background: 'none',
-    border: 'none',
-    color: 'var(--text-muted)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    padding: 0,
-    transition: 'color var(--transition-fast)'
-  },
-  chatBody: {
-    flex: 1,
-    padding: '1.2rem',
-    overflowY: 'auto',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.8rem',
-    backgroundColor: 'rgba(0, 0, 0, 0.05)'
-  },
-  chatBubble: {
-    padding: '0.6rem 0.9rem',
-    borderRadius: '12px',
-    fontSize: '0.85rem',
-    maxWidth: '75%',
-    lineHeight: '1.4',
-    wordBreak: 'break-word'
-  },
-  chatForm: {
-    display: 'flex',
-    padding: '0.85rem 1rem',
-    borderTop: '1px solid var(--border-primary)',
-    gap: '0.5rem',
-    backgroundColor: 'var(--bg-card)'
-  },
-  chatInput: {
-    flex: 1,
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    color: 'var(--text-primary)',
-    padding: '0.55rem 0.85rem',
-    fontSize: '0.85rem',
-    outline: 'none',
-    transition: 'border-color var(--transition-fast)'
-  },
-  chatSendBtn: {
-    padding: '0 0.85rem',
-    backgroundColor: 'var(--accent-primary)',
-    color: 'var(--text-inverse)',
-    border: 'none',
-    borderRadius: 'var(--radius-md)',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'background-color var(--transition-fast)'
   }
 };

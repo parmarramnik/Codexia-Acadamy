@@ -13,6 +13,7 @@ from models.user import User
 from models.content import Flashcard
 from schemas.analytics import FlashcardCreate, FlashcardUpdate, FlashcardResponse
 from schemas.user import MessageResponse
+from utils.cache import cache_get, cache_set, cache_invalidate_prefix
 
 router = APIRouter()
 
@@ -27,6 +28,12 @@ def get_flashcards(
     db: Session = Depends(get_db),
 ):
     """Get flashcards, optionally filtered and shuffled."""
+    cache_key = f"flashcards:user:{current_user.id}:{course_id or 'all'}:{learned or 'all'}:{favorite or 'all'}"
+    if not shuffle:
+        cached = cache_get(cache_key)
+        if cached is not None:
+            return cached
+
     query = db.query(Flashcard)
     if course_id:
         query = query.filter(Flashcard.course_id == course_id)
@@ -42,7 +49,11 @@ def get_flashcards(
     cards = query.order_by(Flashcard.created_at.desc()).all()
     if shuffle:
         random.shuffle(cards)
-    return cards
+        return cards
+
+    result = [FlashcardResponse.model_validate(c).model_dump() for c in cards]
+    cache_set(cache_key, result, ttl=300)
+    return result
 
 
 @router.post("", response_model=FlashcardResponse)
@@ -62,6 +73,7 @@ def create_flashcard(
     db.add(flashcard)
     db.commit()
     db.refresh(flashcard)
+    cache_invalidate_prefix(f"flashcards:user:{current_user.id}")
     return flashcard
 
 
@@ -81,6 +93,7 @@ def update_flashcard(
         setattr(flashcard, field, value)
     db.commit()
     db.refresh(flashcard)
+    cache_invalidate_prefix(f"flashcards:user:{current_user.id}")
     return flashcard
 
 
@@ -98,4 +111,5 @@ def delete_flashcard(
         raise HTTPException(status_code=404, detail="Flashcard not found")
     db.delete(flashcard)
     db.commit()
+    cache_invalidate_prefix(f"flashcards:user:{current_user.id}")
     return {"message": "Flashcard deleted successfully"}

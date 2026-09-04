@@ -13,6 +13,7 @@ from schemas.analytics import (
 )
 from schemas.user import MessageResponse
 from services import analytics_service
+from utils.cache import cache_get, cache_set, cache_invalidate_prefix
 
 router = APIRouter()
 
@@ -23,7 +24,13 @@ def get_dashboard(
     db: Session = Depends(get_db),
 ):
     """Get learning analytics for the current user."""
-    return analytics_service.get_dashboard_analytics(db, current_user.id)
+    cache_key = f"analytics:dashboard:{current_user.id}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+    data = analytics_service.get_dashboard_analytics(db, current_user.id)
+    cache_set(cache_key, data.model_dump() if hasattr(data, "model_dump") else data, ttl=180)
+    return data
 
 
 @router.get("/sessions")
@@ -33,8 +40,13 @@ def get_study_sessions(
     db: Session = Depends(get_db),
 ):
     """Get study sessions for analytics and heatmaps."""
+    cache_key = f"analytics:sessions:{current_user.id}:{days}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     sessions = analytics_service.get_study_sessions(db, current_user.id, days)
-    return [
+    result = [
         {
             "date": s.date.isoformat(),
             "duration_minutes": s.duration_minutes,
@@ -44,6 +56,8 @@ def get_study_sessions(
         }
         for s in sessions
     ]
+    cache_set(cache_key, result, ttl=300)
+    return result
 
 
 @router.get("/notifications", response_model=list[NotificationResponse])
@@ -65,3 +79,24 @@ def mark_read(
     """Mark a notification as read."""
     analytics_service.mark_notification_read(db, notification_id, current_user.id)
     return {"message": "Notification marked as read"}
+
+
+@router.post("/notifications/read-all", response_model=MessageResponse)
+def mark_all_read(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Mark all notifications as read for current user."""
+    analytics_service.mark_all_notifications_read(db, current_user.id)
+    return {"message": "All notifications marked as read"}
+
+
+@router.delete("/notifications", response_model=MessageResponse)
+def clear_all(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Clear all notifications for current user."""
+    analytics_service.clear_user_notifications(db, current_user.id)
+    return {"message": "All notifications cleared"}
+

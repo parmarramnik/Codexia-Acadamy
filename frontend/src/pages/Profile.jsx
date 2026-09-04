@@ -82,7 +82,7 @@ export default function Profile() {
         <div style={styles.leftCol}>
           <div style={styles.profileCard}>
             <div style={styles.avatarWrapper}>
-              <img src={avatarUrl} alt="Avatar" style={styles.avatarImg} />
+              <img src={avatarUrl} alt="Avatar" loading="lazy" style={styles.avatarImg} />
             </div>
             <h2 style={styles.fullName}>{user?.full_name}</h2>
             <p style={styles.username}>@{user?.username}</p>

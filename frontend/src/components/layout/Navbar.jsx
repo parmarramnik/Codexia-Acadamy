@@ -1,17 +1,19 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { FiCode, FiMenu, FiX } from 'react-icons/fi';
+import { useTheme } from '../../context/ThemeContext';
+import { FiCode, FiMenu, FiX, FiSun, FiMoon } from 'react-icons/fi';
 import { useState } from 'react';
 import './Navbar.css';
 
 export default function Navbar() {
   const { isAuthenticated, user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   return (
     <nav className="navbar" id="main-navbar">
-      <div className="navbar-inner container">
+      <div className="navbar-inner">
         <Link to="/" className="navbar-brand">
           <FiCode className="brand-icon" />
           <span className="brand-text">Codexia</span>
@@ -34,6 +36,21 @@ export default function Navbar() {
         </div>
 
         <div className={`navbar-actions ${menuOpen ? 'open' : ''}`}>
+          {/* Theme Toggle */}
+          <button
+            className="btn-icon"
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
+            style={{ marginRight: '8px', cursor: 'pointer' }}
+          >
+            {theme === 'dark' ? (
+              <FiSun size={18} style={{ color: '#38BDF8' }} />
+            ) : (
+              <FiMoon size={18} style={{ color: '#818CF8' }} />
+            )}
+          </button>
+
           {isAuthenticated ? (
             <button
               className="btn btn-primary btn-sm"

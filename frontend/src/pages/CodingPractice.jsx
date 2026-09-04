@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import LoadingButton from '../components/common/LoadingButton';
+import PageLoader from '../components/common/PageLoader';
 import { 
   FiCode, 
   FiPlay, 
@@ -15,6 +16,9 @@ import {
   FiTerminal, 
   FiChevronUp, 
   FiChevronDown, 
+  FiChevronLeft,
+  FiChevronRight,
+  FiShuffle,
   FiBookOpen, 
   FiDatabase,
   FiCpu,
@@ -26,10 +30,20 @@ import {
   FiSliders
 } from 'react-icons/fi';
 
+
 export default function CodingPractice() {
   const { slug } = useParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!slug) {
+      navigate('/coding', { replace: true });
+    }
+  }, [slug, navigate]);
+
   const [problems, setProblems] = useState([]);
   const [selectedProblem, setSelectedProblem] = useState(null);
+
   const [language, setLanguage] = useState('python');
   const [code, setCode] = useState('');
   
@@ -44,6 +58,21 @@ export default function CodingPractice() {
   const [consoleOpen, setConsoleOpen] = useState(true);
   const [consoleTab, setConsoleTab] = useState('testcase'); // 'testcase' | 'custom' | 'result'
   const [activeCaseIndex, setActiveCaseIndex] = useState(0);
+
+  // Flexible Splitter Resizers
+  const sandboxAreaRef = useRef(null);
+  const rightPanelRef = useRef(null);
+  const [leftPanelWidthPercent, setLeftPanelWidthPercent] = useState(() => {
+    const saved = localStorage.getItem('codexia_coding_split_h');
+    return saved ? parseFloat(saved) : 45;
+  });
+  const [isDraggingH, setIsDraggingH] = useState(false);
+
+  const [consoleHeight, setConsoleHeight] = useState(() => {
+    const saved = localStorage.getItem('codexia_coding_console_h');
+    return saved ? parseInt(saved, 10) : 300;
+  });
+  const [isDraggingV, setIsDraggingV] = useState(false);
   
   // Custom Input Testcase
   const [customInput, setCustomInput] = useState('');
@@ -55,6 +84,7 @@ export default function CodingPractice() {
   const [expandedSubmissionId, setExpandedSubmissionId] = useState(null);
   const [results, setResults] = useState(null);
   const [isFav, setIsFav] = useState(false);
+  const [isProblemSolved, setIsProblemSolved] = useState(false);
   const [aiReview, setAiReview] = useState(null);
   const [isReviewing, setIsReviewing] = useState(false);
   
@@ -66,12 +96,12 @@ export default function CodingPractice() {
 
   // Default starter codes
   const starterCode = {
-    python: 'def solve():\n    # Write your Python code here\n    pass\n',
-    javascript: 'function solve() {\n    // Write your JavaScript code here\n}\n',
-    cpp: '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your C++ code here\n    return 0;\n}\n',
-    c: '#include <stdio.h>\n\nint main() {\n    // Write C code here\n    return 0;\n}\n',
-    java: 'public class Solution {\n    public static void main(String[] args) {\n        // Write your Java code here\n    }\n}\n',
-    go: 'package main\n\nimport "fmt"\n\nfunc main() {\n    // Write Go code here\n}\n'
+    python: 'def solve():\\n    # Write your Python code here\\n    pass\\n',
+    javascript: 'function solve() {\\n    // Write your JavaScript code here\\n}\\n',
+    cpp: '#include <iostream>\\nusing namespace std;\\n\\nint main() {\\n    // Write your C++ code here\\n    return 0;\\n}\\n',
+    c: '#include <stdio.h>\\n\\nint main() {\\n    // Write C code here\\n    return 0;\\n}\\n',
+    java: 'public class Solution {\\n    public static void main(String[] args) {\\n        // Write your Java code here\\n    }\\n}\\n',
+    go: 'package main\\n\\nimport "fmt"\\n\\nfunc main() {\\n    // Write Go code here\\n}\\n'
   };
 
   const getStarterCode = (problem, lang) => {
@@ -79,9 +109,9 @@ export default function CodingPractice() {
     if (lang === 'python') return problem.starter_code_python || starterCode.python;
     if (lang === 'javascript') return problem.starter_code_javascript || starterCode.javascript;
     if (lang === 'cpp') return problem.starter_code_cpp || starterCode.cpp;
-    if (lang === 'c') return starterCode.c;
+    if (lang === 'c') return problem.starter_code_c || starterCode.c;
     if (lang === 'java') return problem.starter_code_java || starterCode.java;
-    if (lang === 'go') return starterCode.go;
+    if (lang === 'go') return problem.starter_code_go || starterCode.go;
     return starterCode.python;
   };
 
@@ -91,7 +121,7 @@ export default function CodingPractice() {
       setIsLoading(true);
       let items = [];
       try {
-        const res = await api.get('/coding/problems');
+        const res = await api.get('/coding/problems?page_size=100');
         items = res.data?.items || (Array.isArray(res.data) ? res.data : []);
         setProblems(items);
       } catch (err) {
@@ -106,6 +136,9 @@ export default function CodingPractice() {
           const detailRes = await api.get(`/coding/problems/${activeSlug}`);
           setSelectedProblem(detailRes.data);
           setCode(getStarterCode(detailRes.data, language));
+
+          const matchingInList = items.find(p => p.id === detailRes.data.id || p.slug === activeSlug);
+          setIsProblemSolved(Boolean(detailRes.data.is_solved || matchingInList?.is_solved));
           
           // Fetch favorites
           try {
@@ -128,6 +161,34 @@ export default function CodingPractice() {
     setCode(getStarterCode(selectedProblem, language));
   }, [language]);
 
+  const currentProblemIndex = problems.findIndex(p => p.slug === slug || p.id === selectedProblem?.id);
+
+  const handlePrevProblem = () => {
+    if (currentProblemIndex > 0) {
+      navigate(`/coding/${problems[currentProblemIndex - 1].slug}`);
+    }
+  };
+
+  const handleNextProblem = () => {
+    if (currentProblemIndex < problems.length - 1) {
+      navigate(`/coding/${problems[currentProblemIndex + 1].slug}`);
+    }
+  };
+
+  const handlePickRandomWorkspace = async () => {
+    try {
+      const res = await api.get('/coding/problems/random');
+      if (res.data?.slug) {
+        navigate(`/coding/${res.data.slug}`);
+      }
+    } catch (e) {
+      if (problems.length > 0) {
+        const r = problems[Math.floor(Math.random() * problems.length)];
+        navigate(`/coding/${r.slug}`);
+      }
+    }
+  };
+
   // Global Keyboard Shortcuts (Ctrl+Enter to Run, Ctrl+Shift+Enter to Submit)
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -146,6 +207,59 @@ export default function CodingPractice() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [code, language, selectedProblem, customInput]);
+
+  // Horizontal Resizer Drag Effect (Left Panel vs Right Panel)
+  useEffect(() => {
+    if (!isDraggingH) return;
+    const handleMouseMove = (e) => {
+      if (!sandboxAreaRef.current) return;
+      const rect = sandboxAreaRef.current.getBoundingClientRect();
+      const newWidth = ((e.clientX - rect.left) / rect.width) * 100;
+      const clamped = Math.min(Math.max(newWidth, 20), 80);
+      setLeftPanelWidthPercent(clamped);
+      localStorage.setItem('codexia_coding_split_h', clamped.toFixed(2));
+    };
+    const handleMouseUp = () => {
+      setIsDraggingH(false);
+    };
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingH]);
+
+  // Vertical Resizer Drag Effect (Editor vs Console)
+  useEffect(() => {
+    if (!isDraggingV) return;
+    const handleMouseMove = (e) => {
+      if (!rightPanelRef.current) return;
+      const rect = rightPanelRef.current.getBoundingClientRect();
+      const newHeight = rect.bottom - e.clientY;
+      const maxHeight = Math.max(rect.height - 100, 150);
+      const clamped = Math.min(Math.max(newHeight, 100), maxHeight);
+      setConsoleHeight(clamped);
+      localStorage.setItem('codexia_coding_console_h', clamped.toString());
+    };
+    const handleMouseUp = () => {
+      setIsDraggingV(false);
+    };
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'row-resize';
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingV]);
 
   // Fetch submissions when Left Tab changes to 'submissions'
   useEffect(() => {
@@ -276,6 +390,7 @@ export default function CodingPractice() {
         type: 'submit'
       });
       if (isAccepted) {
+        setIsProblemSolved(true);
         toast.success('Congratulations! All test cases passed.');
         if (leftTab === 'submissions') loadSubmissions();
       } else {
@@ -329,83 +444,113 @@ export default function CodingPractice() {
   };
 
   if (isLoading) {
-    return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner}></div>
-        <p style={styles.loadingText}>Configuring interactive coding workspace...</p>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   return (
-    <div style={styles.container}>
-      <style>{`
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-          width: 6px;
-          height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-          background: rgba(30, 30, 30, 0.5);
-        }
-        ::-webkit-scrollbar-thumb {
-          background: #444;
-          border-radius: 3px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-          background: #666;
-        }
-        /* Custom animations & interactive elements */
-        .tab-btn {
-          position: relative;
-          transition: color 0.2s ease;
-        }
-        .tab-btn:hover {
-          color: var(--text-primary) !important;
-        }
-        .problem-link:hover {
-          background-color: rgba(255, 255, 255, 0.05) !important;
-        }
-        .action-icon {
-          transition: transform 0.2s ease;
-        }
-        .action-icon:hover {
-          transform: scale(1.1);
-        }
-      `}</style>
+    <div style={styles.workspaceWrapper}>
+      {/* Top Workspace Bar (LeetCode Style) */}
+      <div style={styles.topWorkspaceBar}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Link to="/coding" style={styles.backLink}>
+            <FiChevronLeft size={16} />
+            <span>Problem List</span>
+          </Link>
+          <div style={styles.topNavDivider} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <button
+              onClick={handlePrevProblem}
+              disabled={currentProblemIndex <= 0}
+              style={styles.navSquareBtn}
+              title="Previous problem"
+            >
+              <FiChevronLeft size={15} />
+            </button>
+            <button
+              onClick={handleNextProblem}
+              disabled={currentProblemIndex >= problems.length - 1}
+              style={styles.navSquareBtn}
+              title="Next problem"
+            >
+              <FiChevronRight size={15} />
+            </button>
+            <button
+              onClick={handlePickRandomWorkspace}
+              style={styles.navSquareBtn}
+              title="Pick random problem"
+            >
+              <FiShuffle size={14} />
+            </button>
+          </div>
+        </div>
 
-      {/* Left Sidebar: Problems list */}
-      <div style={styles.problemsSidebar}>
-        <h2 style={styles.sidebarTitle}>Problems</h2>
-        <div style={styles.problemsList}>
-          {problems.map((p) => {
-            const isSelected = selectedProblem?.id === p.id;
-            return (
-              <Link
-                key={p.id}
-                to={`/coding/${p.slug}`}
-                className="problem-link"
-                style={isSelected ? { ...styles.problemItem, ...styles.problemItemSelected } : styles.problemItem}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={styles.problemTitle}>{p.title}</span>
-                  <span style={{
-                    ...styles.diffBadge,
-                    color: p.difficulty.toLowerCase() === 'easy' ? 'var(--color-success)' : p.difficulty.toLowerCase() === 'medium' ? 'var(--color-warning)' : 'var(--color-error)'
-                  }}>{p.difficulty}</span>
-                </div>
-              </Link>
-            );
-          })}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={toggleFav}
+            style={isFav ? styles.topFavBtnActive : styles.topFavBtn}
+            title={isFav ? 'Starred' : 'Star problem'}
+          >
+            <FiStar size={14} fill={isFav ? '#F59E0B' : 'none'} color="#F59E0B" />
+            <span>{isFav ? 'Starred' : 'Star'}</span>
+          </button>
         </div>
       </div>
 
+      <div style={styles.container}>
+        <style>{`
+          /* Custom scrollbar */
+          ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+          }
+          ::-webkit-scrollbar-track {
+            background: rgba(30, 30, 30, 0.5);
+          }
+          ::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 3px;
+          }
+          ::-webkit-scrollbar-thumb:hover {
+            background: #666;
+          }
+          /* Custom animations & interactive elements */
+          .tab-btn {
+            position: relative;
+            transition: color 0.2s ease;
+          }
+          .tab-btn:hover {
+            color: var(--text-primary) !important;
+          }
+          .problem-link:hover {
+            background-color: rgba(255, 255, 255, 0.05) !important;
+          }
+          .action-icon {
+            transition: transform 0.2s ease;
+          }
+          .action-icon:hover {
+            transform: scale(1.1);
+          }
+          .gutter-resizer-h:hover {
+            background-color: var(--accent-primary, #6366F1) !important;
+          }
+          .gutter-resizer-v:hover {
+            background-color: var(--accent-primary, #6366F1) !important;
+          }
+        `}</style>
+
+
+
+
       {/* Main Sandbox Area */}
       {selectedProblem ? (
-        <div style={styles.sandboxArea}>
+        <div ref={sandboxAreaRef} style={styles.sandboxArea}>
           
           {/* Left panel: Description / Submissions */}
-          <div style={styles.leftPanel}>
+          <div style={{
+            ...styles.leftPanel,
+            width: `${leftPanelWidthPercent}%`,
+            flex: 'none'
+          }}>
             {/* Left Header Tabs */}
             <div style={styles.leftTabHeader}>
               <button
@@ -436,8 +581,11 @@ export default function CodingPractice() {
               {leftTab === 'description' ? (
                 <div style={styles.descriptionWrapper}>
                   <div style={styles.questionHeader}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <h1 style={styles.title}>{selectedProblem.title}</h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                      <h1 style={styles.title}>
+                        {currentProblemIndex >= 0 ? `${currentProblemIndex + 1}. ` : `${selectedProblem.id}. `}
+                        {selectedProblem.title}
+                      </h1>
                       <button
                         onClick={toggleFav}
                         style={{
@@ -454,11 +602,19 @@ export default function CodingPractice() {
                         <FiStar size={20} fill={isFav ? '#f1c40f' : 'none'} />
                       </button>
                     </div>
-                    <span style={{
-                      ...styles.difficultyBadge,
-                      backgroundColor: selectedProblem.difficulty.toLowerCase() === 'easy' ? 'rgba(46, 204, 113, 0.12)' : selectedProblem.difficulty.toLowerCase() === 'medium' ? 'rgba(243, 156, 18, 0.12)' : 'rgba(231, 76, 60, 0.12)',
-                      color: selectedProblem.difficulty.toLowerCase() === 'easy' ? 'var(--color-success)' : selectedProblem.difficulty.toLowerCase() === 'medium' ? 'var(--color-warning)' : 'var(--color-error)'
-                    }}>{selectedProblem.difficulty.toUpperCase()}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <span style={{
+                        ...styles.difficultyBadge,
+                        backgroundColor: selectedProblem.difficulty.toLowerCase() === 'easy' ? 'rgba(46, 204, 113, 0.12)' : selectedProblem.difficulty.toLowerCase() === 'medium' ? 'rgba(243, 156, 18, 0.12)' : 'rgba(231, 76, 60, 0.12)',
+                        color: selectedProblem.difficulty.toLowerCase() === 'easy' ? 'var(--color-success)' : selectedProblem.difficulty.toLowerCase() === 'medium' ? 'var(--color-warning)' : 'var(--color-error)'
+                      }}>{selectedProblem.difficulty.toUpperCase()}</span>
+
+                      {isProblemSolved && (
+                        <span style={styles.solvedBadgeHeader}>
+                          <FiCheck size={13} strokeWidth={2.5} /> Solved
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div style={styles.descContent}>
@@ -660,19 +816,55 @@ export default function CodingPractice() {
             </div>
           </div>
 
+          {/* Horizontal Resizer Gutter between Left and Right Panel */}
+          <div
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsDraggingH(true);
+            }}
+            className="gutter-resizer-h"
+            style={{
+              width: '8px',
+              cursor: 'col-resize',
+              backgroundColor: isDraggingH ? 'var(--accent-primary, #6366F1)' : '#1E1E1E',
+              borderLeft: '1px solid #2A2A2A',
+              borderRight: '1px solid #2A2A2A',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              zIndex: 10,
+              userSelect: 'none',
+              transition: isDraggingH ? 'none' : 'background-color 0.15s ease'
+            }}
+            title="Drag to resize Question and Code Editor panels"
+          >
+            <div style={{
+              width: '2px',
+              height: '24px',
+              borderRadius: '1px',
+              backgroundColor: isDraggingH ? '#FFF' : '#555'
+            }} />
+          </div>
+
           {/* Right panel: Editor + Code Console */}
-          <div style={{
-            ...styles.rightPanel,
-            ...(fullScreen ? {
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              width: '100vw',
-              height: '100vh',
-              zIndex: 9999,
-              backgroundColor: 'var(--bg-primary)'
-            } : {})
-          }}>
+          <div 
+            ref={rightPanelRef}
+            style={{
+              ...styles.rightPanel,
+              width: `${100 - leftPanelWidthPercent}%`,
+              flex: 1,
+              ...(fullScreen ? {
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100vw',
+                height: '100vh',
+                zIndex: 9999,
+                backgroundColor: 'var(--bg-primary)'
+              } : {})
+            }}
+          >
             {/* Header Controls */}
             <div style={styles.editorHeader}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', width: '100%' }}>
@@ -803,7 +995,10 @@ export default function CodingPractice() {
             </div>
 
             {/* Monaco Editor Wrapper */}
-            <div style={styles.editorWrapper}>
+            <div style={{
+              ...styles.editorWrapper,
+              pointerEvents: (isDraggingH || isDraggingV) ? 'none' : 'auto'
+            }}>
               <Editor
                 height="100%"
                 language={language === 'c' || language === 'cpp' ? 'cpp' : language}
@@ -828,11 +1023,49 @@ export default function CodingPractice() {
               />
             </div>
 
+            {/* Vertical Resizer Gutter between Editor and Console */}
+            {consoleOpen && (
+              <div
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setIsDraggingV(true);
+                }}
+                className="gutter-resizer-v"
+                style={{
+                  height: '8px',
+                  cursor: 'row-resize',
+                  backgroundColor: isDraggingV ? 'var(--accent-primary, #6366F1)' : '#1E1E1E',
+                  borderTop: '1px solid #2A2A2A',
+                  borderBottom: '1px solid #2A2A2A',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  zIndex: 10,
+                  userSelect: 'none',
+                  transition: isDraggingV ? 'none' : 'background-color 0.15s ease'
+                }}
+                title="Drag to resize Editor and Console"
+              >
+                <div style={{
+                  height: '2px',
+                  width: '28px',
+                  borderRadius: '1px',
+                  backgroundColor: isDraggingV ? '#FFF' : '#555'
+                }} />
+              </div>
+            )}
+
             {/* Bottom Console Panel (Interactive Console Drawer) */}
             <div style={{
               ...styles.consolePanel,
-              height: consoleOpen ? '320px' : '0px',
-              borderTop: consoleOpen ? '1px solid var(--border-primary)' : 'none'
+              display: consoleOpen ? 'flex' : 'none',
+              height: `${consoleHeight}px`,
+              minHeight: '100px',
+              maxHeight: 'none',
+              flexShrink: 0,
+              borderTop: consoleOpen ? 'none' : '1px solid #2A2A2A',
+              transition: isDraggingV ? 'none' : 'height 0.2s ease-out'
             }}>
               {/* Drawer Tabs */}
               <div style={styles.consoleHeader}>
@@ -1107,15 +1340,132 @@ export default function CodingPractice() {
           <p>Ask your instructor to add programming exercises to this course syllabus.</p>
         </div>
       )}
+      </div>
     </div>
   );
 }
 
 const styles = {
+  workspaceWrapper: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    width: '100%',
+    margin: 0,
+    padding: 0,
+    backgroundColor: '#0F1219',
+    overflow: 'hidden'
+  },
+  topWorkspaceBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '8px 16px',
+    backgroundColor: 'var(--bg-secondary)',
+    borderBottom: '1px solid var(--border-primary)',
+    flexShrink: 0
+  },
+  backLink: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    color: 'var(--text-primary)',
+    textDecoration: 'none',
+    fontSize: '0.82rem',
+    fontWeight: 600,
+    padding: '4px 8px',
+    borderRadius: '4px',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    transition: 'background-color 0.2s'
+  },
+  topNavDivider: {
+    width: '1px',
+    height: '18px',
+    backgroundColor: 'var(--border-primary)'
+  },
+  navToggleBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: '4px',
+    color: 'var(--text-secondary)',
+    padding: '4px 8px',
+    fontSize: '0.78rem',
+    fontWeight: 500,
+    cursor: 'pointer'
+  },
+  navToggleBtnActive: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    border: '1px solid var(--accent-primary)',
+    borderRadius: '4px',
+    color: '#818CF8',
+    padding: '4px 8px',
+    fontSize: '0.78rem',
+    fontWeight: 600,
+    cursor: 'pointer'
+  },
+  navSquareBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '26px',
+    height: '26px',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: '4px',
+    color: 'var(--text-secondary)',
+    cursor: 'pointer'
+  },
+  activeProblemHeading: {
+    fontSize: '0.92rem',
+    fontWeight: 600,
+    color: 'var(--text-primary)'
+  },
+  diffBadgeTop: {
+    fontSize: '0.72rem',
+    fontWeight: 600,
+    padding: '2px 8px',
+    borderRadius: '10px',
+    letterSpacing: '0.3px',
+    textTransform: 'capitalize'
+  },
+  topFavBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+    backgroundColor: 'transparent',
+    border: '1px solid var(--border-primary)',
+    borderRadius: '4px',
+    color: 'var(--text-secondary)',
+    padding: '4px 10px',
+    fontSize: '0.78rem',
+    fontWeight: 500,
+    cursor: 'pointer'
+  },
+  topFavBtnActive: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    border: '1px solid rgba(245, 158, 11, 0.4)',
+    borderRadius: '4px',
+    color: '#F59E0B',
+    padding: '4px 10px',
+    fontSize: '0.78rem',
+    fontWeight: 600,
+    cursor: 'pointer'
+  },
   container: {
     display: 'flex',
-    height: 'calc(100vh - var(--navbar-height))',
-    backgroundColor: '#121212',
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
+    backgroundColor: '#0F1219',
     color: '#E0E0E0',
     fontFamily: 'Inter, system-ui, sans-serif',
   },
@@ -1186,11 +1536,13 @@ const styles = {
   sandboxArea: {
     display: 'flex',
     flex: 1,
+    minHeight: 0,
     overflow: 'hidden',
     backgroundColor: '#121212',
   },
   leftPanel: {
     flex: 1,
+    minHeight: 0,
     borderRight: '1px solid #2A2A2A',
     display: 'flex',
     flexDirection: 'column',
@@ -1247,6 +1599,19 @@ const styles = {
     padding: '0.25rem 0.5rem',
     borderRadius: '4px',
     fontWeight: '700',
+  },
+  solvedBadgeHeader: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '0.25rem 0.6rem',
+    borderRadius: '12px',
+    fontSize: '0.75rem',
+    fontWeight: '700',
+    backgroundColor: 'rgba(16, 185, 129, 0.14)',
+    color: '#10B981',
+    border: '1px solid rgba(16, 185, 129, 0.35)',
+    letterSpacing: '0.02em',
   },
   descContent: {
     display: 'flex',
@@ -1391,6 +1756,7 @@ const styles = {
   },
   rightPanel: {
     flex: 1.2,
+    minHeight: 0,
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
@@ -1416,6 +1782,7 @@ const styles = {
   },
   editorWrapper: {
     flex: 1,
+    minHeight: 0,
     backgroundColor: '#1E1E1E',
   },
   consolePanel: {
@@ -1591,17 +1958,22 @@ const styles = {
     padding: '0.5rem 1.25rem',
     borderTop: '1px solid #2A2A2A',
     backgroundColor: '#1E1E1E',
+    flexShrink: 0,
+    zIndex: 10,
   },
   consoleToggleBtn: {
-    backgroundColor: 'transparent',
-    border: 'none',
-    color: '#888',
+    backgroundColor: '#262626',
+    border: '1px solid #3A3A3A',
+    color: '#D1D5DB',
     cursor: 'pointer',
     fontSize: '0.8125rem',
     display: 'flex',
     alignItems: 'center',
     gap: '0.375rem',
     fontWeight: '500',
+    padding: '0.35rem 0.75rem',
+    borderRadius: '4px',
+    transition: 'all 0.15s ease',
   },
   runBtn: {
     backgroundColor: '#2A2A2A',

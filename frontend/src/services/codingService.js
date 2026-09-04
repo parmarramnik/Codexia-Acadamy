@@ -9,6 +9,8 @@ const codingService = {
   runCode: (id, data) => api.post(`/coding/problems/${id}/run`, data),
   submitCode: (id, data) => api.post(`/coding/problems/${id}/submit`, data),
   getSubmissions: (id) => api.get(`/coding/problems/${id}/submissions`),
+  getDailyChallenge: () => api.get('/coding/daily-challenge'),
+  setDailyChallenge: (problem_id, date) => api.post('/coding/daily-challenge', { problem_id, date }),
 };
 
 export default codingService;

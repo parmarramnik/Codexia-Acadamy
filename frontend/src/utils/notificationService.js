@@ -59,13 +59,13 @@ export async function triggerTestLockscreenNotification() {
       const reg = await navigator.serviceWorker.ready;
       if (reg && reg.showNotification) {
         await reg.showNotification('Study Reminder Alert', {
-          body: 'Study Planner alert: Lockscreen push notifications are working perfectly on your device!',
+          body: 'Codexia study reminder: Lockscreen push notifications are working on your device!',
           icon: '/favicon.ico',
           badge: '/favicon.ico',
           vibrate: [200, 100, 200],
           tag: 'test-notification',
           renotify: true,
-          data: { url: '/planner' }
+          data: { url: '/dashboard' }
         });
         return true;
       }
@@ -73,7 +73,7 @@ export async function triggerTestLockscreenNotification() {
 
     // Fallback to standard web notification
     new Notification('Study Reminder Alert', {
-      body: 'Study Planner alert: Lockscreen push notifications are working perfectly on your device!',
+      body: 'Codexia study reminder: Lockscreen push notifications are working on your device!',
       icon: '/favicon.ico',
       vibrate: [200, 100, 200]
     });

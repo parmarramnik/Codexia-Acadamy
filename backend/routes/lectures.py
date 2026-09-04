@@ -12,13 +12,19 @@ from auth.permissions import is_owner_or_admin
 from models.user import User
 from models.course import Lecture, Module
 from models.content import Video
-from schemas.course import LectureCreate, LectureResponse, ProgressUpdate
+from pydantic import BaseModel
+from schemas.course import LectureCreate, LectureUpdate, LectureResponse, ProgressUpdate
 from schemas.user import MessageResponse
 from services import course_service, analytics_service
 from config import settings
 from utils.helpers import generate_unique_filename, ensure_directory
+from utils.cache import cache_invalidate_prefix
 
 router = APIRouter()
+
+
+class VideoUrlRequest(BaseModel):
+    video_url: str
 
 
 @router.post("/modules/{module_id}", response_model=LectureResponse)
@@ -35,7 +41,114 @@ def create_lecture(
     course = course_service.get_course_by_id(db, module.course_id)
     if not course or not is_owner_or_admin(course.instructor_id, current_user):
         raise HTTPException(status_code=403, detail="Not authorized")
-    return course_service.create_lecture(db, module_id, data)
+    lecture = course_service.create_lecture(db, module_id, data)
+    cache_invalidate_prefix("courses")
+    return {
+        **LectureResponse.model_validate(lecture).model_dump(),
+        "has_video": lecture.video is not None,
+        "video_url": lecture.video.file_url if lecture.video else None,
+    }
+
+
+@router.put("/{lecture_id}", response_model=LectureResponse)
+def update_lecture(
+    lecture_id: int,
+    data: LectureUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update a lecture (owner or admin only)."""
+    lecture = db.query(Lecture).filter(Lecture.id == lecture_id).first()
+    if not lecture:
+        raise HTTPException(status_code=404, detail="Lecture not found")
+    module = db.query(Module).filter(Module.id == lecture.module_id).first()
+    course = course_service.get_course_by_id(db, module.course_id) if module else None
+    if not course or not is_owner_or_admin(course.instructor_id, current_user):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    updated = course_service.update_lecture(db, lecture, data)
+    cache_invalidate_prefix("courses")
+    return {
+        **LectureResponse.model_validate(updated).model_dump(),
+        "has_video": updated.video is not None,
+        "video_url": updated.video.file_url if updated.video else None,
+    }
+
+
+@router.delete("/{lecture_id}", response_model=MessageResponse)
+def delete_lecture(
+    lecture_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a lecture (owner or admin only)."""
+    lecture = db.query(Lecture).filter(Lecture.id == lecture_id).first()
+    if not lecture:
+        raise HTTPException(status_code=404, detail="Lecture not found")
+    module = db.query(Module).filter(Module.id == lecture.module_id).first()
+    course = course_service.get_course_by_id(db, module.course_id) if module else None
+    if not course or not is_owner_or_admin(course.instructor_id, current_user):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    course_service.delete_lecture(db, lecture)
+    cache_invalidate_prefix("courses")
+    return {"message": "Lecture deleted successfully"}
+
+
+@router.post("/{lecture_id}/video-url", response_model=MessageResponse)
+def attach_video_url(
+    lecture_id: int,
+    data: VideoUrlRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Attach or update a streaming/direct video URL to a lecture."""
+    lecture = db.query(Lecture).filter(Lecture.id == lecture_id).first()
+    if not lecture:
+        raise HTTPException(status_code=404, detail="Lecture not found")
+    module = db.query(Module).filter(Module.id == lecture.module_id).first()
+    course = course_service.get_course_by_id(db, module.course_id) if module else None
+    if not course or not is_owner_or_admin(course.instructor_id, current_user):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    url = data.video_url.strip()
+    existing_video = db.query(Video).filter(Video.lecture_id == lecture_id).first()
+    if existing_video:
+        existing_video.file_url = url
+        existing_video.file_name = f"Video - {lecture.title}"
+    else:
+        video = Video(
+            lecture_id=lecture_id,
+            file_url=url,
+            file_name=f"Video - {lecture.title}",
+            duration_seconds=lecture.duration_seconds,
+            mime_type="video/mp4",
+        )
+        db.add(video)
+    db.commit()
+    cache_invalidate_prefix("courses")
+    return {"message": "Video URL attached successfully"}
+
+
+@router.delete("/{lecture_id}/video", response_model=MessageResponse)
+def remove_lecture_video(
+    lecture_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Remove video (link or uploaded file) from a lecture (owner or admin only)."""
+    lecture = db.query(Lecture).filter(Lecture.id == lecture_id).first()
+    if not lecture:
+        raise HTTPException(status_code=404, detail="Lecture not found")
+    module = db.query(Module).filter(Module.id == lecture.module_id).first()
+    course = course_service.get_course_by_id(db, module.course_id) if module else None
+    if not course or not is_owner_or_admin(course.instructor_id, current_user):
+        raise HTTPException(status_code=403, detail="Not authorized to modify this lecture's video")
+
+    video = db.query(Video).filter(Video.lecture_id == lecture_id).first()
+    if video:
+        db.delete(video)
+        db.commit()
+    cache_invalidate_prefix("courses")
+    return {"message": "Video removed from lecture successfully"}
 
 
 @router.post("/{lecture_id}/video", response_model=MessageResponse)

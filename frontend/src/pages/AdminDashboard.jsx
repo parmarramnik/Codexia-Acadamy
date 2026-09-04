@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
-import { FiUsers, FiBookOpen, FiAlertCircle, FiSettings, FiCheck, FiTrash2, FiToggleLeft, FiToggleRight, FiVolume2 } from 'react-icons/fi';
+import { FiUsers, FiBookOpen, FiAlertCircle, FiSettings, FiCheck, FiTrash2, FiToggleLeft, FiToggleRight, FiVolume2, FiSearch } from 'react-icons/fi';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const [userSearch, setUserSearch] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState('');
   const [stats, setStats] = useState({
+
     total_users: 0,
     active_users: 0,
     students: 0,
@@ -212,6 +215,75 @@ export default function AdminDashboard() {
       {/* Users Management Tab */}
       {activeTab === 'users' && (
         <div style={styles.tabContent}>
+          {/* Contextual User Search & Filters Bar */}
+          <div style={{
+            display: 'flex',
+            gap: '12px',
+            marginBottom: '16px',
+            alignItems: 'center',
+            flexWrap: 'wrap'
+          }}>
+            <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
+              <FiSearch size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: userSearch ? 'var(--accent-primary)' : 'var(--text-secondary)' }} />
+              <input
+                type="text"
+                placeholder="Search users by full name, email, or username..."
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  backgroundColor: 'var(--bg-card)',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '8px 32px 8px 36px',
+                  fontSize: '0.85rem',
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+              {userSearch && (
+                <button
+                  type="button"
+                  onClick={() => setUserSearch('')}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    padding: '2px'
+                  }}
+                >✕</button>
+              )}
+            </div>
+
+            <select
+              value={userRoleFilter}
+              onChange={(e) => setUserRoleFilter(e.target.value)}
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                border: '1px solid var(--border-primary)',
+                borderRadius: 'var(--radius-md)',
+                padding: '8px 14px',
+                fontSize: '0.85rem',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">All Roles</option>
+              <option value="student">Students</option>
+              <option value="instructor">Instructors</option>
+              <option value="admin">Admins</option>
+              <option value="super_admin">Super Admins</option>
+            </select>
+          </div>
+
           <table style={styles.table}>
             <thead>
               <tr style={styles.tr}>
@@ -225,7 +297,19 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {users
+                .filter((u) => {
+                  if (userRoleFilter && u.role !== userRoleFilter) return false;
+                  if (!userSearch.trim()) return true;
+                  const q = userSearch.toLowerCase();
+                  return (
+                    (u.full_name || '').toLowerCase().includes(q) ||
+                    (u.email || '').toLowerCase().includes(q) ||
+                    (u.username || '').toLowerCase().includes(q)
+                  );
+                })
+                .map((u) => (
+
                 <tr key={u.id} style={styles.tr}>
                   <td style={styles.td}>{u.full_name}</td>
                   <td style={styles.td}>{u.email}</td>

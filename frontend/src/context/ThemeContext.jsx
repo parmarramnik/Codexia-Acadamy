@@ -11,6 +11,14 @@ export function ThemeProvider({ children }) {
     document.documentElement.setAttribute('data-theme', saved);
   }, []);
 
+  const setThemeMode = (mode) => {
+    if (mode === 'dark' || mode === 'light') {
+      setTheme(mode);
+      localStorage.setItem('theme', mode);
+      document.documentElement.setAttribute('data-theme', mode);
+    }
+  };
+
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
@@ -19,7 +27,7 @@ export function ThemeProvider({ children }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, setThemeMode }}>
       {children}
     </ThemeContext.Provider>
   );

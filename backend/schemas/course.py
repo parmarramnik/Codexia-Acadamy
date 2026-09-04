@@ -26,6 +26,7 @@ class LectureCreate(BaseModel):
     order_index: int = 0
     duration_seconds: int = 0
     is_preview: bool = False
+    video_url: Optional[str] = None
 
 
 class LectureUpdate(BaseModel):
@@ -34,6 +35,7 @@ class LectureUpdate(BaseModel):
     order_index: Optional[int] = None
     duration_seconds: Optional[int] = None
     is_preview: Optional[bool] = None
+    video_url: Optional[str] = None
 
 
 class LectureResponse(BaseModel):
@@ -44,6 +46,7 @@ class LectureResponse(BaseModel):
     duration_seconds: int
     is_preview: bool
     has_video: bool = False
+    video_url: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -64,6 +67,7 @@ class CourseCreate(BaseModel):
     title: str = Field(..., min_length=3, max_length=300)
     description: str = Field(..., min_length=10)
     short_description: Optional[str] = Field(None, max_length=500)
+    thumbnail_url: Optional[str] = None
     category: str
     difficulty: str = "beginner"
     tags: Optional[str] = None
@@ -76,6 +80,7 @@ class CourseUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=3, max_length=300)
     description: Optional[str] = Field(None, min_length=10)
     short_description: Optional[str] = Field(None, max_length=500)
+    thumbnail_url: Optional[str] = None
     category: Optional[str] = None
     difficulty: Optional[str] = None
     tags: Optional[str] = None
@@ -94,6 +99,8 @@ class CourseResponse(BaseModel):
     thumbnail_url: Optional[str] = None
     instructor_id: int
     instructor_name: str = ""
+    instructor_avatar_url: Optional[str] = None
+    instructor_bio: Optional[str] = None
     category: str
     difficulty: str
     duration_hours: float
@@ -119,6 +126,7 @@ class CourseListResponse(BaseModel):
     short_description: Optional[str] = None
     thumbnail_url: Optional[str] = None
     instructor_name: str = ""
+    instructor_avatar_url: Optional[str] = None
     category: str
     difficulty: str
     duration_hours: float

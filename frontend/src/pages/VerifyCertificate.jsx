@@ -1,13 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
-import { FiAward, FiCheckCircle, FiAlertTriangle, FiArrowLeft } from 'react-icons/fi';
+import { FiAward, FiCheckCircle, FiAlertTriangle, FiArrowLeft, FiDownload, FiShield } from 'react-icons/fi';
 
 export default function VerifyCertificate() {
   const { uid } = useParams();
   const [certData, setCertData] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const getFullCertUrl = (relativeUrl) => {
+    if (!relativeUrl) return '';
+    if (relativeUrl.startsWith('http')) return relativeUrl;
+    const backendHost = api.defaults.baseURL.replace(/\/api$/, '');
+    return `${backendHost}${relativeUrl}`;
+  };
 
   useEffect(() => {
     async function verify() {
@@ -29,7 +36,7 @@ export default function VerifyCertificate() {
       <div style={styles.container}>
         <div style={styles.card}>
           <div style={styles.spinner}></div>
-          <p style={styles.loadingText}>Verifying certificate credentials...</p>
+          <p style={styles.loadingText}>Verifying credential authenticity against Codexia registry...</p>
         </div>
       </div>
     );
@@ -38,9 +45,12 @@ export default function VerifyCertificate() {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <Link to="/" style={styles.backBtn}>
-          <FiArrowLeft /> Back to Codexia
-        </Link>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <Link to="/" style={styles.backBtn}>
+            <FiArrowLeft /> Back to Codexia
+          </Link>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>codexia.edu/verify</span>
+        </div>
 
         {error ? (
           <div style={styles.statusBox}>
@@ -52,28 +62,39 @@ export default function VerifyCertificate() {
           </div>
         ) : (
           <div style={styles.statusBox}>
-            <div style={styles.badgeWrapper}>
-              <FiAward size={80} style={styles.awardIcon} />
-              <FiCheckCircle size={32} style={styles.checkIcon} />
+            {/* Academy Branding */}
+            <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+              <div style={{ fontWeight: 900, color: 'var(--accent-primary)', fontSize: '1.15rem', letterSpacing: '0.5px' }}>
+                &lt; CODEXIA ACADEMY /&gt;
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.5px', marginTop: '2px' }}>
+                ACCREDITED INSTITUTE OF COMPUTER SCIENCE & ARTIFICIAL INTELLIGENCE
+              </div>
             </div>
-            <h1 style={styles.title}>Verified Credential</h1>
-            <p style={styles.subtitle}>This certificate is authentic and registered in Codexia records.</p>
+
+            <div style={styles.badgeWrapper}>
+              <FiAward size={72} style={{ color: '#D4AF37' }} />
+              <FiCheckCircle size={28} style={styles.checkIcon} />
+            </div>
+
+            <h1 style={styles.title}>Officially Verified Credential</h1>
+            <p style={styles.subtitle}>This certificate is authentic, fully accredited, and registered in Codexia records.</p>
             
             <div style={styles.detailsGrid}>
               <div style={styles.detailRow}>
-                <span style={styles.label}>Recipient</span>
-                <span style={styles.value}>{certData.user_full_name}</span>
+                <span style={styles.label}>Recipient Scholar</span>
+                <span style={{ ...styles.value, fontWeight: 700 }}>{certData.user_full_name}</span>
               </div>
               <div style={styles.detailRow}>
-                <span style={styles.label}>Course Completed</span>
-                <span style={styles.value}>{certData.course_title}</span>
+                <span style={styles.label}>Course Curriculum</span>
+                <span style={{ ...styles.value, color: 'var(--accent-primary)', fontWeight: 600 }}>{certData.course_title}</span>
               </div>
               <div style={styles.detailRow}>
-                <span style={styles.label}>Authorized Instructor</span>
+                <span style={styles.label}>Authorized Faculty Instructor</span>
                 <span style={styles.value}>{certData.instructor_name}</span>
               </div>
               <div style={styles.detailRow}>
-                <span style={styles.label}>Completion Date</span>
+                <span style={styles.label}>Date of Completion</span>
                 <span style={styles.value}>
                   {new Date(certData.completion_date).toLocaleDateString(undefined, {
                     year: 'numeric',
@@ -82,10 +103,40 @@ export default function VerifyCertificate() {
                   })}
                 </span>
               </div>
+              <div style={styles.detailRow}>
+                <span style={styles.label}>Accreditation Status</span>
+                <span style={{ ...styles.value, color: 'var(--color-success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <FiCheckCircle size={14} /> Valid & Active
+                </span>
+              </div>
             </div>
 
             <div style={styles.divider}></div>
-            <span style={styles.uidText}>Certificate ID: {certData.certificate_uid}</span>
+            <span style={styles.uidText}>CERTIFICATE ID : {certData.certificate_uid}</span>
+
+            {certData.certificate_url && (
+              <a
+                href={getFullCertUrl(certData.certificate_url)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  marginTop: '1.25rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: 'var(--accent-primary)',
+                  color: '#FFF',
+                  borderRadius: 'var(--radius-md)',
+                  textDecoration: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
+                  boxShadow: '0 4px 15px rgba(99, 102, 241, 0.35)',
+                }}
+              >
+                <FiDownload /> Download Official PDF Certificate
+              </a>
+            )}
           </div>
         )}
       </div>

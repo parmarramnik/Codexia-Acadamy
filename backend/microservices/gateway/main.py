@@ -51,15 +51,17 @@ SERVICE_MAP = {
     # AI Tutor & Assistant -> Port 8005
     "ai": os.getenv("AI_SERVICE_URL", "http://127.0.0.1:8005"),
 
-    # Analytics, Admin, Logs & Comms -> Port 8006
+    # Analytics, Admin, Logs & Comms & Search -> Port 8006
     "analytics": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
     "admin": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
     "logs": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
     "comms": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
+    "search": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
 }
 
 # Version 3 & 4 routing rules
 SPECIAL_PATH_MAP = {
+    "/api/search": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
     "/api/v3/search": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
     "/api/v3/comms": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
     "/api/v3/analytics": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
@@ -68,6 +70,7 @@ SPECIAL_PATH_MAP = {
     "/api/v3/coding": os.getenv("CODING_SERVICE_URL", "http://127.0.0.1:8004"),
     "/api/v4/admin": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
 }
+
 
 
 def create_app() -> FastAPI:

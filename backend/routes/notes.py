@@ -13,6 +13,7 @@ from models.content import Note
 from schemas.analytics import NoteCreate, NoteUpdate, NoteResponse
 from schemas.user import MessageResponse
 import services.git_service as git_service
+from utils.cache import cache_get, cache_set, cache_invalidate_prefix
 
 router = APIRouter()
 
@@ -26,6 +27,11 @@ def get_notes(
     db: Session = Depends(get_db),
 ):
     """Get all notes for the current user."""
+    cache_key = f"notes:user:{current_user.id}:{course_id or 'all'}:{bookmarked or 'all'}:{search or 'all'}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     query = db.query(Note).filter(Note.user_id == current_user.id)
     if course_id:
         query = query.filter(Note.course_id == course_id)
@@ -41,7 +47,9 @@ def get_notes(
     for note in notes_list:
         git_service.ensure_git_init(db, note, current_user.id)
         
-    return notes_list
+    res = [NoteResponse.model_validate(n).model_dump() for n in notes_list]
+    cache_set(cache_key, res, ttl=300)
+    return res
 
 
 @router.post("", response_model=NoteResponse)
@@ -66,6 +74,7 @@ def create_note(
     # Initialize Git repo
     git_service.ensure_git_init(db, note, current_user.id)
     db.refresh(note)
+    cache_invalidate_prefix(f"notes:user:{current_user.id}")
     return note
 
 
@@ -90,6 +99,7 @@ def update_note(
     git_service.maybe_auto_commit(db, note, current_user.id)
     
     db.refresh(note)
+    cache_invalidate_prefix(f"notes:user:{current_user.id}")
     return note
 
 
@@ -105,4 +115,5 @@ def delete_note(
         raise HTTPException(status_code=404, detail="Note not found")
     db.delete(note)
     db.commit()
+    cache_invalidate_prefix(f"notes:user:{current_user.id}")
     return {"message": "Note deleted successfully"}

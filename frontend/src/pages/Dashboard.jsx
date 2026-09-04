@@ -8,6 +8,8 @@ import {
   FiAward, FiCode, FiCpu, FiCalendar, 
   FiShield, FiArrowRight, FiUser, FiSliders, FiMessageSquare 
 } from 'react-icons/fi';
+import PageLoader from '../components/common/PageLoader';
+import { useDashboardStats, useMyEnrollments } from '../hooks/useQueries';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -15,8 +17,12 @@ export default function Dashboard() {
 
   const [isLoading, setIsLoading] = useState(true);
 
+  // TanStack Query for Student caching
+  const { data: dashboardData, isLoading: isStatsLoading } = useDashboardStats();
+  const { data: enrollmentsData, isLoading: isEnrollmentsLoading } = useMyEnrollments();
+
   // Student states
-  const [stats, setStats] = useState({
+  const stats = dashboardData || {
     total_courses_enrolled: 0,
     completed_courses: 0,
     total_study_hours: 0,
@@ -25,8 +31,16 @@ export default function Dashboard() {
     problems_solved: 0,
     current_streak: 0,
     certificates_earned: 0,
-  });
-  const [courses, setCourses] = useState([]);
+  };
+
+  const courses = (enrollmentsData || []).map(e => ({
+    id: e.course?.id || e.course_id,
+    title: e.course?.title,
+    slug: e.course?.slug,
+    difficulty: e.course?.difficulty,
+    short_description: e.course?.short_description,
+    progress: e.completion_percentage,
+  }));
 
   // Instructor states
   const [instructorStats, setInstructorStats] = useState({
@@ -49,23 +63,12 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function fetchDashboardData() {
+      if (role === 'student') {
+        setIsLoading(false);
+        return;
+      }
       try {
-        if (role === 'student') {
-          const [statsRes, enrollmentsRes] = await Promise.all([
-            api.get('/analytics/dashboard'),
-            api.get('/courses/enrolled/me')
-          ]);
-          setStats(statsRes.data);
-          const mappedCourses = (enrollmentsRes.data || []).map(e => ({
-            id: e.course.id,
-            title: e.course.title,
-            slug: e.course.slug,
-            difficulty: e.course.difficulty,
-            short_description: e.course.short_description,
-            progress: e.completion_percentage,
-          }));
-          setCourses(mappedCourses);
-        } else if (role === 'instructor') {
+        if (role === 'instructor') {
           const res = await api.get('/analytics/instructor');
           setInstructorStats(res.data || {
             active_students: 0,
@@ -95,12 +98,10 @@ export default function Dashboard() {
     fetchDashboardData();
   }, [role]);
 
-  if (isLoading) {
-    return (
-      <div style={styles.loadingContainer}>
-        <p style={styles.loadingText}>Loading Dashboard...</p>
-      </div>
-    );
+  const effectiveLoading = role === 'student' ? (isStatsLoading && !dashboardData) : isLoading;
+
+  if (effectiveLoading) {
+    return <PageLoader />;
   }
 
   // --- RENDERING BASED ON ROLE ---
@@ -108,12 +109,12 @@ export default function Dashboard() {
   // 1. STUDENT VIEW
   if (role === 'student') {
     const statCards = [
-      { label: 'Courses Enrolled', value: stats.total_courses_enrolled, icon: <FiBookOpen size={20} style={styles.statIcon} /> },
-      { label: 'Study Hours', value: `${stats.total_study_hours}h`, icon: <FiClock size={20} style={styles.statIcon} /> },
-      { label: 'Quiz Score Avg', value: `${stats.average_quiz_score}%`, icon: <FiTarget size={20} style={styles.statIcon} /> },
-      { label: 'Current Streak', value: `${stats.current_streak} days`, icon: <FiActivity size={20} style={styles.statIcon} /> },
-      { label: 'Problems Solved', value: stats.problems_solved, icon: <FiCode size={20} style={styles.statIcon} /> },
-      { label: 'Certificates Earned', value: stats.certificates_earned, icon: <FiAward size={20} style={styles.statIcon} /> },
+      { label: 'Courses Enrolled', value: stats.total_courses_enrolled, icon: <FiBookOpen size={18} />, color: '#818CF8', bg: 'rgba(99, 102, 241, 0.12)' },
+      { label: 'Study Hours', value: `${stats.total_study_hours}h`, icon: <FiClock size={18} />, color: '#34D399', bg: 'rgba(16, 185, 129, 0.12)' },
+      { label: 'Quiz Score Avg', value: `${stats.average_quiz_score}%`, icon: <FiTarget size={18} />, color: '#38BDF8', bg: 'rgba(6, 182, 212, 0.12)' },
+      { label: 'Current Streak', value: `${stats.current_streak} days`, icon: <FiActivity size={18} />, color: '#FBBF24', bg: 'rgba(245, 158, 11, 0.12)' },
+      { label: 'Problems Solved', value: stats.problems_solved, icon: <FiCode size={18} />, color: '#A78BFA', bg: 'rgba(139, 92, 246, 0.12)' },
+      { label: 'Certificates Earned', value: stats.certificates_earned, icon: <FiAward size={18} />, color: '#FB7185', bg: 'rgba(244, 63, 94, 0.12)' },
     ];
 
     return (
@@ -121,9 +122,19 @@ export default function Dashboard() {
         <div style={styles.welcomeRow}>
           <div>
             <h1 style={styles.welcomeTitle}>Welcome back, {user?.full_name || 'Student'}! 👋</h1>
-            <p style={styles.welcomeSubtitle}>Track your learning path and practice coding questions today.</p>
+            <p style={styles.welcomeSubtitle}>Track your learning path, test your skills, and maintain your study streak.</p>
           </div>
-          <div style={styles.roleBadge}>{role.toUpperCase()}</div>
+          <div style={{
+            backgroundColor: 'rgba(99, 102, 241, 0.12)',
+            border: '1px solid rgba(99, 102, 241, 0.25)',
+            color: '#818CF8',
+            padding: '0.35rem 0.75rem',
+            borderRadius: '8px',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+          }}>{role}</div>
         </div>
 
         <div style={styles.statsGrid}>
@@ -131,7 +142,18 @@ export default function Dashboard() {
             <div key={idx} style={styles.statCard}>
               <div style={styles.statHeader}>
                 <span style={styles.statValue}>{card.value}</span>
-                {card.icon}
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  backgroundColor: card.bg,
+                  color: card.color,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  {card.icon}
+                </div>
               </div>
               <span style={styles.statLabel}>{card.label}</span>
             </div>
@@ -141,24 +163,60 @@ export default function Dashboard() {
         <h2 style={styles.sectionTitle}>Quick Actions</h2>
         <div style={styles.quickActionsRow}>
           <Link to="/courses" style={styles.actionCard}>
-            <FiBookOpen size={24} style={styles.actionIcon} />
+            <div style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(52, 211, 153, 0.12)',
+              color: '#34D399',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <FiBookOpen size={20} />
+            </div>
             <div>
               <h3 style={styles.actionTitle}>Continue Learning</h3>
               <p style={styles.actionDesc}>Resume where you left off in your modules.</p>
             </div>
           </Link>
           <Link to="/coding" style={styles.actionCard}>
-            <FiCode size={24} style={styles.actionIcon} />
+            <div style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(56, 189, 248, 0.12)',
+              color: '#38BDF8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <FiCode size={20} />
+            </div>
             <div>
               <h3 style={styles.actionTitle}>Coding Practice</h3>
-              <p style={styles.actionDesc}>Solve programming exercises in the sandbox.</p>
+              <p style={styles.actionDesc}>Solve programming challenges in the sandbox.</p>
             </div>
           </Link>
-          <Link to="/planner" style={styles.actionCard}>
-            <FiCalendar size={24} style={styles.actionIcon} />
+          <Link to="/certificates" style={styles.actionCard}>
+            <div style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(245, 158, 11, 0.12)',
+              color: '#F59E0B',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <FiAward size={20} />
+            </div>
             <div>
-              <h3 style={styles.actionTitle}>Study Planner</h3>
-              <p style={styles.actionDesc}>Track streaking, reminders, and target weekly goals.</p>
+              <h3 style={styles.actionTitle}>Certificates</h3>
+              <p style={styles.actionDesc}>View and download accredited credentials.</p>
             </div>
           </Link>
         </div>
@@ -202,7 +260,7 @@ export default function Dashboard() {
       { label: 'Lecture Watch Rate', value: `${instructorStats.lecture_watch_rate}%`, icon: <FiClock size={20} style={styles.statIcon} /> },
     ];
 
-    const rawName = user?.full_name || 'Nirma';
+    const rawName = user?.full_name || (user?.email ? user.email.split('@')[0] : 'Instructor');
     const displayName = rawName.toLowerCase().startsWith('instructor') ? rawName : `Instructor ${rawName}`;
 
     return (
@@ -399,9 +457,9 @@ export default function Dashboard() {
 
 const styles = {
   container: {
-    padding: '2rem',
-    maxWidth: 'var(--max-content-width)',
-    margin: '0 auto',
+    padding: '0 0 2.5rem 0',
+    maxWidth: '100%',
+    margin: '0',
     width: '100%',
     backgroundColor: 'var(--bg-primary)',
     color: 'var(--text-primary)',
@@ -451,11 +509,13 @@ const styles = {
   statCard: {
     backgroundColor: 'var(--bg-card)',
     border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
+    borderRadius: 'var(--radius-lg)',
     padding: '1.5rem',
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.5rem',
+    gap: '0.6rem',
+    boxShadow: 'var(--shadow-sm)',
+    transition: 'all var(--transition-base)',
   },
   statHeader: {
     display: 'flex',
@@ -491,13 +551,14 @@ const styles = {
   actionCard: {
     backgroundColor: 'var(--bg-card)',
     border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
+    borderRadius: 'var(--radius-lg)',
     padding: '1.5rem',
     display: 'flex',
     gap: '1rem',
     alignItems: 'flex-start',
-    transition: 'border-color var(--transition-fast)',
+    transition: 'all var(--transition-base)',
     textDecoration: 'none',
+    boxShadow: 'var(--shadow-sm)',
   },
   actionIcon: {
     color: 'var(--accent-primary)',

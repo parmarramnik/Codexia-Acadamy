@@ -1,56 +1,125 @@
-# Secrets and Environment Variables
+# ==============================================================================
+# Codexia LMS - Root Docker Ignore Rules
+# Security, Privacy & Minimal Build Context
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Secrets & Environment Files (CRITICAL: NEVER BAKE INTO IMAGES)
+# ------------------------------------------------------------------------------
 .env
 .env.*
 *.env
 !*.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+*.cert
+credentials*.json
+token*.json
+client_secrets*.json
+service_account*.json
+secrets*.json
+oauth*.json
+id_rsa*
+id_ed25519*
+auth_tokens.json
 
-# Git and Version Control
-.git
-.gitignore
-.github
+# ------------------------------------------------------------------------------
+# 2. Student Data, Private Certificates & Uploads (PRIVACY PROTECTION)
+# ------------------------------------------------------------------------------
+backend/static/certificates/*
+backend/static/uploads/*
+backend/static/avatars/*
+backend/static/videos/*
+backend/static/thumbnails/*
+static/certificates/*
+static/uploads/*
+static/avatars/*
+static/videos/*
+static/thumbnails/*
 
-# Python Caches, Virtualenvs & Artifacts
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.venv/
-ENV/
-*.egg-info
-.pytest_cache
-.coverage
-htmlcov/
-
-# Node & Frontend Dependencies / Builds
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-dist/
-build/
-.next/
-
-# Local Databases and Storage
+# ------------------------------------------------------------------------------
+# 3. Databases, Data Dumps & Storage Volumes
+# ------------------------------------------------------------------------------
 *.db
 *.sqlite
 *.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+ai_lms.db
 backend/ai_lms.db
 postgres_data/
 redis_data/
+elasticsearch_data/
+postgres_prod_data/
+redis_prod_data/
+static_prod_data/
+*.sql
+*.dump
+*.tar.gz
+*.bak
 
-# IDE, Editor & OS specific files
-.idea/
-.vscode/
-*.swp
-*.swo
-.DS_Store
-Thumbs.db
-
-# Documentation and Temporary Files
+# ------------------------------------------------------------------------------
+# 4. Git & Repository Metadata
+# ------------------------------------------------------------------------------
+.git
+.gitignore
+.github
+.dockerignore
+docker-compose*.yml
 README.md
+
+# ------------------------------------------------------------------------------
+# 5. Dependencies & Build Artifacts (Installed Inside Container)
+# ------------------------------------------------------------------------------
+node_modules/
+dist/
+build/
+out/
+.next/
+venv/
+.venv/
+env/
+ENV/
+__pypackages__/
+*.egg-info/
+.eggs/
+
+# ------------------------------------------------------------------------------
+# 6. Python & Test Caches
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+tests/
+
+# ------------------------------------------------------------------------------
+# 7. Temporary, Scratch & Log Files
+# ------------------------------------------------------------------------------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 scratch/
 .scratch/
-*.log
+
+# ------------------------------------------------------------------------------
+# 8. IDE & Operating System Files
+# ------------------------------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~

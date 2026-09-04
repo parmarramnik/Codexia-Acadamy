@@ -13,7 +13,7 @@ from auth.permissions import require_role, is_owner_or_admin
 from models.user import User, UserRole
 from schemas.course import (
     CourseCreate, CourseUpdate, CourseResponse, CourseListResponse,
-    ModuleCreate, ModuleResponse, LectureCreate, LectureResponse,
+    ModuleCreate, ModuleUpdate, ModuleResponse, LectureCreate, LectureResponse,
     EnrollmentResponse,
 )
 from schemas.user import MessageResponse
@@ -30,12 +30,13 @@ router = APIRouter()
 def list_my_courses(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    current_user: User = Depends(require_role(UserRole.INSTRUCTOR, UserRole.ADMIN)),
+    current_user: User = Depends(require_role(UserRole.INSTRUCTOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)),
     db: Session = Depends(get_db),
 ):
-    """List all courses created by the current instructor."""
+    """List all courses created by the current instructor (or all if admin)."""
+    instructor_id = None if current_user.role in (UserRole.ADMIN, UserRole.SUPER_ADMIN) else current_user.id
     result = course_service.list_courses(
-        db, page, page_size, instructor_id=current_user.id, published_only=False
+        db, page, page_size, instructor_id=instructor_id, published_only=False
     )
     course_ids = [c.id for c in result.items]
     enrollment_counts = {}
@@ -120,6 +121,7 @@ def list_courses(
     for course in result.items:
         course_dict = CourseListResponse.model_validate(course).model_dump()
         course_dict["instructor_name"] = course.instructor.full_name if course.instructor else ""
+        course_dict["instructor_avatar_url"] = course.instructor.avatar_url if course.instructor else ""
         course_dict["enrollment_count"] = enrollment_counts.get(course.id, 0)
         items.append(course_dict)
     response_payload = {**result.to_dict(), "items": items}
@@ -131,7 +133,7 @@ def list_courses(
 def create_course(
     data: CourseCreate,
     request: Request,
-    current_user: User = Depends(require_role(UserRole.INSTRUCTOR, UserRole.ADMIN)),
+    current_user: User = Depends(require_role(UserRole.INSTRUCTOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)),
     db: Session = Depends(get_db),
 ):
     """Create a new course (instructor or admin)."""
@@ -250,7 +252,29 @@ def enroll_in_course(
         raise HTTPException(status_code=404, detail="Course not found")
     if not course.is_published or not course.is_approved:
         raise HTTPException(status_code=400, detail="Course is not available for enrollment")
-    return course_service.enroll_student(db, current_user.id, course_id)
+    enrollment = course_service.enroll_student(db, current_user.id, course_id)
+    try:
+        from services import analytics_service
+        analytics_service.create_notification(
+            db=db,
+            user_id=current_user.id,
+            title=f"Enrolled in {course.title}",
+            message=f"You are now enrolled in '{course.title}'. Start your first module today!",
+            notification_type="course_update",
+            link=f"/courses/{course.slug}",
+        )
+        if course.instructor_id and course.instructor_id != current_user.id:
+            analytics_service.create_notification(
+                db=db,
+                user_id=course.instructor_id,
+                title="New Student Enrolled",
+                message=f"{current_user.full_name} enrolled in your course '{course.title}'.",
+                notification_type="info",
+                link=f"/courses/{course.slug}",
+            )
+    except Exception:
+        pass
+    return enrollment
 
 
 @router.get("/{course_id}/progress")
@@ -288,7 +312,11 @@ def get_course_modules(
     for module in modules:
         module_dict = ModuleResponse.model_validate(module).model_dump()
         module_dict["lectures"] = [
-            {**LectureResponse.model_validate(l).model_dump(), "has_video": l.video is not None}
+            {
+                **LectureResponse.model_validate(l).model_dump(),
+                "has_video": l.video is not None,
+                "video_url": l.video.file_url if l.video else None,
+            }
             for l in module.lectures
         ]
         result.append(module_dict)
@@ -308,7 +336,48 @@ def create_module(
         raise HTTPException(status_code=404, detail="Course not found")
     if not is_owner_or_admin(course.instructor_id, current_user):
         raise HTTPException(status_code=403, detail="Not authorized")
-    return course_service.create_module(db, course_id, data)
+    created = course_service.create_module(db, course_id, data)
+    cache_invalidate_prefix("courses")
+    return created
+
+
+@router.put("/modules/{module_id}", response_model=ModuleResponse)
+def update_module(
+    module_id: int,
+    data: ModuleUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update a module (owner or admin only)."""
+    from models.course import Module
+    module = db.query(Module).filter(Module.id == module_id).first()
+    if not module:
+        raise HTTPException(status_code=404, detail="Module not found")
+    course = course_service.get_course_by_id(db, module.course_id)
+    if not course or not is_owner_or_admin(course.instructor_id, current_user):
+        raise HTTPException(status_code=403, detail="Not authorized to edit this module")
+    updated = course_service.update_module(db, module, data)
+    cache_invalidate_prefix("courses")
+    return updated
+
+
+@router.delete("/modules/{module_id}", response_model=MessageResponse)
+def delete_module(
+    module_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a module and its lectures (owner or admin only)."""
+    from models.course import Module
+    module = db.query(Module).filter(Module.id == module_id).first()
+    if not module:
+        raise HTTPException(status_code=404, detail="Module not found")
+    course = course_service.get_course_by_id(db, module.course_id)
+    if not course or not is_owner_or_admin(course.instructor_id, current_user):
+        raise HTTPException(status_code=403, detail="Not authorized to delete this module")
+    course_service.delete_module(db, module)
+    cache_invalidate_prefix("courses")
+    return {"message": "Module deleted successfully"}
 
 
 @router.post("/{course_id}/thumbnail", response_model=MessageResponse)
@@ -348,5 +417,7 @@ def _build_course_response(db: Session, course) -> dict:
     """Build a complete course response dict."""
     response = CourseResponse.model_validate(course).model_dump()
     response["instructor_name"] = course.instructor.full_name if course.instructor else ""
+    response["instructor_avatar_url"] = course.instructor.avatar_url if course.instructor else ""
+    response["instructor_bio"] = course.instructor.bio if course.instructor else ""
     response["enrollment_count"] = course_service.get_enrollment_count(db, course.id)
     return response

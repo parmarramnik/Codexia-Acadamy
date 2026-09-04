@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   FiHome, FiBook, FiCode, FiFileText, FiLayers,
   FiMessageSquare, FiAward, FiBarChart2, FiTrendingUp,
-  FiUser, FiSettings, FiShield, FiEdit3, FiCpu, FiCalendar, FiCheckSquare,
+  FiUser, FiSettings, FiShield, FiEdit3, FiCpu, FiCheckSquare,
   FiMenu
 } from 'react-icons/fi';
 import './Sidebar.css';
@@ -16,24 +16,23 @@ export default function Sidebar({ isCollapsed = false, isMobileOpen = false, onT
   const isInstructor = user?.role === 'instructor';
 
   const learningLinks = [
-    { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
-    { to: '/my-courses', icon: FiBook, label: 'My Courses' },
-    { to: '/quizzes', icon: FiCheckSquare, label: 'Quizzes & Tests' },
-    { to: '/planner', icon: FiCalendar, label: 'Study Planner' },
+    { to: '/dashboard', icon: FiHome, label: 'Dashboard', color: '#818CF8' },
+    { to: '/courses', icon: FiBook, label: 'Courses', color: '#34D399' },
+    { to: '/quizzes', icon: FiCheckSquare, label: 'Quizzes & Tests', color: '#FBBF24' },
   ];
 
   const toolsLinks = [
-    { to: '/coding', icon: FiCode, label: 'Coding Practice' },
-    { to: '/ai-workspace', icon: FiCpu, label: 'Enterprise AI' },
-    { to: '/notes', icon: FiFileText, label: 'Notes & Docs' },
-    { to: '/flashcards', icon: FiLayers, label: 'Flashcards' },
+    { to: '/coding', icon: FiCode, label: 'Coding Practice', color: '#2DD4BF' },
+    { to: '/ai-workspace', icon: FiCpu, label: 'Study Assistant', color: '#A78BFA' },
+    { to: '/notes', icon: FiFileText, label: 'Notes & Docs', color: '#F472B6' },
+    { to: '/flashcards', icon: FiLayers, label: 'Flashcards', color: '#FB923C' },
   ];
 
   const communityLinks = [
-    { to: '/discussion', icon: FiMessageSquare, label: 'Collaboration Hub' },
-    { to: '/certificates', icon: FiAward, label: 'Certificates' },
-    { to: '/analytics', icon: FiBarChart2, label: 'Analytics' },
-    { to: '/leaderboard', icon: FiTrendingUp, label: 'Leaderboard' },
+    { to: '/discussion', icon: FiMessageSquare, label: 'Discussions', color: '#60A5FA' },
+    { to: '/certificates', icon: FiAward, label: 'Certificates', color: '#FBBF24' },
+    { to: '/analytics', icon: FiBarChart2, label: 'Analytics', color: '#4ADE80' },
+    { to: '/leaderboard', icon: FiTrendingUp, label: 'Leaderboard', color: '#F43F5E' },
   ];
 
   const adminLinks = [];
@@ -54,21 +53,38 @@ export default function Sidebar({ isCollapsed = false, isMobileOpen = false, onT
 
   return (
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`} id="sidebar">
-      {/* Upper-Left Sidebar Header with 3-Line Hamburger Button */}
+      {/* Upper-Left Sidebar Header: Switches between Three Lines (when open) and Logo (when collapsed) */}
       <div className="sidebar-header">
-        <div className="sidebar-brand-wrapper">
-          <span className="sidebar-brand-logo">⚡</span>
-          {!isCollapsed && <span className="sidebar-brand-title">Codexia</span>}
-        </div>
+        {isCollapsed ? (
+          <button 
+            onClick={onToggleSidebar} 
+            className="sidebar-brand-collapsed-btn"
+            title="Expand Sidebar (Codexia Academy)"
+            aria-label="Expand Sidebar"
+          >
+            <FiCode size={20} style={{ color: '#818CF8' }} />
+          </button>
+        ) : (
+          <>
+            <div className="sidebar-brand-wrapper">
+              <span className="sidebar-brand-logo" style={{ display: 'flex', alignItems: 'center' }}>
+                <FiCode size={20} style={{ color: '#818CF8' }} />
+              </span>
+              <span className="sidebar-brand-title">
+                Codexia <span style={{ color: 'var(--accent-primary)' }}>Academy</span>
+              </span>
+            </div>
 
-        <button 
-          onClick={onToggleSidebar} 
-          className="sidebar-header-toggle"
-          title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-          aria-label="Toggle Sidebar"
-        >
-          <FiMenu size={18} />
-        </button>
+            <button 
+              onClick={onToggleSidebar} 
+              className="sidebar-header-toggle"
+              title="Collapse Sidebar"
+              aria-label="Collapse Sidebar"
+            >
+              <FiMenu size={18} />
+            </button>
+          </>
+        )}
       </div>
 
       <nav className="sidebar-nav">
@@ -81,22 +97,22 @@ export default function Sidebar({ isCollapsed = false, isMobileOpen = false, onT
               to={link.to}
               className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
             >
-              <link.icon className="sidebar-icon" />
+              <link.icon className="sidebar-icon" style={{ color: link.color }} />
               <span>{link.label}</span>
             </NavLink>
           ))}
         </div>
 
-        {/* Category 2: Labs & AI Tools */}
+        {/* Category 2: Practice & Tools */}
         <div className="sidebar-section">
-          {!isCollapsed && <span className="sidebar-section-label">Labs & AI Tools</span>}
+          {!isCollapsed && <span className="sidebar-section-label">Practice & Tools</span>}
           {toolsLinks.map((link) => (
             <NavLink
               key={link.to}
               to={link.to}
               className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
             >
-              <link.icon className="sidebar-icon" />
+              <link.icon className="sidebar-icon" style={{ color: link.color }} />
               <span>{link.label}</span>
             </NavLink>
           ))}
@@ -111,7 +127,7 @@ export default function Sidebar({ isCollapsed = false, isMobileOpen = false, onT
               to={link.to}
               className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
             >
-              <link.icon className="sidebar-icon" />
+              <link.icon className="sidebar-icon" style={{ color: link.color }} />
               <span>{link.label}</span>
             </NavLink>
           ))}
