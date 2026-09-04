@@ -1833,6 +1833,7 @@ def seed_scratch_problems(force: bool = False):
     Idempotently ensures all 20 DSA coding problems with clean scratch templates
     exist in the database. Does NOT delete student submissions unless force=True.
     """
+    create_tables()
     db = SessionLocal()
     try:
         if force:

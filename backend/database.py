@@ -44,47 +44,164 @@ def get_db():
 _tables_initialized = False
 
 def create_tables():
-    """Create all tables in the database safely and instantly without blocking on remote locks."""
+    """Create all tables in the database safely and dynamically migrate missing columns on startup."""
     global _tables_initialized
     if _tables_initialized:
         return
     _tables_initialized = True
-    try:
-        from sqlalchemy import inspect
-        inspector = inspect(engine)
-        tables = inspector.get_table_names()
-        if "users" not in tables or "courses" not in tables:
-            Base.metadata.create_all(bind=engine)
-    except Exception as e:
-        print(f"[Schema Notice] create_tables handled exception: {e}")
 
-    # Dynamic schema migration for existing databases
-    from sqlalchemy import inspect, text
-    inspector = inspect(engine)
     try:
-        if "notes" in inspector.get_table_names():
-            columns = [col["name"] for col in inspector.get_columns("notes")]
-            with engine.begin() as conn:
-                if "current_branch_id" not in columns:
-                    conn.execute(text("ALTER TABLE notes ADD COLUMN current_branch_id INTEGER"))
-                if "auto_commit_enabled" not in columns:
-                    conn.execute(text("ALTER TABLE notes ADD COLUMN auto_commit_enabled BOOLEAN DEFAULT FALSE NOT NULL"))
-                if "auto_commit_interval" not in columns:
-                    conn.execute(text("ALTER TABLE notes ADD COLUMN auto_commit_interval INTEGER DEFAULT 30 NOT NULL"))
-                if "auto_commit_on_major_edit" not in columns:
-                    conn.execute(text("ALTER TABLE notes ADD COLUMN auto_commit_on_major_edit BOOLEAN DEFAULT TRUE NOT NULL"))
-                if "auto_commit_before_ai" not in columns:
-                    conn.execute(text("ALTER TABLE notes ADD COLUMN auto_commit_before_ai BOOLEAN DEFAULT TRUE NOT NULL"))
-        if "users" in inspector.get_table_names():
-            user_columns = [col["name"] for col in inspector.get_columns("users")]
-            with engine.begin() as conn:
-                if "last_verification_sent_at" not in user_columns:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN last_verification_sent_at TIMESTAMP"))
-                if "verification_otp" not in user_columns:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN verification_otp VARCHAR(6)"))
-                if "verification_otp_expires" not in user_columns:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN verification_otp_expires TIMESTAMP WITH TIME ZONE"))
-                if "token_version" not in user_columns:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 1 NOT NULL"))
+        import models  # Register all models with Base.metadata
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"[Schema Notice] Base.metadata.create_all notice: {e}")
+
+    # Dynamic schema migration for existing production databases
+    from sqlalchemy import inspect, text
+    try:
+        inspector = inspect(engine)
+        existing_tables = set(inspector.get_table_names())
+
+        # 1. coding_problems table migrations
+        if "coding_problems" in existing_tables:
+            coding_cols = {col["name"] for col in inspector.get_columns("coding_problems")}
+            for col_name, col_type in [
+                ("course_id", "INTEGER"),
+                ("starter_code_python", "TEXT"),
+                ("starter_code_cpp", "TEXT"),
+                ("starter_code_c", "TEXT"),
+                ("starter_code_java", "TEXT"),
+                ("starter_code_javascript", "TEXT"),
+                ("starter_code_go", "TEXT"),
+                ("constraints", "TEXT"),
+                ("input_format", "TEXT"),
+                ("output_format", "TEXT"),
+                ("solution", "TEXT"),
+                ("hints", "TEXT"),
+                ("tags", "VARCHAR(500)"),
+                ("is_published", "BOOLEAN DEFAULT TRUE"),
+                ("total_submissions", "INTEGER DEFAULT 0"),
+                ("accepted_submissions", "INTEGER DEFAULT 0"),
+            ]:
+                if col_name not in coding_cols:
+                    try:
+                        with engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE coding_problems ADD COLUMN {col_name} {col_type}"))
+                        print(f"[Migration] Added missing column '{col_name}' to 'coding_problems'")
+                    except Exception as col_err:
+                        print(f"[Migration Warning] Could not add '{col_name}' to 'coding_problems': {col_err}")
+
+        # 2. test_cases table migrations
+        if "test_cases" in existing_tables:
+            tc_cols = {col["name"] for col in inspector.get_columns("test_cases")}
+            for col_name, col_type in [
+                ("input_data", "TEXT"),
+                ("expected_output", "TEXT"),
+                ("is_hidden", "BOOLEAN DEFAULT FALSE"),
+                ("order_index", "INTEGER DEFAULT 0"),
+                ("time_limit_seconds", "FLOAT DEFAULT 2.0"),
+                ("memory_limit_mb", "INTEGER DEFAULT 256"),
+            ]:
+                if col_name not in tc_cols:
+                    try:
+                        with engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE test_cases ADD COLUMN {col_name} {col_type}"))
+                        print(f"[Migration] Added missing column '{col_name}' to 'test_cases'")
+                    except Exception as col_err:
+                        print(f"[Migration Warning] Could not add '{col_name}' to 'test_cases': {col_err}")
+
+        # 3. submissions table migrations
+        if "submissions" in existing_tables:
+            sub_cols = {col["name"] for col in inspector.get_columns("submissions")}
+            for col_name, col_type in [
+                ("test_cases_passed", "INTEGER DEFAULT 0"),
+                ("test_cases_total", "INTEGER DEFAULT 0"),
+                ("execution_time_ms", "INTEGER"),
+                ("memory_used_mb", "FLOAT"),
+                ("error_message", "TEXT"),
+            ]:
+                if col_name not in sub_cols:
+                    try:
+                        with engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE submissions ADD COLUMN {col_name} {col_type}"))
+                        print(f"[Migration] Added missing column '{col_name}' to 'submissions'")
+                    except Exception as col_err:
+                        print(f"[Migration Warning] Could not add '{col_name}' to 'submissions': {col_err}")
+
+        # 4. users table migrations
+        if "users" in existing_tables:
+            user_columns = {col["name"] for col in inspector.get_columns("users")}
+            for col_name, col_type in [
+                ("last_verification_sent_at", "TIMESTAMP"),
+                ("verification_otp", "VARCHAR(6)"),
+                ("verification_otp_expires", "TIMESTAMP WITH TIME ZONE"),
+                ("token_version", "INTEGER DEFAULT 1 NOT NULL"),
+            ]:
+                if col_name not in user_columns:
+                    try:
+                        with engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
+                        print(f"[Migration] Added missing column '{col_name}' to 'users'")
+                    except Exception as col_err:
+                        print(f"[Migration Warning] Could not add '{col_name}' to 'users': {col_err}")
+
+        # 5. notes table migrations
+        if "notes" in existing_tables:
+            note_cols = {col["name"] for col in inspector.get_columns("notes")}
+            for col_name, col_type in [
+                ("current_branch_id", "INTEGER"),
+                ("auto_commit_enabled", "BOOLEAN DEFAULT FALSE NOT NULL"),
+                ("auto_commit_interval", "INTEGER DEFAULT 30 NOT NULL"),
+                ("auto_commit_on_major_edit", "BOOLEAN DEFAULT TRUE NOT NULL"),
+                ("auto_commit_before_ai", "BOOLEAN DEFAULT TRUE NOT NULL"),
+            ]:
+                if col_name not in note_cols:
+                    try:
+                        with engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE notes ADD COLUMN {col_name} {col_type}"))
+                        print(f"[Migration] Added missing column '{col_name}' to 'notes'")
+                    except Exception as col_err:
+                        print(f"[Migration Warning] Could not add '{col_name}' to 'notes': {col_err}")
+
+        # 6. courses table migrations
+        if "courses" in existing_tables:
+            course_cols = {col["name"] for col in inspector.get_columns("courses")}
+            for col_name, col_type in [
+                ("short_description", "VARCHAR(500)"),
+                ("thumbnail_url", "VARCHAR(500)"),
+                ("duration_hours", "FLOAT DEFAULT 0.0"),
+                ("total_lectures", "INTEGER DEFAULT 0"),
+                ("is_published", "BOOLEAN DEFAULT TRUE"),
+                ("is_approved", "BOOLEAN DEFAULT TRUE"),
+                ("is_featured", "BOOLEAN DEFAULT FALSE"),
+                ("price", "FLOAT DEFAULT 0.0"),
+                ("tags", "VARCHAR(500)"),
+                ("prerequisites", "TEXT"),
+                ("learning_objectives", "TEXT"),
+            ]:
+                if col_name not in course_cols:
+                    try:
+                        with engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE courses ADD COLUMN {col_name} {col_type}"))
+                        print(f"[Migration] Added missing column '{col_name}' to 'courses'")
+                    except Exception as col_err:
+                        print(f"[Migration Warning] Could not add '{col_name}' to 'courses': {col_err}")
+
+        # 7. lectures table migrations
+        if "lectures" in existing_tables:
+            lec_cols = {col["name"] for col in inspector.get_columns("lectures")}
+            for col_name, col_type in [
+                ("duration_seconds", "INTEGER DEFAULT 0"),
+                ("is_preview", "BOOLEAN DEFAULT FALSE"),
+            ]:
+                if col_name not in lec_cols:
+                    try:
+                        with engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE lectures ADD COLUMN {col_name} {col_type}"))
+                        print(f"[Migration] Added missing column '{col_name}' to 'lectures'")
+                    except Exception as col_err:
+                        print(f"[Migration Warning] Could not add '{col_name}' to 'lectures': {col_err}")
+
     except Exception as e:
         print(f"[Migration Warning] Dynamic schema migration failed: {str(e)}")
+
