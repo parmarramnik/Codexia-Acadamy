@@ -14,9 +14,12 @@ from config import settings
 
 logger = logging.getLogger("codexia.cache")
 
-# Lazy redis client instance
+import time
+
+# Lazy redis client instance & in-memory cache fallback
 _redis_client = None
 _redis_available = None
+_mem_cache: dict[str, tuple[Any, float]] = {}
 
 
 class JSONCustomEncoder(json.JSONEncoder):
@@ -48,74 +51,100 @@ def get_redis_client():
         client = redis.from_url(
             settings.REDIS_URL,
             decode_responses=True,
-            socket_timeout=1.5,
-            socket_connect_timeout=1.5,
+            socket_timeout=1.0,
+            socket_connect_timeout=1.0,
         )
         client.ping()
         _redis_client = client
         _redis_available = True
         logger.info(f"Connected to Redis cache at {settings.REDIS_URL}")
         return _redis_client
-    except Exception as e:
+    except Exception:
         _redis_available = False
-        logger.warning(f"Redis cache unavailable ({e}). Continuing with cache bypass.")
+        logger.info("External Redis not configured/offline. Operating with high-performance in-memory caching.")
         return None
 
 
 def cache_get(key: str) -> Optional[Any]:
     """Retrieve and deserialize a cached object by key."""
     client = get_redis_client()
-    if not client:
+    if client:
+        try:
+            data = client.get(key)
+            if data:
+                return json.loads(data)
+        except Exception as e:
+            logger.debug(f"Cache get error for key '{key}': {e}")
         return None
-    try:
-        data = client.get(key)
-        if data:
-            return json.loads(data)
-    except Exception as e:
-        logger.debug(f"Cache get error for key '{key}': {e}")
+
+    # In-memory cache fallback
+    entry = _mem_cache.get(key)
+    if entry:
+        val, expire_at = entry
+        if time.time() < expire_at:
+            return val
+        _mem_cache.pop(key, None)
     return None
 
 
 def cache_set(key: str, value: Any, ttl: int = 300) -> bool:
-    """Serialize and store a value in Redis with TTL in seconds."""
+    """Serialize and store a value in cache with TTL in seconds."""
     client = get_redis_client()
-    if not client:
-        return False
+    if client:
+        try:
+            payload = json.dumps(value, cls=JSONCustomEncoder)
+            return bool(client.setex(key, ttl, payload))
+        except Exception as e:
+            logger.debug(f"Cache set error for key '{key}': {e}")
+            return False
+
+    # In-memory cache fallback
     try:
-        payload = json.dumps(value, cls=JSONCustomEncoder)
-        return bool(client.setex(key, ttl, payload))
-    except Exception as e:
-        logger.debug(f"Cache set error for key '{key}': {e}")
+        _mem_cache[key] = (value, time.time() + ttl)
+        # Periodic pruning if memory cache grows large
+        if len(_mem_cache) > 1000:
+            now = time.time()
+            expired = [k for k, (_, exp) in _mem_cache.items() if exp < now]
+            for k in expired:
+                _mem_cache.pop(k, None)
+        return True
+    except Exception:
         return False
 
 
 def cache_delete(key: str) -> bool:
     """Delete a specific cache key."""
     client = get_redis_client()
-    if not client:
-        return False
-    try:
-        return bool(client.delete(key))
-    except Exception as e:
-        logger.debug(f"Cache delete error for key '{key}': {e}")
-        return False
+    if client:
+        try:
+            client.delete(key)
+        except Exception as e:
+            logger.debug(f"Cache delete error for key '{key}': {e}")
+    _mem_cache.pop(key, None)
+    return True
 
 
 def cache_invalidate_prefix(prefix: str) -> int:
     """Invalidate all keys matching the prefix pattern '{prefix}:*'."""
+    deleted_count = 0
     client = get_redis_client()
-    if not client:
-        return 0
-    try:
-        pattern = f"{prefix}:*"
-        keys = list(client.scan_iter(match=pattern, count=100))
-        if keys:
-            deleted = client.delete(*keys)
-            logger.info(f"Invalidated {deleted} cache keys for prefix '{prefix}'")
-            return deleted
-    except Exception as e:
-        logger.debug(f"Cache invalidation error for prefix '{prefix}': {e}")
-    return 0
+    if client:
+        try:
+            pattern = f"{prefix}:*"
+            keys = list(client.scan_iter(match=pattern, count=100))
+            if keys:
+                deleted_count += client.delete(*keys)
+                logger.info(f"Invalidated {deleted_count} cache keys for prefix '{prefix}'")
+        except Exception as e:
+            logger.debug(f"Cache invalidation error for prefix '{prefix}': {e}")
+
+    # In-memory invalidation
+    mem_keys = [k for k in _mem_cache if k.startswith(f"{prefix}:")]
+    for k in mem_keys:
+        _mem_cache.pop(k, None)
+        deleted_count += 1
+
+    return deleted_count
 
 
 def cached(prefix: str, ttl: int = 300, key_builder: Optional[Callable] = None):
