@@ -1828,72 +1828,106 @@ func main() {
     ]
 
 
-def run_seeder():
+def seed_scratch_problems(force: bool = False):
+    """
+    Idempotently ensures all 20 DSA coding problems with clean scratch templates
+    exist in the database. Does NOT delete student submissions unless force=True.
+    """
     db = SessionLocal()
     try:
-        # 1. Clear all old submissions so session progress starts authentically from 0
-        db.query(Submission).delete()
-        print("Purged all residual test submissions.")
+        if force:
+            db.query(Submission).delete()
+            print("Purged all residual test submissions.")
+            existing = db.query(CodingProblem).all()
+            for p in existing:
+                db.delete(p)
+            db.commit()
+            print(f"Cleared {len(existing)} existing problems.")
 
-        # 2. Clear old problems and test cases
-        existing = db.query(CodingProblem).all()
-        for p in existing:
-            db.delete(p)
-        db.commit()
-        print(f"Cleared {len(existing)} existing problems.")
-
-        # 3. Seed fresh problems with clean scratch templates (no pre-solved answers)
         problems_data = get_scratch_problems()
-        print(f"Seeding {len(problems_data)} clean DSA problems with scratch templates...")
+        seeded_count = 0
 
         for data in problems_data:
-            prob = CodingProblem(
-                title=data["title"],
-                slug=data["slug"],
-                difficulty=data["difficulty"],
-                tags=data["tags"],
-                description=data["description"],
-                constraints=data["constraints"],
-                input_format=data["input_format"],
-                output_format=data["output_format"],
-                hints=data["hints"],
-                starter_code_python=data["starter_code_python"],
-                starter_code_javascript=data["starter_code_javascript"],
-                starter_code_cpp=data["starter_code_cpp"],
-                starter_code_c=data["starter_code_c"],
-                starter_code_java=data["starter_code_java"],
-                starter_code_go=data["starter_code_go"],
-                is_published=True,
-                total_submissions=0,
-                accepted_submissions=0
-            )
-            db.add(prob)
-            db.flush()
-
-            for idx, tc in enumerate(data["test_cases"]):
-                test_case = TestCase(
-                    problem_id=prob.id,
-                    input_data=tc["input"],
-                    expected_output=tc["output"],
-                    is_hidden=tc["hidden"],
-                    order_index=idx,
-                    time_limit_seconds=3.0,
-                    memory_limit_mb=256
+            prob = db.query(CodingProblem).filter(CodingProblem.slug == data["slug"]).first()
+            if not prob:
+                prob = CodingProblem(
+                    title=data["title"],
+                    slug=data["slug"],
+                    difficulty=data["difficulty"],
+                    tags=data["tags"],
+                    description=data["description"],
+                    constraints=data["constraints"],
+                    input_format=data["input_format"],
+                    output_format=data["output_format"],
+                    hints=data["hints"],
+                    starter_code_python=data["starter_code_python"],
+                    starter_code_javascript=data["starter_code_javascript"],
+                    starter_code_cpp=data["starter_code_cpp"],
+                    starter_code_c=data["starter_code_c"],
+                    starter_code_java=data["starter_code_java"],
+                    starter_code_go=data["starter_code_go"],
+                    is_published=True,
+                    total_submissions=0,
+                    accepted_submissions=0
                 )
-                db.add(test_case)
+                db.add(prob)
+                db.flush()
 
-            print(f"  ✓ Seeded '{prob.title}' [{prob.difficulty.value}] ({len(data['test_cases'])} test cases)")
+                for idx, tc in enumerate(data["test_cases"]):
+                    test_case = TestCase(
+                        problem_id=prob.id,
+                        input_data=tc["input"],
+                        expected_output=tc["output"],
+                        is_hidden=tc["hidden"],
+                        order_index=idx,
+                        time_limit_seconds=3.0,
+                        memory_limit_mb=256
+                    )
+                    db.add(test_case)
+                seeded_count += 1
+            else:
+                # Ensure existing problem has all fields and test cases
+                prob.title = data["title"]
+                prob.difficulty = data["difficulty"]
+                prob.tags = data["tags"]
+                prob.description = data["description"]
+                prob.constraints = data["constraints"]
+                prob.input_format = data["input_format"]
+                prob.output_format = data["output_format"]
+                prob.hints = data["hints"]
+                prob.starter_code_python = data["starter_code_python"]
+                prob.starter_code_javascript = data["starter_code_javascript"]
+                prob.starter_code_cpp = data["starter_code_cpp"]
+                prob.starter_code_c = data["starter_code_c"]
+                prob.starter_code_java = data["starter_code_java"]
+                prob.starter_code_go = data["starter_code_go"]
+                prob.is_published = True
+
+                tc_count = db.query(TestCase).filter(TestCase.problem_id == prob.id).count()
+                if tc_count == 0:
+                    for idx, tc in enumerate(data["test_cases"]):
+                        test_case = TestCase(
+                            problem_id=prob.id,
+                            input_data=tc["input"],
+                            expected_output=tc["output"],
+                            is_hidden=tc["hidden"],
+                            order_index=idx,
+                            time_limit_seconds=3.0,
+                            memory_limit_mb=256
+                        )
+                        db.add(test_case)
 
         db.commit()
-        print(f"Successfully seeded all {len(problems_data)} problems!")
+        total_in_db = db.query(CodingProblem).count()
+        print(f"Verified {total_in_db} coding problems in database ({seeded_count} newly created).")
 
-        # 4. Sync with Elasticsearch
+        # Sync with Elasticsearch if available
         try:
             from services.search_service import index_all_coding_problems
             count = index_all_coding_problems(db)
             print(f"  ✓ Indexed {count} problems in Elasticsearch 'codexia_coding'")
-        except Exception as es_err:
-            print(f"  ! Elasticsearch indexing note: {es_err}")
+        except Exception:
+            pass
 
     except Exception as e:
         db.rollback()
@@ -1901,6 +1935,10 @@ def run_seeder():
         raise
     finally:
         db.close()
+
+
+def run_seeder():
+    seed_scratch_problems(force=True)
 
 
 if __name__ == "__main__":

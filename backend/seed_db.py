@@ -529,79 +529,14 @@ def seed_database():
                             video.duration_seconds = l_data["duration_seconds"]
             db.commit()
 
-        print("Seeding default coding problems and test cases...")
-        existing_problem = db.query(CodingProblem).first()
-        if not existing_problem:
-            # 1. Two Sum
-            two_sum = CodingProblem(
-                title="Two Sum",
-                slug="two-sum",
-                description="Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.",
-                difficulty=ProblemDifficulty.EASY,
-                constraints="2 <= nums.length <= 10^4\n-10^9 <= nums[i] <= 10^9\n-10^9 <= target <= 10^9",
-                input_format="First line contains space-separated integers for nums. Second line contains the target integer.",
-                output_format="Indices of the two numbers separated by a space.",
-                starter_code_python="def solve(nums, target):\n    # Write your Python code here\n    pass\n",
-                starter_code_javascript="function solve(nums, target) {\n    // Write your JavaScript code here\n}\n",
-                is_published=True
-            )
-            db.add(two_sum)
-            db.commit()
+        # Ensure all 20 standard DSA coding problems with clean multi-language scratch templates are seeded
+        print("Ensuring comprehensive 20 DSA coding problem library is seeded...")
+        try:
+            from seed_scratch_problems import seed_scratch_problems
+            seed_scratch_problems(force=False)
+        except Exception as dsa_err:
+            print(f"Warning: error running seed_scratch_problems: {dsa_err}")
 
-            tc1 = TestCase(problem_id=two_sum.id, input_data="2 7 11 15\n9", expected_output="0 1", is_hidden=False, order_index=0, time_limit_seconds=2.0, memory_limit_mb=256)
-            tc2 = TestCase(problem_id=two_sum.id, input_data="3 2 4\n6", expected_output="1 2", is_hidden=False, order_index=1, time_limit_seconds=2.0, memory_limit_mb=256)
-            tc3 = TestCase(problem_id=two_sum.id, input_data="3 3\n6", expected_output="0 1", is_hidden=True, order_index=2, time_limit_seconds=2.0, memory_limit_mb=256)
-            db.add(tc1)
-            db.add(tc2)
-            db.add(tc3)
-
-            # 2. Reverse a String
-            rev_str = CodingProblem(
-                title="Reverse a String",
-                slug="reverse-string",
-                description="Write a function solve(s) that reverses a given string.",
-                difficulty=ProblemDifficulty.EASY,
-                constraints="0 <= s.length <= 10^5",
-                input_format="A single line containing the string s.",
-                output_format="The reversed string.",
-                starter_code_python="def solve(s):\n    # Write your Python code here\n    pass\n",
-                starter_code_javascript="function solve(s) {\n    // Write your JavaScript code here\n}\n",
-                is_published=True
-            )
-            db.add(rev_str)
-            db.commit()
-
-            tc4 = TestCase(problem_id=rev_str.id, input_data="hello", expected_output="olleh", is_hidden=False, order_index=0, time_limit_seconds=2.0, memory_limit_mb=256)
-            tc5 = TestCase(problem_id=rev_str.id, input_data="Hannah", expected_output="hannaH", is_hidden=False, order_index=1, time_limit_seconds=2.0, memory_limit_mb=256)
-            tc6 = TestCase(problem_id=rev_str.id, input_data="Codexia", expected_output="aixedoC", is_hidden=True, order_index=2, time_limit_seconds=2.0, memory_limit_mb=256)
-            db.add(tc4)
-            db.add(tc5)
-            db.add(tc6)
-
-            # 3. Fibonacci Number
-            fib = CodingProblem(
-                title="Fibonacci Number",
-                slug="fibonacci-number",
-                description="The Fibonacci numbers, commonly denoted F(n) form a sequence, called the Fibonacci sequence, such that each number is the sum of the two preceding ones, starting from 0 and 1. Given n, calculate F(n).",
-                difficulty=ProblemDifficulty.EASY,
-                constraints="0 <= n <= 30",
-                input_format="An integer n.",
-                output_format="The Fibonacci number F(n).",
-                starter_code_python="def solve(n):\n    # Write your Python code here\n    pass\n",
-                starter_code_javascript="function solve(n) {\n    // Write your JavaScript code here\n}\n",
-                is_published=True
-            )
-            db.add(fib)
-            db.commit()
-
-            tc7 = TestCase(problem_id=fib.id, input_data="2", expected_output="1", is_hidden=False, order_index=0, time_limit_seconds=2.0, memory_limit_mb=256)
-            tc8 = TestCase(problem_id=fib.id, input_data="3", expected_output="2", is_hidden=False, order_index=1, time_limit_seconds=2.0, memory_limit_mb=256)
-            tc9 = TestCase(problem_id=fib.id, input_data="9", expected_output="34", is_hidden=True, order_index=2, time_limit_seconds=2.0, memory_limit_mb=256)
-            db.add(tc7)
-            db.add(tc8)
-            db.add(tc9)
-
-            db.commit()
         print("Database seeded successfully with users, courses, and coding problems!")
 
     except Exception as e:

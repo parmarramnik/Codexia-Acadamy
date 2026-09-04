@@ -46,6 +46,12 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     def on_startup():
         create_tables()
+        try:
+            from seed_scratch_problems import seed_scratch_problems
+            seed_scratch_problems(force=False)
+        except Exception as seed_err:
+            import logging
+            logging.getLogger("uvicorn.error").warning(f"Coding problems auto-seeding check: {seed_err}")
 
     @app.get("/", tags=["Root"])
     def root():

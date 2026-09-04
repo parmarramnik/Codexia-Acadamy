@@ -50,6 +50,13 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     def on_startup():
         create_tables()
+        # Automatically guarantee the 5 courses, RBAC, and 20 DSA coding problems are seeded on deployment
+        try:
+            from seed_db import seed_database
+            seed_database()
+        except Exception as seed_err:
+            import logging
+            logging.getLogger("uvicorn.error").warning(f"Auto-seeding check on startup: {seed_err}")
 
     # Root redirect to API Docs
     from fastapi.responses import RedirectResponse
