@@ -70,6 +70,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-ff81703f3b275c0b1cd741673ba64134}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - APP_NAME=Codexia Auth Service
       - DEBUG=${DEBUG:-true}
       - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
@@ -99,6 +101,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-ff81703f3b275c0b1cd741673ba64134}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - APP_NAME=Codexia Course Service
       - DEBUG=${DEBUG:-true}
     volumes:
@@ -121,6 +125,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-ff81703f3b275c0b1cd741673ba64134}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - APP_NAME=Codexia Quiz Service
       - DEBUG=${DEBUG:-true}
     volumes:
@@ -143,6 +149,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-ff81703f3b275c0b1cd741673ba64134}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - APP_NAME=Codexia Coding Service
       - DEBUG=${DEBUG:-true}
     volumes:
@@ -165,6 +173,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-ff81703f3b275c0b1cd741673ba64134}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - APP_NAME=Codexia AI Service
       - DEBUG=${DEBUG:-true}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
@@ -188,6 +198,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-ff81703f3b275c0b1cd741673ba64134}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elasticsearch:9200}
       - APP_NAME=Codexia Analytics Service
       - DEBUG=${DEBUG:-true}
@@ -217,6 +229,8 @@ services:
       - CODING_SERVICE_URL=http://coding_service:8004
       - AI_SERVICE_URL=http://ai_service:8005
       - ANALYTICS_SERVICE_URL=http://analytics_service:8006
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-ff81703f3b275c0b1cd741673ba64134}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - APP_NAME=Codexia API Gateway
       - DEBUG=true
     volumes:

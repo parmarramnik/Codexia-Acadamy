@@ -45,9 +45,9 @@ export default function Navbar() {
             style={{ marginRight: '8px', cursor: 'pointer' }}
           >
             {theme === 'dark' ? (
-              <FiSun size={18} style={{ color: '#38BDF8' }} />
+              <FiSun size={18} style={{ color: '#FBBF24' }} />
             ) : (
-              <FiMoon size={18} style={{ color: '#818CF8' }} />
+              <FiMoon size={18} style={{ color: 'var(--accent-primary)' }} />
             )}
           </button>
 

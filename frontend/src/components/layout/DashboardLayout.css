@@ -11,6 +11,7 @@
   flex-direction: column;
   margin-left: var(--sidebar-width);
   min-height: 100vh;
+  transition: margin-left var(--transition-slow);
 }
 
 .dashboard-main.collapsed {
@@ -21,16 +22,17 @@
   flex: 1;
   padding: 1.25rem 1.75rem 2rem 1.75rem;
   overflow-y: auto;
+  animation: fadeIn 0.2s ease;
 }
 
-/* Eliminate artificial blank spaces, centered gutters, and double-padding across all pages */
+/* Eliminate artificial blank spaces */
 .dashboard-content > * {
   max-width: 100% !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
 }
 
-/* Edge-to-edge mode for Coding Practice IDE: touch left bar and top bar, zero right scroll */
+/* Edge-to-edge mode for Coding Practice IDE */
 .dashboard-layout.edge-to-edge-layout {
   height: 100vh;
   max-height: 100vh;
@@ -50,6 +52,7 @@
   max-height: calc(100vh - var(--navbar-height));
   display: flex;
   flex-direction: column;
+  animation: none;
 }
 
 /* Overlay for Mobile Sidebar drawer */
@@ -59,12 +62,23 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #0A0E1A;
-  z-index: 299; /* Just below Sidebar's z-index */
+  background-color: var(--overlay-bg);
+  z-index: 299;
+  animation: fadeIn 0.2s ease;
 }
 
 @media (max-width: 768px) {
   .dashboard-main {
     margin-left: 0 !important;
+  }
+
+  .dashboard-content {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-content {
+    padding: 0.75rem;
   }
 }

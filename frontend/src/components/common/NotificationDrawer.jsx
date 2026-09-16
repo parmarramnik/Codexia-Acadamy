@@ -1,18 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications, formatRelativeTime } from '../../context/NotificationContext';
-import { 
-  FiBell, FiCheck, FiTrash2, FiBookOpen, 
-  FiAward, FiShield, FiCalendar, FiExternalLink, FiX 
+import {
+  FiBell, FiCheck, FiTrash2, FiBookOpen,
+  FiAward, FiShield, FiCalendar, FiX
 } from 'react-icons/fi';
 
 export default function NotificationDrawer({ isOpen, onClose }) {
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications();
-  const [filter, setFilter] = useState('all'); // 'all' | 'unread'
+  const [filter, setFilter] = useState('all');
   const drawerRef = useRef(null);
   const navigate = useNavigate();
 
-  // Close when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (drawerRef.current && !drawerRef.current.contains(e.target)) {
@@ -27,27 +26,27 @@ export default function NotificationDrawer({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const filteredNotifications = notifications.filter((n) => 
+  const filteredNotifications = notifications.filter((n) =>
     filter === 'unread' ? !n.read : true
   );
 
   const getIcon = (type) => {
     switch (type) {
       case 'achievement':
-        return <FiAward style={{ color: '#F59E0B' }} />;
+        return <FiAward style={{ color: 'var(--color-warning)' }} />;
       case 'quiz_result':
-        return <FiAward style={{ color: '#38BDF8' }} />;
+        return <FiAward style={{ color: 'var(--color-info)' }} />;
       case 'security':
-        return <FiShield style={{ color: '#10B981' }} />;
+        return <FiShield style={{ color: 'var(--color-success)' }} />;
       case 'assignment':
-        return <FiCalendar style={{ color: '#38BDF8' }} />;
+        return <FiCalendar style={{ color: 'var(--color-info)' }} />;
       case 'course':
       case 'course_update':
-        return <FiBookOpen style={{ color: '#818CF8' }} />;
+        return <FiBookOpen style={{ color: 'var(--accent-primary)' }} />;
       case 'success':
-        return <FiCheck style={{ color: '#10B981' }} />;
+        return <FiCheck style={{ color: 'var(--color-success)' }} />;
       default:
-        return <FiBell style={{ color: '#818CF8' }} />;
+        return <FiBell style={{ color: 'var(--accent-primary)' }} />;
     }
   };
 
@@ -62,37 +61,40 @@ export default function NotificationDrawer({ isOpen, onClose }) {
   return (
     <div
       ref={drawerRef}
+      role="dialog"
+      aria-label="Notifications"
       style={{
         position: 'absolute',
         top: '56px',
         right: '0',
         width: '380px',
         maxWidth: '92vw',
-        backgroundColor: 'var(--bg-card, #1D222E)',
-        border: '1px solid var(--border-primary, rgba(255, 255, 255, 0.1))',
-        borderRadius: '14px',
-        boxShadow: '0 16px 36px rgba(0, 0, 0, 0.55)',
-        zIndex: 1000,
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-primary)',
+        borderRadius: 'var(--radius-lg)',
+        boxShadow: 'var(--shadow-xl)',
+        zIndex: 'var(--z-dropdown)',
         overflow: 'hidden',
+        animation: 'slideDown 0.15s ease',
       }}
     >
       {/* Header */}
       <div style={{
         padding: '0.9rem 1.15rem',
-        borderBottom: '1px solid var(--border-primary, rgba(255, 255, 255, 0.08))',
+        borderBottom: '1px solid var(--border-primary)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: 'var(--bg-secondary, #171B24)',
+        backgroundColor: 'var(--bg-secondary)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <FiBell size={18} style={{ color: '#6366F1' }} />
-          <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#F8FAFC' }}>
+          <FiBell size={18} style={{ color: 'var(--accent-primary)' }} />
+          <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
             Notifications
           </h4>
           {unreadCount > 0 && (
             <span style={{
-              backgroundColor: '#6366F1',
+              backgroundColor: 'var(--accent-primary)',
               color: '#FFFFFF',
               fontSize: '0.7rem',
               fontWeight: 700,
@@ -109,17 +111,18 @@ export default function NotificationDrawer({ isOpen, onClose }) {
             <button
               onClick={markAllAsRead}
               title="Mark all as read"
+              aria-label="Mark all notifications as read"
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: '#94A3B8',
+                color: 'var(--text-muted)',
                 fontSize: '0.75rem',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
                 padding: '4px 8px',
-                borderRadius: '6px',
+                borderRadius: 'var(--radius-sm)',
               }}
             >
               <FiCheck size={14} /> Mark Read
@@ -127,12 +130,14 @@ export default function NotificationDrawer({ isOpen, onClose }) {
           )}
           <button
             onClick={onClose}
+            aria-label="Close notifications"
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#64748B',
+              color: 'var(--text-muted)',
               cursor: 'pointer',
               padding: '4px',
+              borderRadius: 'var(--radius-sm)',
             }}
           >
             <FiX size={16} />
@@ -145,39 +150,28 @@ export default function NotificationDrawer({ isOpen, onClose }) {
         display: 'flex',
         padding: '0.5rem 1.25rem',
         gap: '0.5rem',
-        backgroundColor: 'rgba(15, 23, 42, 0.5)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+        backgroundColor: 'var(--bg-tertiary)',
+        borderBottom: '1px solid var(--border-secondary)',
       }}>
-        <button
-          onClick={() => setFilter('all')}
-          style={{
-            background: filter === 'all' ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
-            color: filter === 'all' ? '#818CF8' : '#94A3B8',
-            border: 'none',
-            fontSize: '0.78rem',
-            fontWeight: 600,
-            padding: '4px 10px',
-            borderRadius: '6px',
-            cursor: 'pointer',
-          }}
-        >
-          All ({notifications.length})
-        </button>
-        <button
-          onClick={() => setFilter('unread')}
-          style={{
-            background: filter === 'unread' ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
-            color: filter === 'unread' ? '#818CF8' : '#94A3B8',
-            border: 'none',
-            fontSize: '0.78rem',
-            fontWeight: 600,
-            padding: '4px 10px',
-            borderRadius: '6px',
-            cursor: 'pointer',
-          }}
-        >
-          Unread ({unreadCount})
-        </button>
+        {['all', 'unread'].map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            style={{
+              background: filter === f ? 'var(--accent-light)' : 'transparent',
+              color: filter === f ? 'var(--accent-primary)' : 'var(--text-muted)',
+              border: 'none',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer',
+              transition: 'background-color 0.15s ease, color 0.15s ease',
+            }}
+          >
+            {f === 'all' ? `All (${notifications.length})` : `Unread (${unreadCount})`}
+          </button>
+        ))}
       </div>
 
       {/* Notification List */}
@@ -186,14 +180,12 @@ export default function NotificationDrawer({ isOpen, onClose }) {
           <div style={{
             padding: '2.5rem 1.25rem',
             textAlign: 'center',
-            color: '#64748B',
-            fontSize: '0.85rem',
           }}>
-            <p style={{ margin: '0 0 0.35rem 0', fontSize: '0.88rem', color: '#94A3B8', fontWeight: 500 }}>
+            <p style={{ margin: '0 0 0.35rem 0', fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
               No notifications yet.
             </p>
-            <span style={{ fontSize: '0.78rem', color: '#64748B', lineHeight: '1.4', display: 'block' }}>
-              Real-time updates will appear when you enroll in courses, solve problems, or complete quizzes.
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4', display: 'block' }}>
+              Updates will appear when you enroll in courses, solve problems, or complete quizzes.
             </span>
           </div>
         ) : (
@@ -203,22 +195,25 @@ export default function NotificationDrawer({ isOpen, onClose }) {
               onClick={() => handleNotificationClick(notif)}
               style={{
                 padding: '0.85rem 1.25rem',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                backgroundColor: notif.read ? 'transparent' : 'rgba(99, 102, 241, 0.06)',
+                borderBottom: '1px solid var(--border-secondary)',
+                backgroundColor: notif.read ? 'transparent' : 'var(--accent-light)',
                 cursor: 'pointer',
                 display: 'flex',
                 gap: '0.75rem',
                 transition: 'background-color 0.15s ease',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.04)')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = notif.read ? 'transparent' : 'rgba(99, 102, 241, 0.06)')}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = notif.read ? 'transparent' : 'var(--accent-light)')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleNotificationClick(notif); }}
             >
-              {/* Type Icon Badge */}
+              {/* Icon */}
               <div style={{
                 width: '32px',
                 height: '32px',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--bg-hover)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -228,40 +223,42 @@ export default function NotificationDrawer({ isOpen, onClose }) {
                 {getIcon(notif.type)}
               </div>
 
-              {/* Text Info */}
-              <div style={{ flex: 1 }}>
+              {/* Text */}
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
                   <span style={{
                     fontSize: '0.85rem',
-                    fontWeight: notif.read ? 500 : 700,
-                    color: notif.read ? '#E2E8F0' : '#FFFFFF',
+                    fontWeight: notif.read ? 500 : 600,
+                    color: 'var(--text-primary)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}>
                     {notif.title}
                   </span>
-                  <span style={{ fontSize: '0.7rem', color: '#64748B' }}>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0, marginLeft: '0.5rem' }}>
                     {formatRelativeTime(notif.created_at) || notif.time}
                   </span>
                 </div>
                 <p style={{
                   margin: 0,
                   fontSize: '0.78rem',
-                  color: '#94A3B8',
+                  color: 'var(--text-secondary)',
                   lineHeight: '1.4',
                 }}>
                   {notif.message}
                 </p>
               </div>
 
-              {/* Unread Dot Indicator */}
+              {/* Unread Dot */}
               {!notif.read && (
                 <div style={{
                   width: '6px',
                   height: '6px',
                   borderRadius: '50%',
-                  backgroundColor: '#6366F1',
+                  backgroundColor: 'var(--accent-primary)',
                   flexShrink: 0,
                   alignSelf: 'center',
-                  boxShadow: '0 0 6px #6366F1',
                 }} />
               )}
             </div>
@@ -273,22 +270,25 @@ export default function NotificationDrawer({ isOpen, onClose }) {
       {notifications.length > 0 && (
         <div style={{
           padding: '0.6rem 1.25rem',
-          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-          backgroundColor: 'rgba(15, 23, 42, 0.8)',
+          borderTop: '1px solid var(--border-primary)',
+          backgroundColor: 'var(--bg-tertiary)',
           display: 'flex',
           justifyContent: 'flex-end',
         }}>
           <button
             onClick={clearAll}
+            aria-label="Clear all notifications"
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#64748B',
+              color: 'var(--text-muted)',
               fontSize: '0.72rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '4px',
+              padding: '4px 8px',
+              borderRadius: 'var(--radius-sm)',
             }}
           >
             <FiTrash2 size={12} /> Clear all

@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import LoadingButton from '../components/common/LoadingButton';
-import api from '../services/api';
+import { FiEye, FiEyeOff, FiCode } from 'react-icons/fi';
 
 export default function Login() {
   const { login } = useAuth();
@@ -15,12 +15,11 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
 
   const [showResend, setShowResend] = useState(false);
-  const [isResending, setIsResending] = useState(false);
 
   useEffect(() => {
     const logoutReason = sessionStorage.getItem('logout_reason');
     if (logoutReason) {
-      toast.error(logoutReason, { duration: 6000, icon: '⚠️' });
+      toast.error(logoutReason, { duration: 6000 });
       sessionStorage.removeItem('logout_reason');
     }
   }, []);
@@ -68,287 +67,205 @@ export default function Login() {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <div style={styles.header}>
-          <h2 style={styles.title}>Sign In</h2>
-          <p style={styles.subtitle}>Welcome back to Codexia Academy</p>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '80vh',
+        padding: '2rem 1rem',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '420px',
+          backgroundColor: 'var(--bg-card)',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--border-primary)',
+          padding: 'clamp(1.75rem, 3vw, 2.5rem) clamp(1.5rem, 3vw, 2rem)',
+          boxShadow: 'var(--shadow-lg)',
+        }}
+      >
+        {/* Header */}
+        <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
+          <div
+            style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--accent-light)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              color: 'var(--accent-primary)',
+            }}
+          >
+            <FiCode size={24} />
+          </div>
+          <h2
+            style={{
+              fontSize: '1.5rem',
+              fontWeight: 'var(--fw-bold)',
+              color: 'var(--text-primary)',
+              marginBottom: '0.4rem',
+            }}
+          >
+            Sign In
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+            Welcome back to Codexia Academy
+          </p>
         </div>
 
+        {/* Resend verification notice */}
         {showResend && (
-          <div style={styles.resendContainer}>
-            <p style={styles.resendText}>Your account is not verified yet.</p>
+          <div
+            style={{
+              backgroundColor: 'var(--color-error-bg)',
+              border: '1px solid var(--color-error)',
+              borderRadius: 'var(--radius-md)',
+              padding: '0.85rem 1rem',
+              marginBottom: '1.5rem',
+              textAlign: 'center',
+            }}
+            role="alert"
+          >
+            <p style={{ color: 'var(--color-error)', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
+              Your account is not verified yet.
+            </p>
             <button
               type="button"
               onClick={handleResendVerification}
-              style={styles.resendBtn}
+              style={{
+                backgroundColor: 'transparent',
+                border: '1px solid var(--color-error)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--color-error)',
+                padding: '0.4rem 0.85rem',
+                fontSize: '0.78rem',
+                fontWeight: 'var(--fw-medium)',
+                cursor: 'pointer',
+              }}
             >
               Enter 6-Digit OTP Code
             </button>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.inputGroup}>
-            <label htmlFor="email" style={styles.label}>Email Address or Username</label>
+        {/* Form */}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div className="form-group">
+            <label htmlFor="email" className="form-label" style={{ color: 'var(--text-primary)' }}>
+              Email Address or Username
+            </label>
             <input
               id="email"
               type="text"
-              placeholder="e.g. name@domain.com or username"
+              className="form-input"
+              placeholder="e.g. name@domain.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={styles.input}
               required
+              autoComplete="username"
             />
           </div>
 
-          <div style={styles.inputGroup}>
-            <div style={styles.passwordHeader}>
-              <label htmlFor="password" style={styles.label}>Password</label>
-              <Link to="/forgot-password" style={styles.forgotLink}>Forgot Password?</Link>
+          <div className="form-group">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label htmlFor="password" className="form-label" style={{ color: 'var(--text-primary)' }}>
+                Password
+              </label>
+              <Link
+                to="/forgot-password"
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--accent-primary)',
+                  fontWeight: 'var(--fw-medium)',
+                }}
+              >
+                Forgot Password?
+              </Link>
             </div>
-            <div style={styles.passwordWrapper}>
+            <div style={{ position: 'relative' }}>
               <input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
+                className="form-input"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                style={styles.inputPassword}
                 required
+                autoComplete="current-password"
+                style={{ paddingRight: '3rem' }}
               />
               <button
                 type="button"
-                tabIndex="-1"
+                tabIndex={-1}
                 onClick={() => setShowPassword(!showPassword)}
-                style={styles.showButton}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute',
+                  right: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
               >
-                {showPassword ? 'Hide' : 'Show'}
+                {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
               </button>
             </div>
           </div>
 
-          <div style={styles.checkboxContainer}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <input
               id="remember_me"
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              style={styles.checkbox}
+              style={{ accentColor: 'var(--accent-primary)', cursor: 'pointer', width: '16px', height: '16px' }}
             />
-            <label htmlFor="remember_me" style={styles.checkboxLabel}>Remember me for 7 days</label>
+            <label
+              htmlFor="remember_me"
+              style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer' }}
+            >
+              Remember me for 7 days
+            </label>
           </div>
 
           <LoadingButton
             type="submit"
             loading={isLoading}
             loadingText="Signing In..."
-            style={styles.submitBtn}
+            className="btn btn-primary"
+            style={{
+              width: '100%',
+              height: '44px',
+              fontSize: '0.9rem',
+              marginTop: '0.25rem',
+            }}
           >
             Sign In
           </LoadingButton>
         </form>
 
-        <div style={styles.footer}>
-          <p style={styles.footerText}>
-            New to Codexia? <Link to="/signup" style={styles.link}>Create an account</Link>
+        {/* Footer */}
+        <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            New to Codexia?{' '}
+            <Link to="/signup" style={{ color: 'var(--color-link)', fontWeight: 'var(--fw-medium)' }}>
+              Create an account
+            </Link>
           </p>
         </div>
       </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '80vh',
-    padding: '2rem 1rem',
-  },
-  card: {
-    width: '100%',
-    maxWidth: '400px',
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: 'var(--radius-lg)',
-    border: '1px solid var(--border-primary)',
-    padding: '2.5rem 2rem',
-    boxShadow: 'var(--shadow-lg)',
-  },
-  header: {
-    marginBottom: '2rem',
-    textAlign: 'center',
-  },
-  title: {
-    fontSize: '1.75rem',
-    fontWeight: 'var(--fw-bold)',
-    color: 'var(--text-primary)',
-    marginBottom: '0.5rem',
-  },
-  subtitle: {
-    color: 'var(--text-secondary)',
-    fontSize: '0.875rem',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.25rem',
-  },
-  inputGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem',
-  },
-  passwordHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  label: {
-    fontSize: '0.875rem',
-    fontWeight: 'var(--fw-medium)',
-    color: 'var(--text-primary)',
-  },
-  forgotLink: {
-    fontSize: '0.75rem',
-    color: 'var(--accent-primary)',
-    fontWeight: 'var(--fw-medium)',
-  },
-  input: {
-    padding: '0.75rem 1rem',
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    color: 'var(--text-primary)',
-    fontSize: '0.875rem',
-    outline: 'none',
-  },
-  passwordWrapper: {
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-  },
-  inputPassword: {
-    width: '100%',
-    padding: '0.75rem 3rem 0.75rem 1rem',
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    color: 'var(--text-primary)',
-    fontSize: '0.875rem',
-  },
-  showButton: {
-    position: 'absolute',
-    right: '0.75rem',
-    background: 'none',
-    border: 'none',
-    color: 'var(--text-secondary)',
-    fontSize: '0.75rem',
-    padding: '0.25rem',
-  },
-  checkboxContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-  },
-  checkbox: {
-    accentColor: 'var(--accent-primary)',
-    cursor: 'pointer',
-  },
-  checkboxLabel: {
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)',
-    cursor: 'pointer',
-  },
-  submitBtn: {
-    backgroundColor: 'var(--accent-primary)',
-    color: 'var(--text-inverse)',
-    fontWeight: 'var(--fw-semibold)',
-    padding: '0.75rem',
-    borderRadius: 'var(--radius-md)',
-    fontSize: '0.875rem',
-    marginTop: '0.5rem',
-    cursor: 'pointer',
-    textAlign: 'center',
-  },
-  btnDisabled: {
-    backgroundColor: 'var(--border-primary)',
-    color: 'var(--text-secondary)',
-    cursor: 'not-allowed',
-  },
-  footer: {
-    marginTop: '1rem',
-    textAlign: 'center',
-  },
-  footerText: {
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)',
-  },
-  link: {
-    color: 'var(--color-link)',
-    fontWeight: 'var(--fw-medium)',
-  },
-  dividerContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: '1.5rem 0',
-    gap: '0.75rem',
-  },
-  dividerLine: {
-    flex: 1,
-    height: '1px',
-    backgroundColor: 'var(--border-primary)',
-  },
-  dividerText: {
-    fontSize: '0.75rem',
-    color: 'var(--text-secondary)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-  },
-  oauthGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '1rem',
-    marginBottom: '1.5rem',
-  },
-  oauthBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    padding: '0.75rem',
-    fontSize: '0.875rem',
-    color: 'var(--text-primary)',
-    fontWeight: 'var(--fw-medium)',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s ease',
-  },
-  resendContainer: {
-    backgroundColor: 'rgba(231, 76, 60, 0.08)',
-    border: '1px solid rgba(231, 76, 60, 0.2)',
-    borderRadius: 'var(--radius-md)',
-    padding: '1rem',
-    marginBottom: '1.5rem',
-    textAlign: 'center',
-  },
-  resendText: {
-    color: '#e74c3c',
-    fontSize: '0.875rem',
-    marginBottom: '0.5rem',
-  },
-  resendBtn: {
-    backgroundColor: 'transparent',
-    border: '1px solid #e74c3c',
-    borderRadius: 'var(--radius-md)',
-    color: '#e74c3c',
-    padding: '0.5rem 1rem',
-    fontSize: '0.75rem',
-    fontWeight: 'var(--fw-medium)',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-  },
-};

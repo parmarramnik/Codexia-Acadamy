@@ -6,23 +6,31 @@ import './DashboardLayout.css';
 
 export default function DashboardLayout() {
   const location = useLocation();
-  
-  // Keep track of collapsed state on desktop (persisted in localStorage)
+
   const [isCollapsed, setIsCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebar_collapsed');
     return saved === 'true';
   });
 
-  // Mobile drawer open state
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-  // Close mobile sidebar drawer whenever route changes
+  // Close mobile sidebar on route change
   useEffect(() => {
     setIsMobileOpen(false);
   }, [location.pathname]);
 
+  // Close mobile sidebar on window resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 768 && isMobileOpen) {
+        setIsMobileOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobileOpen]);
+
   const handleToggleSidebar = () => {
-    // If desktop (width > 768px), toggle collapse state
     if (window.innerWidth > 768) {
       setIsCollapsed(prev => {
         const next = !prev;
@@ -30,7 +38,6 @@ export default function DashboardLayout() {
         return next;
       });
     } else {
-      // If mobile, toggle open drawer state
       setIsMobileOpen(prev => !prev);
     }
   };
@@ -39,17 +46,18 @@ export default function DashboardLayout() {
 
   return (
     <div className={`dashboard-layout ${isEdgeToEdge ? 'edge-to-edge-layout' : ''}`}>
-      {/* Sidebar Overlay on mobile */}
+      {/* Mobile overlay */}
       {isMobileOpen && (
-        <div 
-          className="sidebar-overlay" 
+        <div
+          className="sidebar-overlay"
           onClick={() => setIsMobileOpen(false)}
+          aria-hidden="true"
         />
       )}
 
-      <Sidebar 
-        isCollapsed={isCollapsed} 
-        isMobileOpen={isMobileOpen} 
+      <Sidebar
+        isCollapsed={isCollapsed}
+        isMobileOpen={isMobileOpen}
         onToggleSidebar={handleToggleSidebar}
       />
 

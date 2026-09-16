@@ -2,6 +2,7 @@
   background-color: var(--bg-secondary);
   border-top: 1px solid var(--border-primary);
   padding: var(--space-16) 0 var(--space-8);
+  transition: background-color var(--transition-slow), border-color var(--transition-slow);
 }
 
 .footer .container {
@@ -72,12 +73,14 @@
   background-color: var(--bg-hover);
   color: var(--text-secondary);
   font-size: var(--fs-lg);
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast),
+              transform var(--transition-fast);
 }
 
 .social-link:hover {
   background-color: var(--accent-primary);
-  color: var(--text-inverse);
+  color: #ffffff;
+  transform: translateY(-2px);
 }
 
 .footer-bottom {
@@ -99,5 +102,9 @@
 @media (max-width: 480px) {
   .footer-grid {
     grid-template-columns: 1fr;
+  }
+
+  .footer {
+    padding: var(--space-10) 0 var(--space-6);
   }
 }

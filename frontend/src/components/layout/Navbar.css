@@ -6,6 +6,7 @@
   border-bottom: 1px solid var(--border-primary);
   height: var(--navbar-height);
   padding: 0 2.5rem;
+  transition: background-color var(--transition-slow), border-color var(--transition-slow);
 }
 
 .navbar-inner {
@@ -26,6 +27,7 @@
   font-family: var(--font-heading);
   font-weight: var(--fw-bold);
   font-size: var(--fs-xl);
+  transition: color var(--transition-fast);
 }
 
 .brand-icon {
@@ -43,10 +45,29 @@
   color: var(--text-secondary);
   font-size: var(--fs-sm);
   font-weight: var(--fw-medium);
+  position: relative;
+  transition: color var(--transition-fast);
 }
 
 .nav-link:hover {
   color: var(--text-primary);
+}
+
+/* Active underline effect */
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background-color: var(--accent-primary);
+  transition: width var(--transition-fast);
+  border-radius: 1px;
+}
+
+.nav-link:hover::after {
+  width: 100%;
 }
 
 .navbar-actions {
@@ -57,6 +78,18 @@
 
 .navbar-toggle {
   display: none;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.navbar-toggle:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
 }
 
 @media (max-width: 768px) {
@@ -66,6 +99,8 @@
 
   .navbar-toggle {
     display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .navbar-links,
@@ -80,10 +115,27 @@
     border-bottom: 1px solid var(--border-primary);
     padding: var(--space-4);
     gap: var(--space-3);
+    animation: slideDown 0.2s ease;
+    box-shadow: var(--shadow-lg);
   }
 
   .navbar-links.open,
   .navbar-actions.open {
     display: flex;
+  }
+
+  .nav-link::after {
+    display: none;
+  }
+
+  .nav-link {
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    width: 100%;
+    text-align: left;
+  }
+
+  .nav-link:hover {
+    background-color: var(--bg-hover);
   }
 }

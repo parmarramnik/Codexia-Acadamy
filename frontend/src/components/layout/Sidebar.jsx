@@ -51,32 +51,49 @@ export default function Sidebar({ isCollapsed = false, isMobileOpen = false, onT
     { to: '/settings', icon: FiSettings, label: 'Settings' },
   ];
 
+  const renderLink = (link) => (
+    <NavLink
+      key={link.to}
+      to={link.to}
+      className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+      aria-label={link.label}
+    >
+      <link.icon className="sidebar-icon" style={{ color: link.color }} />
+      <span>{link.label}</span>
+      {isCollapsed && <span className="sidebar-tooltip">{link.label}</span>}
+    </NavLink>
+  );
+
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`} id="sidebar">
-      {/* Upper-Left Sidebar Header: Switches between Three Lines (when open) and Logo (when collapsed) */}
+    <aside
+      className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`}
+      id="sidebar"
+      role="navigation"
+      aria-label="Main navigation"
+    >
       <div className="sidebar-header">
         {isCollapsed ? (
-          <button 
-            onClick={onToggleSidebar} 
+          <button
+            onClick={onToggleSidebar}
             className="sidebar-brand-collapsed-btn"
             title="Expand Sidebar (Codexia Academy)"
             aria-label="Expand Sidebar"
           >
-            <FiCode size={20} style={{ color: '#818CF8' }} />
+            <FiCode size={20} style={{ color: 'var(--accent-primary)' }} />
           </button>
         ) : (
           <>
             <div className="sidebar-brand-wrapper">
               <span className="sidebar-brand-logo" style={{ display: 'flex', alignItems: 'center' }}>
-                <FiCode size={20} style={{ color: '#818CF8' }} />
+                <FiCode size={20} style={{ color: 'var(--accent-primary)' }} />
               </span>
               <span className="sidebar-brand-title">
                 Codexia <span style={{ color: 'var(--accent-primary)' }}>Academy</span>
               </span>
             </div>
 
-            <button 
-              onClick={onToggleSidebar} 
+            <button
+              onClick={onToggleSidebar}
               className="sidebar-header-toggle"
               title="Collapse Sidebar"
               aria-label="Collapse Sidebar"
@@ -88,82 +105,41 @@ export default function Sidebar({ isCollapsed = false, isMobileOpen = false, onT
       </div>
 
       <nav className="sidebar-nav">
-        {/* Category 1: Learning Hub */}
+        {/* Learning Hub */}
         <div className="sidebar-section">
           {!isCollapsed && <span className="sidebar-section-label">Learning Hub</span>}
-          {learningLinks.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-            >
-              <link.icon className="sidebar-icon" style={{ color: link.color }} />
-              <span>{link.label}</span>
-            </NavLink>
-          ))}
+          {learningLinks.map(renderLink)}
         </div>
 
-        {/* Category 2: Practice & Tools */}
+        {/* Practice & Tools */}
         <div className="sidebar-section">
           {!isCollapsed && <span className="sidebar-section-label">Practice & Tools</span>}
-          {toolsLinks.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-            >
-              <link.icon className="sidebar-icon" style={{ color: link.color }} />
-              <span>{link.label}</span>
-            </NavLink>
-          ))}
+          {toolsLinks.map(renderLink)}
         </div>
 
-        {/* Category 3: Community & Reports */}
+        {/* Community & Reports */}
         <div className="sidebar-section">
           {!isCollapsed && <span className="sidebar-section-label">Community & Reports</span>}
-          {communityLinks.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-            >
-              <link.icon className="sidebar-icon" style={{ color: link.color }} />
-              <span>{link.label}</span>
-            </NavLink>
-          ))}
+          {communityLinks.map(renderLink)}
         </div>
 
-        {/* Category 4: Administration (Role Based) */}
+        {/* Administration (Role Based) */}
         {adminLinks.length > 0 && (
           <div className="sidebar-section">
             {!isCollapsed && <span className="sidebar-section-label">Administration</span>}
-            {adminLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-              >
-                <link.icon className="sidebar-icon" />
-                <span>{link.label}</span>
-              </NavLink>
-            ))}
+            {adminLinks.map(renderLink)}
           </div>
         )}
       </nav>
 
-      {/* Category 5: Account Footer */}
+      {/* Account Footer */}
       <div className="sidebar-bottom">
-        {!isCollapsed && <span className="sidebar-section-label" style={{ paddingLeft: 'var(--space-6)', marginBottom: '4px' }}>Account</span>}
-        {accountLinks.map((link) => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-          >
-            <link.icon className="sidebar-icon" />
-            <span>{link.label}</span>
-          </NavLink>
-        ))}
+        {!isCollapsed && (
+          <span className="sidebar-section-label" style={{ paddingLeft: 'var(--space-6)', marginBottom: '4px' }}>
+            Account
+          </span>
+        )}
+        {accountLinks.map(renderLink)}
       </div>
     </aside>
   );

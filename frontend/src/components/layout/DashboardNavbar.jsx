@@ -1,7 +1,7 @@
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { useTheme } from '../../context/ThemeContext';
-import { FiBell, FiLogOut, FiSearch, FiSun, FiMoon } from 'react-icons/fi';
+import { FiBell, FiLogOut, FiSearch, FiSun, FiMoon, FiMenu } from 'react-icons/fi';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
@@ -16,8 +16,7 @@ export default function DashboardNavbar({ onToggleSidebar }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
-  
-  // Modals & Drawers state
+
   const [showNotifications, setShowNotifications] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -53,40 +52,40 @@ export default function DashboardNavbar({ onToggleSidebar }) {
         label: c.title,
         detail: c.category?.replace('_', ' ') || 'Course',
         path: `/courses/${c.slug}`,
-        badgeBg: '#2D1B3E',
-        badgeColor: '#C084FC'
+        badgeBg: 'var(--color-info-bg)',
+        badgeColor: 'var(--accent-purple)'
       }));
       (res.data.problems || []).forEach(p => results.push({
         type: 'Problem',
         label: p.title,
         detail: p.difficulty || 'Coding',
         path: `/coding/${p.slug}`,
-        badgeBg: '#142E25',
-        badgeColor: '#34D399'
+        badgeBg: 'var(--color-success-bg)',
+        badgeColor: 'var(--color-success)'
       }));
       (res.data.quizzes || []).forEach(q => results.push({
         type: 'Quiz',
         label: (q.title || '').replace(/^AI Quiz:\s*/i, ''),
         detail: q.topic || 'Assessment',
         path: '/quizzes',
-        badgeBg: '#232942',
-        badgeColor: '#818CF8'
+        badgeBg: 'var(--accent-light)',
+        badgeColor: 'var(--accent-primary)'
       }));
       (res.data.notes || []).forEach(n => results.push({
         type: 'Note',
         label: n.title,
         detail: n.course_title || 'Personal Note',
         path: '/notes',
-        badgeBg: '#362B16',
-        badgeColor: '#FBBF24'
+        badgeBg: 'var(--color-warning-bg)',
+        badgeColor: 'var(--color-warning)'
       }));
       (res.data.discussions || []).forEach(d => results.push({
         type: 'Community',
         label: d.title,
         detail: d.user_name || 'Discussion',
         path: '/community',
-        badgeBg: '#132E3A',
-        badgeColor: '#22D3EE'
+        badgeBg: 'var(--color-info-bg)',
+        badgeColor: 'var(--color-info)'
       }));
       setSuggestions(results);
       setShowDropdown(true);
@@ -112,181 +111,136 @@ export default function DashboardNavbar({ onToggleSidebar }) {
     <>
       <header className="dashboard-navbar" id="dashboard-navbar">
         <div className="dashboard-navbar-inner">
+          {/* Mobile hamburger button */}
+          <button
+            className="dashboard-mobile-toggle"
+            onClick={onToggleSidebar}
+            aria-label="Toggle navigation menu"
+            title="Toggle sidebar"
+          >
+            <FiMenu size={20} />
+          </button>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, maxWidth: '480px' }}>
             <div className="dashboard-search" style={{ position: 'relative', width: '100%' }}>
-              <FiSearch className="search-icon" style={{ color: searchQuery ? 'var(--accent-primary)' : 'var(--text-secondary)' }} />
+              <FiSearch
+                className="search-icon"
+                style={{ color: searchQuery ? 'var(--accent-primary)' : undefined }}
+              />
               <input
                 type="text"
                 className="form-input search-input"
-                placeholder="Search across courses, problems, quizzes, notes..."
+                placeholder="Search courses, problems, quizzes..."
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onFocus={() => { if (suggestions.length > 0 || searchQuery.length >= 2) setShowDropdown(true); }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    setShowDropdown(false);
-                  }
+                  if (e.key === 'Escape') setShowDropdown(false);
                 }}
                 onBlur={() => setTimeout(() => setShowDropdown(false), 250)}
+                aria-label="Global search"
+                role="searchbox"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={clearSearch}
-                  style={{
-                    position: 'absolute',
-                    right: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    lineHeight: 1,
-                    padding: '4px'
-                  }}
+                  className="search-clear-btn"
                   title="Clear search"
+                  aria-label="Clear search"
                 >
-                  ✕
+                  &#10005;
                 </button>
               )}
               {showDropdown && (
-                <div style={{
-                  position: 'absolute',
-                  top: '46px',
-                  left: 0,
-                  width: '100%',
-                  backgroundColor: 'var(--bg-card)',
-                  border: '1px solid var(--border-primary)',
-                  borderRadius: 'var(--radius-md)',
-                  boxShadow: '0 16px 36px #070B14',
-                  zIndex: 1000,
-                  maxHeight: '340px',
-                  overflowY: 'auto'
-                }}>
+                <div className="search-dropdown">
                   {suggestions.length === 0 ? (
-                    <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                      {isSearching ? 'Searching across platform...' : `No matching items found for "${searchQuery}"`}
+                    <div className="search-dropdown-empty">
+                      {isSearching ? 'Searching...' : `No results for "${searchQuery}"`}
                     </div>
                   ) : (
-                    <div>
-                      <div style={{
-                        padding: '0.5rem 1rem',
-                        fontSize: '0.72rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                        color: 'var(--text-secondary)',
-                        borderBottom: '1px solid var(--border-primary)',
-                        background: '#181F2E',
-                        display: 'flex',
-                        justifyContent: 'space-between'
-                      }}>
-                        <span>Spotlight Results ({suggestions.length})</span>
-                        <span>Press ESC to close</span>
+                    <>
+                      <div className="search-dropdown-header">
+                        <span>Results ({suggestions.length})</span>
+                        <span>ESC to close</span>
                       </div>
                       {suggestions.map((s, idx) => (
-                        <div 
+                        <div
                           key={idx}
+                          className="search-dropdown-item"
                           onClick={() => {
                             navigate(s.path);
                             clearSearch();
                           }}
-                          style={{
-                            padding: '0.75rem 1rem',
-                            borderBottom: idx < suggestions.length - 1 ? '1px solid var(--border-primary)' : 'none',
-                            cursor: 'pointer',
-                            fontSize: '0.85rem',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            color: 'var(--text-primary)',
-                            textAlign: 'left'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1E2638'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                           onMouseDown={(e) => e.preventDefault()}
+                          role="option"
                         >
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden', marginRight: '10px' }}>
                             <span style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label}</span>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{s.detail}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.detail}</span>
                           </div>
-                          <span style={{
-                            fontSize: '0.7rem',
-                            padding: '2px 8px',
-                            borderRadius: '4px',
-                            backgroundColor: s.badgeBg,
-                            color: s.badgeColor,
-                            fontWeight: 600,
-                            whiteSpace: 'nowrap',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.03em'
-                          }}>
+                          <span
+                            className="search-badge"
+                            style={{
+                              backgroundColor: s.badgeBg,
+                              color: s.badgeColor,
+                            }}
+                          >
                             {s.type}
                           </span>
                         </div>
                       ))}
-                    </div>
+                    </>
                   )}
                 </div>
               )}
             </div>
           </div>
 
-
           <div className="dashboard-navbar-actions">
-            {/* Theme Toggle Button (Light/Dark Mode) */}
+            {/* Theme Toggle */}
             <button
               className="btn-icon"
               onClick={toggleTheme}
-              aria-label="Toggle light or dark theme"
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
               title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
             >
               {theme === 'dark' ? (
-                <FiSun size={18} style={{ color: '#38BDF8' }} />
+                <FiSun size={18} style={{ color: '#FBBF24' }} />
               ) : (
-                <FiMoon size={18} style={{ color: '#818CF8' }} />
+                <FiMoon size={18} style={{ color: 'var(--accent-primary)' }} />
               )}
             </button>
 
-            {/* Real-Time Interactive Notification Button & Drawer */}
+            {/* Notifications */}
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <button 
-                className="btn-icon" 
-                onClick={() => setShowNotifications(!showNotifications)} 
-                aria-label="Notifications"
+              <button
+                className="btn-icon"
+                onClick={() => setShowNotifications(!showNotifications)}
+                aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
                 title="Notifications"
                 style={{ position: 'relative' }}
               >
                 <FiBell size={18} />
-                {unreadCount > 0 && (
-                  <span style={{
-                    position: 'absolute',
-                    top: '4px',
-                    right: '4px',
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: '#6366F1',
-                    boxShadow: '0 0 8px #6366F1',
-                  }} />
-                )}
+                {unreadCount > 0 && <span className="notification-dot" />}
               </button>
 
-              <NotificationDrawer 
-                isOpen={showNotifications} 
-                onClose={() => setShowNotifications(false)} 
+              <NotificationDrawer
+                isOpen={showNotifications}
+                onClose={() => setShowNotifications(false)}
               />
             </div>
 
-            {/* User Profile Summary */}
-            <div 
-              className="user-menu" 
-              onClick={() => navigate('/profile')} 
-              style={{ cursor: 'pointer' }}
+            {/* User Profile */}
+            <div
+              className="user-menu"
+              onClick={() => navigate('/profile')}
               title="View Profile"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter') navigate('/profile'); }}
             >
-              <div className="avatar avatar-sm" style={{ border: '1px solid var(--border-light)' }}>
+              <div className="avatar avatar-sm">
                 {user?.avatar_url ? (
                   <img src={user.avatar_url} alt={user.full_name} loading="lazy" />
                 ) : (
@@ -295,17 +249,16 @@ export default function DashboardNavbar({ onToggleSidebar }) {
               </div>
               <div className="user-info hide-mobile">
                 <span className="user-name">{user?.full_name}</span>
-                <span className="user-role">{user?.role}</span>
+                <span className="user-role">{user?.role?.replace('_', ' ')}</span>
               </div>
             </div>
 
-            {/* Logout Button with Confirmation Popup */}
-            <button 
-              className="btn-icon" 
-              onClick={() => setShowLogoutModal(true)} 
+            {/* Logout */}
+            <button
+              className="btn-icon"
+              onClick={() => setShowLogoutModal(true)}
               aria-label="Logout"
               title="Sign Out"
-              style={{ color: 'var(--text-secondary)' }}
             >
               <FiLogOut size={18} />
             </button>
@@ -313,7 +266,6 @@ export default function DashboardNavbar({ onToggleSidebar }) {
         </div>
       </header>
 
-      {/* Confirmation Modal */}
       <LogoutModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
