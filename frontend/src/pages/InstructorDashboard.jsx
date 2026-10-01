@@ -7,6 +7,7 @@ import {
   FiCheckCircle, FiEdit2, FiTrash2, FiLink, FiShield, FiUser, 
   FiArrowLeft, FiX, FiVideo, FiClock, FiCheck, FiLayers
 } from 'react-icons/fi';
+import PageLoader from '../components/common/PageLoader';
 
 const ProblemMakerModal = lazy(() => import('../components/coding/ProblemMakerModal'));
 
@@ -471,12 +472,7 @@ export default function InstructorDashboard() {
 
 
   if (isLoading) {
-    return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.loadingSpinner}></div>
-        <p style={styles.loadingText}>Loading courses workspace...</p>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   return (
@@ -797,7 +793,7 @@ export default function InstructorDashboard() {
             </div>
           </div>
 
-          <div style={styles.builderLayout}>
+          <div className="r-stack" style={styles.builderLayout}>
             {/* Left Column: Creator Panels */}
             <div style={styles.builderForms}>
               {/* Add Module */}
@@ -1439,13 +1435,19 @@ const styles = {
     marginBottom: '2rem',
   },
   title: {
-    fontSize: '2rem',
+    fontSize: 'clamp(1.4rem, 2.2vw, 1.75rem)',
     fontWeight: 'var(--fw-semibold)',
-    marginBottom: '0.5rem',
+    letterSpacing: '-0.025em',
+    lineHeight: 1.2,
+    color: 'var(--text-primary)',
+    margin: '0 0 0.5rem 0',
   },
   subtitle: {
     color: 'var(--text-secondary)',
-    fontSize: '0.9rem',
+    fontSize: '0.875rem',
+    lineHeight: 1.55,
+    maxWidth: '680px',
+    margin: 0,
   },
   tabsRow: {
     display: 'flex',
@@ -1496,8 +1498,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-    border: '1px solid rgba(34, 197, 94, 0.25)',
+    backgroundColor: 'var(--color-success-bg)',
+    border: '1px solid var(--color-success-bg)',
     padding: '0.75rem 1.25rem',
     borderRadius: 'var(--radius-md)',
     fontSize: '0.875rem',
@@ -1518,7 +1520,7 @@ const styles = {
   },
   formGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
     gap: '1.5rem',
   },
   formGroup: {
@@ -1580,7 +1582,7 @@ const styles = {
     marginTop: '1rem',
   },
   submitBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.75rem 1.5rem',
@@ -1614,7 +1616,7 @@ const styles = {
     color: 'var(--text-secondary)',
   },
   createBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.75rem 1.5rem',
@@ -1637,7 +1639,7 @@ const styles = {
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))',
     gap: '1.5rem',
   },
   card: {
@@ -1662,7 +1664,7 @@ const styles = {
     letterSpacing: '0.05em',
   },
   freeBadge: {
-    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    backgroundColor: 'var(--color-success-bg)',
     color: 'var(--color-success)',
     padding: '0.2rem 0.5rem',
     borderRadius: '4px',
@@ -1725,7 +1727,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '0.4rem',
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     border: 'none',
     padding: '0.6rem',
@@ -1751,8 +1753,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid rgba(239, 68, 68, 0.3)',
+    backgroundColor: 'var(--color-error-bg)',
+    border: '1px solid var(--color-error)',
     color: 'var(--color-error)',
     padding: '0.6rem 0.85rem',
     borderRadius: 'var(--radius-md)',
@@ -1792,8 +1794,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.4rem',
-    backgroundColor: 'var(--color-success)',
-    color: '#FFF',
+    backgroundColor: 'var(--success-solid)',
+    color: '#FFFFFF',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.6rem 1.25rem',
     borderRadius: 'var(--radius-md)',
@@ -1808,7 +1810,7 @@ const styles = {
     color: 'var(--color-success)',
     fontSize: '0.875rem',
     fontWeight: 'var(--fw-semibold)',
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    backgroundColor: 'var(--color-success-bg)',
     padding: '0.5rem 1rem',
     borderRadius: 'var(--radius-md)',
   },
@@ -1848,7 +1850,7 @@ const styles = {
     gap: '1rem',
   },
   iconSubmitBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.75rem 1rem',
@@ -1963,8 +1965,8 @@ const styles = {
     alignItems: 'center',
   },
   moduleDeleteBtn: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid rgba(239, 68, 68, 0.3)',
+    backgroundColor: 'var(--color-error-bg)',
+    border: '1px solid var(--color-error)',
     color: 'var(--color-error)',
     borderRadius: '4px',
     cursor: 'pointer',
@@ -2074,8 +2076,8 @@ const styles = {
     alignItems: 'center',
   },
   lectureDeleteBtn: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid rgba(239, 68, 68, 0.3)',
+    backgroundColor: 'var(--color-error-bg)',
+    border: '1px solid var(--color-error)',
     color: 'var(--color-error)',
     borderRadius: '3px',
     cursor: 'pointer',
@@ -2089,7 +2091,7 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'var(--overlay-bg)',
     backdropFilter: 'blur(4px)',
     display: 'flex',
     justifyContent: 'center',

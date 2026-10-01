@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import LoadingButton from '../components/common/LoadingButton';
+import AuthShell from '../components/common/AuthShell';
 import { FiMail, FiLock, FiCheckCircle } from 'react-icons/fi';
 
 export default function ForgotPassword() {
@@ -59,262 +60,116 @@ export default function ForgotPassword() {
     }
   };
 
+  const titles = { 1: 'Reset your password', 2: 'Check your email', 3: 'Password updated' };
+  const subtitles = {
+    1: 'Enter your email to receive a 6-digit verification code.',
+    2: `We sent a 6-digit code to ${email}`,
+    3: 'Your password has been securely updated.',
+  };
+
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <div style={styles.header}>
-          <h2 style={styles.title}>
-            {step === 1 && 'Reset Password'}
-            {step === 2 && 'Verify Code'}
-            {step === 3 && 'Success!'}
-          </h2>
-          <p style={styles.subtitle}>
-            {step === 1 && 'Enter your email to receive a 6-digit verification code.'}
-            {step === 2 && `We sent a 6-digit code to ${email}`}
-            {step === 3 && 'Your password has been securely updated.'}
-          </p>
+    <AuthShell
+      title={titles[step]}
+      subtitle={subtitles[step]}
+      icon={step === 3 ? FiCheckCircle : step === 2 ? FiMail : FiLock}
+      footer={step < 3 ? <>Back to <Link to="/login">Sign In</Link></> : null}
+    >
+      {step < 3 && (
+        <div className="auth-steps" aria-label={`Step ${step} of 2`}>
+          <span className={step >= 1 ? 'active' : ''} />
+          <span className={step >= 2 ? 'active' : ''} />
         </div>
+      )}
 
-        {step === 1 && (
-          <form onSubmit={handleRequestOtp} style={styles.form}>
-            <div style={styles.inputGroup}>
-              <label htmlFor="email" style={styles.label}>Email Address</label>
-              <div style={styles.inputWrapper}>
-                <FiMail style={styles.inputIcon} />
-                <input
-                  id="email"
-                  type="email"
-                  placeholder="e.g. name@domain.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  style={styles.input}
-                  required
-                />
-              </div>
-            </div>
-
-            <LoadingButton
-              type="submit"
-              loading={isLoading}
-              loadingText="Sending OTP Code..."
-              style={styles.submitBtn}
-            >
-              Get Verification Code
-            </LoadingButton>
-          </form>
-        )}
-
-        {step === 2 && (
-          <form onSubmit={handleResetPassword} style={styles.form}>
-            <div style={styles.inputGroup}>
-              <label htmlFor="otp" style={styles.label}>Verification Code (OTP)</label>
+      {step === 1 && (
+        <form onSubmit={handleRequestOtp} className="form-stack">
+          <div className="form-group">
+            <label htmlFor="email" className="form-label">Email address</label>
+            <div className="input-with-icon">
+              <span className="input-icon"><FiMail size={16} /></span>
               <input
-                id="otp"
-                type="text"
-                maxLength={6}
-                placeholder="6-digit code"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                style={styles.otpInput}
+                id="email"
+                type="email"
+                className="form-input"
+                placeholder="name@domain.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
                 required
               />
             </div>
+          </div>
 
-            <div style={styles.inputGroup}>
-              <label htmlFor="newPassword" style={styles.label}>New Password</label>
-              <div style={styles.inputWrapper}>
-                <FiLock style={styles.inputIcon} />
-                <input
-                  id="newPassword"
-                  type="password"
-                  placeholder="Minimum 6 characters"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  style={styles.input}
-                  required
-                />
-              </div>
+          <LoadingButton
+            type="submit"
+            loading={isLoading}
+            loadingText="Sending OTP Code..."
+            className="btn btn-primary btn-lg btn-block"
+          >
+            Get Verification Code
+          </LoadingButton>
+        </form>
+      )}
+
+      {step === 2 && (
+        <form onSubmit={handleResetPassword} className="form-stack">
+          <div className="form-group">
+            <label htmlFor="otp" className="form-label">Verification code</label>
+            <input
+              id="otp"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="••••••"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              className="form-input otp-input"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="newPassword" className="form-label">New password</label>
+            <div className="input-with-icon">
+              <span className="input-icon"><FiLock size={16} /></span>
+              <input
+                id="newPassword"
+                type="password"
+                className="form-input"
+                placeholder="Minimum 6 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+                required
+              />
             </div>
-
-            <LoadingButton
-              type="submit"
-              loading={isLoading}
-              loadingText="Verifying Code..."
-              style={styles.submitBtn}
-            >
-              Verify Code & Reset
-            </LoadingButton>
-
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              style={styles.changeEmailBtn}
-            >
-              Change Email Address
-            </button>
-          </form>
-        )}
-
-        {step === 3 && (
-          <div style={styles.successContainer}>
-            <FiCheckCircle size={48} style={styles.successIcon} />
-            <p style={styles.successText}>
-              Your account security has been restored. You can now log in with your new credentials.
-            </p>
-            <Link to="/login" style={styles.actionBtn}>Proceed to Login</Link>
           </div>
-        )}
 
-        {step < 3 && (
-          <div style={styles.footer}>
-            <p style={styles.footerText}>
-              Back to <Link to="/login" style={styles.link}>Sign In</Link>
-            </p>
+          <LoadingButton
+            type="submit"
+            loading={isLoading}
+            loadingText="Verifying Code..."
+            className="btn btn-primary btn-lg btn-block"
+          >
+            Verify Code & Reset
+          </LoadingButton>
+
+          <button type="button" onClick={() => setStep(1)} className="btn btn-ghost btn-sm" style={{ alignSelf: 'center' }}>
+            Change email address
+          </button>
+        </form>
+      )}
+
+      {step === 3 && (
+        <div className="form-stack" style={{ textAlign: 'center' }}>
+          <div className="alert alert-success" style={{ textAlign: 'left' }}>
+            <FiCheckCircle size={16} />
+            <span>Your account security has been restored. You can now log in with your new credentials.</span>
           </div>
-        )}
-      </div>
-    </div>
+          <Link to="/login" className="btn btn-primary btn-lg btn-block">Proceed to Login</Link>
+        </div>
+      )}
+    </AuthShell>
   );
 }
-
-const styles = {
-  container: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '80vh',
-    padding: '2rem 1rem',
-  },
-  card: {
-    width: '100%',
-    maxWidth: '400px',
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: 'var(--radius-lg)',
-    border: '1px solid var(--border-primary)',
-    padding: '2.5rem 2rem',
-    boxShadow: 'var(--shadow-lg)',
-  },
-  header: {
-    marginBottom: '2rem',
-    textAlign: 'center',
-  },
-  title: {
-    fontSize: '1.75rem',
-    fontWeight: 'var(--fw-bold)',
-    color: 'var(--text-primary)',
-    marginBottom: '0.5rem',
-  },
-  subtitle: {
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)',
-    lineHeight: '1.4',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.25rem',
-  },
-  inputGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem',
-  },
-  label: {
-    fontSize: '0.875rem',
-    fontWeight: 'var(--fw-medium)',
-    color: 'var(--text-primary)',
-  },
-  inputWrapper: {
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-  },
-  inputIcon: {
-    position: 'absolute',
-    left: '1rem',
-    color: 'var(--text-secondary)',
-    pointerEvents: 'none',
-  },
-  input: {
-    width: '100%',
-    padding: '0.75rem 1rem 0.75rem 2.5rem',
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    color: 'var(--text-primary)',
-    fontSize: '0.875rem',
-    outline: 'none',
-  },
-  otpInput: {
-    padding: '0.75rem 1rem',
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    color: 'var(--text-primary)',
-    fontSize: '1.25rem',
-    letterSpacing: '0.25em',
-    textAlign: 'center',
-    fontWeight: 'var(--fw-bold)',
-    outline: 'none',
-  },
-  submitBtn: {
-    backgroundColor: 'var(--accent-primary)',
-    color: 'var(--text-inverse)',
-    fontWeight: 'var(--fw-semibold)',
-    padding: '0.75rem',
-    borderRadius: 'var(--radius-md)',
-    fontSize: '0.875rem',
-    marginTop: '0.5rem',
-    cursor: 'pointer',
-    textAlign: 'center',
-  },
-  changeEmailBtn: {
-    backgroundColor: 'transparent',
-    color: 'var(--text-secondary)',
-    border: 'none',
-    fontSize: '0.75rem',
-    fontWeight: 'var(--fw-medium)',
-    cursor: 'pointer',
-    textAlign: 'center',
-    padding: '0.25rem',
-    textDecoration: 'underline',
-  },
-  successContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '1.25rem',
-    textAlign: 'center',
-  },
-  successIcon: {
-    color: '#10B981',
-  },
-  successText: {
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)',
-    lineHeight: '1.5',
-  },
-  actionBtn: {
-    width: '100%',
-    backgroundColor: 'var(--accent-primary)',
-    color: 'var(--text-inverse)',
-    padding: '0.75rem',
-    borderRadius: 'var(--radius-md)',
-    fontWeight: 'var(--fw-semibold)',
-    textDecoration: 'none',
-    textAlign: 'center',
-    boxShadow: '0 4px 14px rgba(255, 152, 0, 0.3)',
-  },
-  footer: {
-    marginTop: '1.5rem',
-    textAlign: 'center',
-  },
-  footerText: {
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)',
-  },
-  link: {
-    color: 'var(--color-link)',
-    fontWeight: 'var(--fw-medium)',
-  },
-};

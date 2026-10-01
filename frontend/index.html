@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Codexia Academy — Master software engineering with context-aware AI mentorship, coding practice, and personalized quizzes." />
-    <meta name="theme-color" content="#0F1219" />
+    <meta name="theme-color" content="#0A0D14" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -18,7 +18,7 @@
           var saved = localStorage.getItem('theme');
           var theme = saved || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
           document.documentElement.setAttribute('data-theme', theme);
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', theme === 'light' ? '#F8FAFC' : '#0F1219');
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', theme === 'light' ? '#F6F8FB' : '#0A0D14');
         } catch(e) {}
       })();
     </script>

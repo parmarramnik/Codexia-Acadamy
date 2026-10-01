@@ -15,7 +15,7 @@ export default function Navbar() {
     <nav className="navbar" id="main-navbar">
       <div className="navbar-inner">
         <Link to="/" className="navbar-brand">
-          <FiCode className="brand-icon" />
+          <span className="brand-icon" aria-hidden="true"><FiCode size={16} strokeWidth={2.5} /></span>
           <span className="brand-text">Codexia</span>
         </Link>
 
@@ -23,6 +23,7 @@ export default function Navbar() {
           className="navbar-toggle btn-icon"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle navigation"
+          aria-expanded={menuOpen}
         >
           {menuOpen ? <FiX size={20} /> : <FiMenu size={20} />}
         </button>
@@ -42,13 +43,8 @@ export default function Navbar() {
             onClick={toggleTheme}
             aria-label="Toggle theme"
             title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
-            style={{ marginRight: '8px', cursor: 'pointer' }}
           >
-            {theme === 'dark' ? (
-              <FiSun size={18} style={{ color: '#FBBF24' }} />
-            ) : (
-              <FiMoon size={18} style={{ color: 'var(--accent-primary)' }} />
-            )}
+            {theme === 'dark' ? <FiSun size={18} /> : <FiMoon size={18} />}
           </button>
 
           {isAuthenticated ? (

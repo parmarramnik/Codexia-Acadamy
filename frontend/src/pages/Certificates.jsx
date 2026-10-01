@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import LoadingButton from '../components/common/LoadingButton';
+import PageLoader from '../components/common/PageLoader';
 
 export default function Certificates() {
   const { user } = useAuth();
@@ -77,11 +78,7 @@ export default function Certificates() {
   }
 
   if (isLoading) {
-    return (
-      <div style={styles.loadingContainer}>
-        <p style={styles.loadingText}>Loading certificates portfolio...</p>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   return (
@@ -91,7 +88,7 @@ export default function Certificates() {
         <p style={styles.subtitle}>Claim, inspect, and download your accredited course completion credentials.</p>
       </div>
 
-      <div style={styles.grid}>
+      <div className="r-stack" style={styles.grid}>
         {/* Certificate Generation / Eligible Courses */}
         <div style={styles.boxCard}>
           <h2 style={styles.sectionHeading}>Earn Certificates</h2>
@@ -181,10 +178,10 @@ export default function Certificates() {
             {/* Prestige Academic Certificate Frame */}
             <div style={styles.certFrame}>
               {/* Corner Accents */}
-              <div style={{ ...styles.certCorner, top: '12px', left: '12px', borderTop: '2px solid #C5A059', borderLeft: '2px solid #C5A059' }} />
-              <div style={{ ...styles.certCorner, top: '12px', right: '12px', borderTop: '2px solid #C5A059', borderRight: '2px solid #C5A059' }} />
-              <div style={{ ...styles.certCorner, bottom: '12px', left: '12px', borderBottom: '2px solid #C5A059', borderLeft: '2px solid #C5A059' }} />
-              <div style={{ ...styles.certCorner, bottom: '12px', right: '12px', borderBottom: '2px solid #C5A059', borderRight: '2px solid #C5A059' }} />
+              <div style={{ ...styles.certCorner, top: '12px', left: '12px', borderTop: '2px solid var(--color-warning)', borderLeft: '2px solid var(--color-warning)' }} />
+              <div style={{ ...styles.certCorner, top: '12px', right: '12px', borderTop: '2px solid var(--color-warning)', borderRight: '2px solid var(--color-warning)' }} />
+              <div style={{ ...styles.certCorner, bottom: '12px', left: '12px', borderBottom: '2px solid var(--color-warning)', borderLeft: '2px solid var(--color-warning)' }} />
+              <div style={{ ...styles.certCorner, bottom: '12px', right: '12px', borderBottom: '2px solid var(--color-warning)', borderRight: '2px solid var(--color-warning)' }} />
 
               {/* Academy Header */}
               <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
@@ -225,9 +222,9 @@ export default function Certificates() {
                       <div style={styles.certSealInner}>
                         <span style={{ fontSize: '0.45rem', color: '#FEF3C7', letterSpacing: '1px' }}>★ ★ ★</span>
                         <span style={{ fontSize: '0.625rem', fontWeight: 900, color: '#FEF3C7', letterSpacing: '0.5px', marginTop: '1px' }}>CODEXIA</span>
-                        <span style={{ fontSize: '0.55rem', fontWeight: 800, color: '#C5A059' }}>ACADEMY</span>
-                        <span style={{ fontSize: '0.45rem', fontWeight: 700, color: '#FFFFFF', marginTop: '1px' }}>OFFICIAL SEAL</span>
-                        <span style={{ fontSize: '0.4rem', color: '#94A3B8' }}>• 2026 •</span>
+                        <span style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--color-warning)' }}>ACADEMY</span>
+                        <span style={{ fontSize: '0.45rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '1px' }}>OFFICIAL SEAL</span>
+                        <span style={{ fontSize: '0.4rem', color: 'var(--text-secondary)' }}>• 2026 •</span>
                       </div>
                     </div>
                   </div>
@@ -245,10 +242,10 @@ export default function Certificates() {
               {/* Footer Security Identifiers */}
               <div style={styles.certFooterRow}>
                 <div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.725rem', color: '#475569', fontWeight: 600 }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.725rem', color: 'var(--text-muted)', fontWeight: 600 }}>
                     CERTIFICATE UID : {previewCert.certificate_uid}
                   </div>
-                  <div style={{ fontSize: '0.725rem', color: '#64748B', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                     ISSUED ON : {new Date(previewCert.completion_date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
                   </div>
                 </div>
@@ -287,7 +284,7 @@ export default function Certificates() {
 
 const styles = {
   container: {
-    padding: '2rem',
+    padding: '0 0 2rem 0',
     maxWidth: 'var(--max-content-width)',
     margin: '0 auto',
     width: '100%',
@@ -330,16 +327,22 @@ const styles = {
     color: 'var(--text-secondary)',
   },
   header: {
-    marginBottom: '2.5rem',
+    marginBottom: '2rem',
   },
   title: {
-    fontSize: '2rem',
+    fontSize: 'clamp(1.4rem, 2.2vw, 1.75rem)',
     fontWeight: 'var(--fw-semibold)',
-    marginBottom: '0.5rem',
+    letterSpacing: '-0.025em',
+    lineHeight: 1.2,
+    color: 'var(--text-primary)',
+    margin: '0 0 0.5rem 0',
   },
   subtitle: {
     color: 'var(--text-secondary)',
     fontSize: '0.875rem',
+    lineHeight: 1.55,
+    maxWidth: '680px',
+    margin: 0,
   },
   grid: {
     display: 'grid',
@@ -396,7 +399,7 @@ const styles = {
     color: 'var(--text-secondary)',
   },
   claimBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.5rem 1rem',
@@ -491,7 +494,7 @@ const styles = {
     gap: '0.5rem',
   },
   previewBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: '#FFF',
     border: 'none',
     padding: '0.5rem 1rem',
@@ -531,9 +534,9 @@ const styles = {
     position: 'absolute',
     top: '-2.5rem',
     right: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'var(--border-primary)',
     border: '1px solid rgba(255, 255, 255, 0.2)',
-    color: '#FFF',
+    color: 'var(--text-primary)',
     borderRadius: '50%',
     width: '36px',
     height: '36px',
@@ -548,7 +551,7 @@ const styles = {
     border: '3px solid #0F172A',
     borderRadius: '6px',
     padding: '2.5rem 2.25rem',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.45), inset 0 0 0 3px #FFFFFF, inset 0 0 0 5px #C5A059, inset 0 0 0 7px #0F172A',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.45), inset 0 0 0 3px #FFFFFF, inset 0 0 0 5px var(--color-warning), inset 0 0 0 7px #0F172A',
     color: '#0F172A',
   },
   certCorner: {
@@ -570,7 +573,7 @@ const styles = {
     marginTop: '3px',
   },
   certAcademyUrl: {
-    color: '#64748B',
+    color: 'var(--text-muted)',
     fontSize: '0.625rem',
     letterSpacing: '0.5px',
     marginTop: '2px',
@@ -578,7 +581,7 @@ const styles = {
   certGoldDivider: {
     width: '240px',
     height: '1px',
-    backgroundColor: '#C5A059',
+    backgroundColor: 'var(--color-warning)',
     margin: '10px auto 0',
   },
   certMainTitle: {
@@ -590,7 +593,7 @@ const styles = {
   },
   certSubCertify: {
     fontSize: '0.75rem',
-    color: '#475569',
+    color: 'var(--text-muted)',
     letterSpacing: '1px',
     marginTop: '6px',
     fontWeight: 600,
@@ -605,12 +608,12 @@ const styles = {
   certNameDivider: {
     width: '260px',
     height: '2px',
-    backgroundColor: '#C5A059',
+    backgroundColor: 'var(--color-warning)',
     margin: '8px auto 12px',
   },
   certNarrative: {
     fontSize: '0.8rem',
-    color: '#475569',
+    color: 'var(--text-muted)',
     maxWidth: '650px',
     margin: '0 auto',
     lineHeight: '1.5',
@@ -626,7 +629,7 @@ const styles = {
   },
   certAccreditationText: {
     fontSize: '0.7rem',
-    color: '#64748B',
+    color: 'var(--text-muted)',
     fontStyle: 'italic',
   },
   certSignatureRow: {
@@ -646,7 +649,7 @@ const styles = {
   certSigLine: {
     width: '180px',
     height: '1px',
-    backgroundColor: '#CBD5E1',
+    backgroundColor: 'var(--text-secondary)',
     margin: '0 auto 6px',
   },
   certSigName: {
@@ -656,12 +659,12 @@ const styles = {
   },
   certSigRole: {
     fontSize: '0.7rem',
-    color: '#475569',
+    color: 'var(--text-muted)',
     marginTop: '2px',
   },
   certSigOrg: {
     fontSize: '0.65rem',
-    color: '#64748B',
+    color: 'var(--text-muted)',
   },
   certSealBadge: {
     display: 'flex',
@@ -702,13 +705,13 @@ const styles = {
     width: '68px',
     height: '68px',
     borderRadius: '50%',
-    border: '2.5px solid #C5A059',
+    border: '2.5px solid var(--color-warning)',
     outline: '1px solid #996515',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#0F172A',
-    boxShadow: '0 4px 12px rgba(15, 23, 42, 0.25), inset 0 0 0 2px #FFFFFF, inset 0 0 0 3px #C5A059',
+    boxShadow: '0 4px 12px rgba(15, 23, 42, 0.25), inset 0 0 0 2px #FFFFFF, inset 0 0 0 3px var(--color-warning)',
   },
   certSealInner: {
     display: 'flex',
@@ -749,14 +752,14 @@ const styles = {
     alignItems: 'center',
     gap: '0.4rem',
     padding: '0.75rem 1.5rem',
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     border: 'none',
     borderRadius: 'var(--radius-md)',
     color: '#FFF',
     textDecoration: 'none',
     fontSize: '0.875rem',
     fontWeight: 'var(--fw-bold)',
-    boxShadow: '0 4px 15px rgba(99, 102, 241, 0.35)',
+    boxShadow: '0 4px 15px var(--primary-subtle-border)',
   },
   emptyText: {
     color: 'var(--text-secondary)',

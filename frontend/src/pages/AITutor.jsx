@@ -125,7 +125,7 @@ export default function AITutor() {
   };
 
   return (
-    <div style={styles.container}>
+    <div className="r-stack" style={styles.container}>
       <style>{`
         .markdown-content {
           line-height: 1.6;
@@ -153,7 +153,7 @@ export default function AITutor() {
         }
         .markdown-content code {
           font-family: Consolas, Monaco, monospace;
-          background-color: rgba(255, 255, 255, 0.08);
+          background-color: var(--border-primary);
           padding: 0.15rem 0.35rem;
           border-radius: 4px;
           font-size: 0.85rem;
@@ -184,7 +184,7 @@ export default function AITutor() {
         .markdown-content h3 { font-size: 1.05rem; }
         .markdown-content blockquote {
           border-left: 4px solid var(--accent-primary);
-          background-color: rgba(255, 255, 255, 0.02);
+          background-color: var(--border-secondary);
           margin: 1rem 0;
           padding: 0.5rem 1rem;
           border-radius: 0 4px 4px 0;
@@ -202,11 +202,11 @@ export default function AITutor() {
           text-align: left;
         }
         .markdown-content th {
-          background-color: rgba(255, 255, 255, 0.04);
+          background-color: var(--border-secondary);
           font-weight: var(--fw-medium);
         }
         .markdown-content tr:nth-child(even) {
-          background-color: rgba(255, 255, 255, 0.01);
+          background-color: var(--border-secondary);
         }
         .dots-loader {
           display: inline-flex;
@@ -229,7 +229,7 @@ export default function AITutor() {
       `}</style>
       
       {/* Sidebar - Quick Prompts & Recommendations */}
-      <div style={styles.sidebar}>
+      <div className="r-sidebar" style={styles.sidebar}>
         <h2 style={styles.sidebarTitle}><FiCpu /> Assistant Hub</h2>
 
         {recommendation && (
@@ -269,7 +269,7 @@ export default function AITutor() {
               style={msg.role === 'user' ? styles.userRow : styles.assistantRow}
             >
               <div style={msg.role === 'user' ? styles.userBubble : styles.assistantBubble}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1.5rem', marginBottom: '0.4rem', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '0.2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1.5rem', marginBottom: '0.4rem', borderBottom: '1px solid var(--border-secondary)', paddingBottom: '0.2rem' }}>
                   <strong style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                     {msg.role === 'user' ? 'You' : 'AI Tutor'}
                   </strong>
@@ -392,14 +392,19 @@ export default function AITutor() {
 const styles = {
   container: {
     display: 'flex',
-    height: 'calc(100vh - var(--navbar-height))',
-    backgroundColor: 'var(--bg-primary)',
+    height: 'calc(100vh - var(--navbar-height) - 5rem)',
+    minHeight: '520px',
+    backgroundColor: 'var(--bg-card)',
     color: 'var(--text-primary)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: 'var(--radius-xl)',
+    overflow: 'hidden',
+    boxShadow: 'var(--shadow-sm)',
   },
   sidebar: {
     width: '280px',
     borderRight: '1px solid var(--border-primary)',
-    backgroundColor: 'var(--bg-secondary)',
+    backgroundColor: 'var(--bg-tertiary)',
     padding: '1.5rem',
     display: 'flex',
     flexDirection: 'column',
@@ -463,7 +468,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '0.5rem',
-    backgroundColor: 'rgba(231, 76, 60, 0.12)',
+    backgroundColor: 'var(--color-error-bg)',
     color: 'var(--color-error)',
     border: 'none',
     padding: '0.75rem',
@@ -495,7 +500,7 @@ const styles = {
     justifyContent: 'flex-start',
   },
   userBubble: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-medium)',
     padding: '0.875rem 1.25rem',
@@ -550,7 +555,7 @@ const styles = {
     fontSize: '0.875rem',
   },
   sendBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     width: '40px',
     height: '40px',
@@ -573,7 +578,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: 'var(--border-secondary)',
     borderBottom: '1px solid var(--border-primary)',
     padding: '0.5rem 1rem'
   },
@@ -631,7 +636,7 @@ const styles = {
     fontWeight: 'bold'
   },
   canvasCloseBtn: {
-    backgroundColor: 'rgba(231, 76, 60, 0.15)',
+    backgroundColor: 'var(--color-error-bg)',
     border: 'none',
     borderRadius: '4px',
     color: 'var(--color-error)',

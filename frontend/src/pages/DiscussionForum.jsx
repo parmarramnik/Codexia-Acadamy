@@ -173,7 +173,7 @@ export default function DiscussionForum() {
         </button>
       </div>
 
-      <div style={styles.grid}>
+      <div className="r-stack" style={styles.grid}>
         {/* Left Side: Threads List */}
         <div style={styles.threadsBox}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -201,7 +201,7 @@ export default function DiscussionForum() {
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
                 width: '100%',
-                backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                backgroundColor: 'var(--border-secondary)',
                 border: '1px solid var(--border-primary)',
                 borderRadius: 'var(--radius-sm)',
                 padding: '7px 28px 7px 30px',
@@ -244,7 +244,7 @@ export default function DiscussionForum() {
                   borderRadius: '12px',
                   border: '1px solid',
                   borderColor: filterType === f ? 'var(--accent-primary)' : 'var(--border-primary)',
-                  backgroundColor: filterType === f ? 'rgba(255, 161, 22, 0.12)' : 'transparent',
+                  backgroundColor: filterType === f ? 'var(--color-warning-bg)' : 'transparent',
                   color: filterType === f ? 'var(--accent-primary)' : 'var(--text-secondary)',
                   cursor: 'pointer',
                   fontWeight: filterType === f ? 600 : 400,
@@ -277,7 +277,7 @@ export default function DiscussionForum() {
                   style={{
                     ...styles.threadItem,
                     borderColor: selectedThread?.id === t.id ? 'var(--accent-primary)' : 'var(--border-primary)',
-                    backgroundColor: selectedThread?.id === t.id ? 'rgba(255, 161, 22, 0.04)' : 'rgba(255, 255, 255, 0.01)'
+                    backgroundColor: selectedThread?.id === t.id ? 'var(--color-warning-bg)' : 'var(--border-secondary)'
                   }}
                 >
 
@@ -304,9 +304,9 @@ export default function DiscussionForum() {
                         <button
                           onClick={(e) => handleDeleteThread(t.id, e)}
                           style={{
-                            background: 'rgba(244, 67, 54, 0.1)',
-                            border: '1px solid rgba(244, 67, 54, 0.3)',
-                            color: '#F44336',
+                            background: 'var(--color-error-bg)',
+                            border: '1px solid transparent',
+                            color: 'var(--color-error)',
                             borderRadius: '4px',
                             padding: '3px 7px',
                             cursor: 'pointer',
@@ -444,7 +444,7 @@ export default function DiscussionForum() {
 
 const styles = {
   container: {
-    padding: '2rem',
+    padding: '0 0 2rem 0',
     maxWidth: 'var(--max-content-width)',
     margin: '0 auto',
     width: '100%',
@@ -461,19 +461,23 @@ const styles = {
     flexShrink: 0
   },
   title: {
-    fontSize: '1.75rem',
+    fontSize: 'clamp(1.4rem, 2.2vw, 1.75rem)',
     fontWeight: 'var(--fw-semibold)',
-    marginBottom: '0.4rem',
-    color: 'var(--text-primary)'
+    letterSpacing: '-0.025em',
+    lineHeight: 1.2,
+    color: 'var(--text-primary)',
+    margin: '0 0 0.5rem 0',
   },
   subtitle: {
     color: 'var(--text-secondary)',
     fontSize: '0.875rem',
-    margin: 0
+    lineHeight: 1.55,
+    maxWidth: '680px',
+    margin: 0,
   },
   askBtn: {
     padding: '0.65rem 1.25rem',
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     border: 'none',
     borderRadius: 'var(--radius-md)',
@@ -683,7 +687,7 @@ const styles = {
   },
   sendBtn: {
     padding: '0 1.25rem',
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     border: 'none',
     borderRadius: 'var(--radius-sm)',
@@ -710,7 +714,7 @@ const styles = {
     left: 0,
     width: '100vw',
     height: '100vh',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'var(--overlay-bg)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',

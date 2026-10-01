@@ -11,6 +11,7 @@ import {
   FiBookOpen,
   FiArrowRight,
 } from 'react-icons/fi';
+import '../styles/pages/landing.css';
 
 export default function Landing() {
   const { isAuthenticated } = useAuth();
@@ -60,37 +61,31 @@ export default function Landing() {
       icon: FiCpu,
       title: 'AI Tutor Support',
       desc: 'Ask questions, explain complex concepts, and summarize lectures in real time using our RAG-enhanced AI assistant.',
-      color: 'var(--accent-purple)',
     },
     {
       icon: FiCode,
       title: 'Interactive Coding Playground',
       desc: 'Practice programming in an integrated Monaco Editor with multi-language runtimes and real-time test verification.',
-      color: 'var(--accent-emerald)',
     },
     {
       icon: FiCheckSquare,
       title: 'Smart Quizzes',
       desc: 'Assess your skills with dynamic MCQs, programming validation, automatic evaluation, and time-limited tracking.',
-      color: 'var(--accent-amber)',
     },
     {
       icon: FiAward,
       title: 'Verified Certificates',
       desc: 'Earn secure PDF course certificates featuring verifiable QR codes to showcase your achievements.',
-      color: 'var(--accent-amber)',
     },
     {
       icon: FiTrendingUp,
       title: 'Learning Analytics',
       desc: 'Monitor study time, daily streaks, quiz accuracies, and pinpoint weak topics using dashboards.',
-      color: 'var(--accent-rose)',
     },
     {
       icon: FiBookOpen,
       title: 'AI Flashcards & Notes',
       desc: 'Instantly generate high-quality markdown notes and active-recall flashcards from course lectures.',
-      color: 'var(--accent-cyan)',
     },
   ];
 
@@ -112,255 +107,122 @@ export default function Landing() {
     },
   ];
 
+  const ctaTo = isAuthenticated ? '/dashboard' : '/signup';
+
   return (
-    <div style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', minHeight: '100vh' }}>
-      {/* Hero Section */}
-      <section
-        style={{
-          padding: 'clamp(3rem, 6vw, 5rem) 1.5rem clamp(2.5rem, 5vw, 4rem)',
-          textAlign: 'center',
-          backgroundColor: 'var(--bg-secondary)',
-          borderBottom: '1px solid var(--border-primary)',
-        }}
-      >
-        <div style={{ maxWidth: '860px', margin: '0 auto' }}>
-          <h1
-            style={{
-              fontSize: 'clamp(2rem, 5vw, 3.25rem)',
-              fontWeight: 800,
-              lineHeight: 1.15,
-              color: 'var(--text-primary)',
-              letterSpacing: '-0.02em',
-              marginBottom: '1.25rem',
-            }}
-          >
-            Learn Smarter with{' '}
-            <span style={{ color: 'var(--accent-primary)' }}>AI-Powered</span>{' '}
-            Education
+    <div className="landing">
+      {/* Hero */}
+      <section className="landing-hero">
+        <div className="landing-hero-inner">
+          <span className="landing-pill">
+            <span className="landing-pill-dot" aria-hidden="true" />
+            AI mentorship for software engineers
+          </span>
+          <h1 className="landing-title">
+            Learn smarter with <span className="landing-title-accent">AI-powered</span> education
           </h1>
-          <p
-            style={{
-              fontSize: 'clamp(0.95rem, 1.5vw, 1.0625rem)',
-              color: 'var(--text-secondary)',
-              lineHeight: 1.65,
-              maxWidth: '680px',
-              margin: '0 auto 2rem',
-            }}
-          >
+          <p className="landing-lead">
             A comprehensive, developer-focused platform combining curriculum lectures,
             hands-on coding practice, dynamic quizzes, and an always-available AI tutor.
           </p>
 
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link
-              to={isAuthenticated ? '/dashboard' : '/signup'}
-              className="btn btn-primary btn-lg"
-              style={{ gap: '0.5rem' }}
-            >
+          <div className="landing-cta-row">
+            <Link to={ctaTo} className="btn btn-primary btn-lg">
               {isAuthenticated ? 'Go to Dashboard' : 'Get Started Free'}
               <FiArrowRight size={16} />
             </Link>
-            <Link
-              to="/courses"
-              className="btn btn-secondary btn-lg"
-            >
+            <Link to="/courses" className="btn btn-secondary btn-lg">
               Explore Courses
             </Link>
           </div>
         </div>
-      </section>
 
-      {/* Features Section */}
-      <section style={{ padding: 'clamp(3rem, 5vw, 4.5rem) 1.5rem', maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 800, letterSpacing: '-0.015em', marginBottom: '0.5rem' }}>
-            Key Features
-          </h2>
-          <p style={{ fontSize: '1rem', color: 'var(--text-secondary)', maxWidth: '560px', margin: '0 auto' }}>
-            Everything you need to master modern software engineering concepts.
-          </p>
-        </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: '1.25rem',
-          }}
-        >
-          {features.map((feature, idx) => (
-            <div
-              key={idx}
-              className="card"
-              style={{
-                padding: '1.75rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem',
-              }}
-            >
-              <div
-                style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--bg-hover)',
-                  border: '1px solid var(--border-primary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: feature.color,
-                }}
-              >
-                <feature.icon size={22} />
+        {/* Product preview */}
+        <div className="landing-preview" aria-hidden="true">
+          <div className="landing-preview-bar">
+            <span /><span /><span />
+            <em>two_sum.py</em>
+          </div>
+          <div className="landing-preview-body">
+            <pre className="landing-code">
+<span className="tok-k">class</span> <span className="tok-f">Solution</span>:{'\n'}
+{'    '}<span className="tok-k">def</span> <span className="tok-f">twoSum</span>(self, nums, target):{'\n'}
+{'        '}seen = {'{}'}{'\n'}
+{'        '}<span className="tok-k">for</span> i, n <span className="tok-k">in</span> enumerate(nums):{'\n'}
+{'            '}<span className="tok-k">if</span> target - n <span className="tok-k">in</span> seen:{'\n'}
+{'                '}<span className="tok-k">return</span> [seen[target - n], i]{'\n'}
+{'            '}seen[n] = i
+            </pre>
+            <div className="landing-preview-side">
+              <div className="landing-preview-chip success">✓ 12 / 12 tests passed</div>
+              <div className="landing-preview-ai">
+                <span className="landing-preview-ai-head"><FiCpu size={13} /> AI Tutor</span>
+                <p>Nice — a hash map turns this into a single pass. Time complexity is <code>O(n)</code>.</p>
               </div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>{feature.title}</h3>
-              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
-                {feature.desc}
-              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats */}
+      <section className="landing-stats">
+        {[
+          { value: '10,000+', label: 'Active Students' },
+          { value: `${realStats.coursesCount}+`, label: 'Total Courses' },
+          { value: '98%', label: 'Completion Rate' },
+          { value: `${realStats.problemsCount}+`, label: 'Coding Challenges' },
+        ].map((stat) => (
+          <div key={stat.label} className="landing-stat">
+            <span className="landing-stat-value">{stat.value}</span>
+            <span className="landing-stat-label">{stat.label}</span>
+          </div>
+        ))}
+      </section>
+
+      {/* Features */}
+      <section className="landing-section">
+        <div className="landing-section-head">
+          <span className="page-eyebrow">Platform</span>
+          <h2 className="landing-h2">Key features</h2>
+          <p className="landing-sub">Everything you need to master modern software engineering concepts.</p>
+        </div>
+
+        <div className="landing-features">
+          {features.map((feature) => (
+            <div key={feature.title} className="landing-feature">
+              <span className="landing-feature-icon"><feature.icon size={18} /></span>
+              <h3 className="landing-feature-title">{feature.title}</h3>
+              <p className="landing-feature-desc">{feature.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section
-        style={{
-          backgroundColor: 'var(--bg-secondary)',
-          borderTop: '1px solid var(--border-primary)',
-          borderBottom: '1px solid var(--border-primary)',
-          padding: 'clamp(2rem, 4vw, 3rem) 1.5rem',
-        }}
-      >
-        <div
-          style={{
-            maxWidth: '1200px',
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: '2rem',
-            textAlign: 'center',
-          }}
-        >
-          {[
-            { value: '10,000+', label: 'Active Students' },
-            { value: `${realStats.coursesCount}+`, label: 'Total Courses' },
-            { value: '98%', label: 'Completion Rate' },
-            { value: `${realStats.problemsCount}+`, label: 'Coding Challenges' },
-          ].map((stat, idx) => (
-            <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <span
-                style={{
-                  fontSize: 'clamp(1.75rem, 3vw, 2.5rem)',
-                  fontWeight: 800,
-                  color: 'var(--accent-primary)',
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                {stat.value}
-              </span>
-              <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                {stat.label}
-              </span>
-            </div>
-          ))}
+      {/* How it works */}
+      <section className="landing-section">
+        <div className="landing-section-head">
+          <span className="page-eyebrow">Workflow</span>
+          <h2 className="landing-h2">How it works</h2>
+          <p className="landing-sub">Three simple steps to accelerate your programming career.</p>
         </div>
+
+        <ol className="landing-steps">
+          {steps.map((step) => (
+            <li key={step.num} className="landing-step">
+              <span className="landing-step-num">{step.num}</span>
+              <h3 className="landing-feature-title">{step.title}</h3>
+              <p className="landing-feature-desc">{step.desc}</p>
+            </li>
+          ))}
+        </ol>
       </section>
 
-      {/* How It Works */}
-      <section style={{ padding: 'clamp(3rem, 5vw, 4.5rem) 1.5rem', maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 800, letterSpacing: '-0.015em', marginBottom: '0.5rem' }}>
-            How It Works
-          </h2>
-          <p style={{ fontSize: '1rem', color: 'var(--text-secondary)', maxWidth: '560px', margin: '0 auto' }}>
-            Three simple steps to accelerate your programming career.
-          </p>
-        </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '1.5rem',
-          }}
-        >
-          {steps.map((step, idx) => (
-            <div
-              key={idx}
-              className="card"
-              style={{
-                padding: '2rem 1.5rem',
-                textAlign: 'center',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '0.85rem',
-              }}
-            >
-              <div
-                style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '50%',
-                  backgroundColor: 'var(--accent-primary)',
-                  color: '#ffffff',
-                  fontWeight: 800,
-                  fontSize: '1.15rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {step.num}
-              </div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0 }}>{step.title}</h3>
-              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
-                {step.desc}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section style={{ padding: '2rem 1.5rem clamp(3rem, 5vw, 4.5rem)', maxWidth: '1200px', margin: '0 auto' }}>
-        <div
-          className="card"
-          style={{
-            padding: 'clamp(2rem, 4vw, 3.5rem) 2rem',
-            textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
-          <h2
-            style={{
-              fontSize: 'clamp(1.5rem, 3vw, 2.25rem)',
-              fontWeight: 800,
-              marginBottom: '0.75rem',
-              letterSpacing: '-0.015em',
-            }}
-          >
-            Ready to Transform Your Learning?
-          </h2>
-          <p
-            style={{
-              fontSize: '1rem',
-              color: 'var(--text-secondary)',
-              maxWidth: '540px',
-              lineHeight: 1.6,
-              marginBottom: '2rem',
-            }}
-          >
-            Create your free account today and start mastering software development.
-          </p>
-          <Link
-            to={isAuthenticated ? '/dashboard' : '/signup'}
-            className="btn btn-primary btn-lg"
-            style={{ gap: '0.5rem' }}
-          >
+      {/* CTA */}
+      <section className="landing-section" style={{ paddingTop: 0 }}>
+        <div className="landing-cta">
+          <h2 className="landing-h2">Ready to transform your learning?</h2>
+          <p className="landing-sub">Create your free account today and start mastering software development.</p>
+          <Link to={ctaTo} className="btn btn-primary btn-lg" style={{ marginTop: '1.75rem' }}>
             {isAuthenticated ? 'Go to Dashboard' : 'Start Learning for Free'}
             <FiArrowRight size={16} />
           </Link>

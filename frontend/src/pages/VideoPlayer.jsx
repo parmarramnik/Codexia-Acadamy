@@ -7,6 +7,7 @@ import {
   FiChevronLeft, FiChevronRight, FiCheckCircle, FiBookOpen, FiCpu, 
   FiLink, FiTrash2, FiEdit2, FiShield, FiX, FiCheck, FiVideo, FiPlay 
 } from 'react-icons/fi';
+import PageLoader from '../components/common/PageLoader';
 
 export default function VideoPlayer() {
   const { slug, lectureId } = useParams();
@@ -138,12 +139,7 @@ export default function VideoPlayer() {
   };
 
   if (isLoading) {
-    return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.loadingSpinner}></div>
-        <p style={styles.loadingText}>Loading lecture workspace...</p>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   if (!course || !currentLecture) {
@@ -281,7 +277,7 @@ export default function VideoPlayer() {
         </div>
       </div>
 
-      <div style={styles.playerLayout}>
+      <div className="r-stack" style={styles.playerLayout}>
         {/* Left Video Area */}
         <div style={styles.videoArea}>
           {videoMeta.type === 'iframe' ? (
@@ -556,9 +552,9 @@ const styles = {
     color: 'var(--color-success)',
   },
   certBadgeBtn: {
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    border: '1px solid rgba(245, 158, 11, 0.4)',
-    color: '#F59E0B',
+    backgroundColor: 'var(--color-warning-bg)',
+    border: '1px solid var(--color-warning)',
+    color: 'var(--color-warning)',
     fontSize: '0.75rem',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.35rem 0.75rem',
@@ -582,7 +578,7 @@ const styles = {
     backgroundColor: '#000',
     borderRadius: 'var(--radius-md)',
     outline: 'none',
-    boxShadow: '0 8px 30px rgba(0,0,0,0.4)',
+    boxShadow: 'var(--shadow-xl)',
   },
   iframeContainer: {
     position: 'relative',
@@ -591,7 +587,7 @@ const styles = {
     backgroundColor: '#000',
     borderRadius: 'var(--radius-md)',
     overflow: 'hidden',
-    boxShadow: '0 8px 30px rgba(0,0,0,0.4)',
+    boxShadow: 'var(--shadow-xl)',
   },
   iframePlayer: {
     width: '100%',
@@ -625,7 +621,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     padding: '0.65rem 1.25rem',
     borderRadius: 'var(--radius-md)',
@@ -673,8 +669,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.3rem',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid rgba(239, 68, 68, 0.3)',
+    backgroundColor: 'var(--color-error-bg)',
+    border: '1px solid var(--color-error)',
     color: 'var(--color-error)',
     fontSize: '0.75rem',
     padding: '0.35rem 0.65rem',
@@ -708,8 +704,8 @@ const styles = {
     cursor: 'not-allowed',
   },
   markCompletedBtn: {
-    backgroundColor: 'var(--color-success)',
-    color: '#FFF',
+    backgroundColor: 'var(--success-solid)',
+    color: '#FFFFFF',
     padding: '0.6rem 1.5rem',
     borderRadius: 'var(--radius-md)',
     border: 'none',
@@ -718,9 +714,9 @@ const styles = {
     cursor: 'pointer',
   },
   completedBtn: {
-    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    backgroundColor: 'var(--color-success-bg)',
     color: 'var(--color-success)',
-    border: '1px solid rgba(34, 197, 94, 0.3)',
+    border: '1px solid var(--color-success)',
     padding: '0.6rem 1.5rem',
     borderRadius: 'var(--radius-md)',
     fontSize: '0.85rem',
@@ -837,7 +833,7 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: 'var(--overlay-bg)',
     backdropFilter: 'blur(4px)',
     display: 'flex',
     alignItems: 'center',
@@ -926,7 +922,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.4rem',
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.65rem 1.25rem',
@@ -939,8 +935,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.4rem',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid rgba(239, 68, 68, 0.3)',
+    backgroundColor: 'var(--color-error-bg)',
+    border: '1px solid var(--color-error)',
     color: 'var(--color-error)',
     fontWeight: 'var(--fw-medium)',
     padding: '0.65rem 1rem',
@@ -970,7 +966,7 @@ const styles = {
     fontWeight: 'var(--fw-semibold)',
   },
   backBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     padding: '0.75rem 1.5rem',
     borderRadius: 'var(--radius-md)',

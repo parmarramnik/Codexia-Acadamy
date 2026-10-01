@@ -54,7 +54,7 @@ export default function Leaderboard() {
           <div style={styles.list}>
             {leaderboard.map((row, index) => {
               const isTop3 = row.rank <= 3;
-              const medalColor = row.rank === 1 ? '#ffd700' : row.rank === 2 ? '#c0c0c0' : '#cd7f32';
+              const medalColor = row.rank === 1 ? 'var(--color-warning)' : row.rank === 2 ? '#c0c0c0' : '#cd7f32';
               const isLast = index === leaderboard.length - 1;
 
               return (
@@ -103,7 +103,7 @@ export default function Leaderboard() {
 
 const styles = {
   container: {
-    padding: '2rem',
+    padding: '0 0 2rem 0',
     maxWidth: '800px',
     margin: '0 auto',
     width: '100%',
@@ -111,7 +111,7 @@ const styles = {
     color: 'var(--text-primary)',
   },
   header: {
-    marginBottom: '2.5rem',
+    marginBottom: '2rem',
   },
   titleWrapper: {
     display: 'flex',
@@ -119,17 +119,23 @@ const styles = {
     gap: '1.25rem',
   },
   headerIcon: {
-    color: '#ffd700',
+    color: 'var(--color-warning)',
     filter: 'drop-shadow(0 0 8px rgba(255, 215, 0, 0.4))',
   },
   title: {
-    fontSize: '2rem',
+    fontSize: 'clamp(1.4rem, 2.2vw, 1.75rem)',
     fontWeight: 'var(--fw-semibold)',
-    marginBottom: '0.25rem',
+    letterSpacing: '-0.025em',
+    lineHeight: 1.2,
+    color: 'var(--text-primary)',
+    margin: '0 0 0.5rem 0',
   },
   subtitle: {
     color: 'var(--text-secondary)',
     fontSize: '0.875rem',
+    lineHeight: 1.55,
+    maxWidth: '680px',
+    margin: 0,
   },
   loadingContainer: {
     display: 'flex',
@@ -247,9 +253,9 @@ const styles = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '0.375rem',
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    backgroundColor: 'var(--color-success-bg)',
     color: '#10b981',
-    border: '1px solid rgba(16, 185, 129, 0.2)',
+    border: '1px solid var(--color-success-bg)',
     padding: '0.25rem 0.625rem',
     borderRadius: 'var(--radius-full)',
     fontSize: '0.75rem',

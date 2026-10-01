@@ -125,7 +125,7 @@ export default function VerifyCertificate() {
                   alignItems: 'center',
                   gap: '0.5rem',
                   padding: '0.75rem 1.5rem',
-                  backgroundColor: 'var(--accent-primary)',
+                  backgroundColor: 'var(--primary)',
                   color: '#FFF',
                   borderRadius: 'var(--radius-md)',
                   textDecoration: 'none',

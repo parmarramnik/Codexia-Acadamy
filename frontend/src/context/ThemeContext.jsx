@@ -21,12 +21,21 @@ function getInitialTheme() {
   return 'dark';
 }
 
-function applyTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
+let transitionTimer;
+
+function applyTheme(theme, animate = false) {
+  const root = document.documentElement;
+  if (animate) {
+    // Briefly enable colour transitions so the switch feels smooth, not jarring
+    root.classList.add('theme-transition');
+    clearTimeout(transitionTimer);
+    transitionTimer = setTimeout(() => root.classList.remove('theme-transition'), 300);
+  }
+  root.setAttribute('data-theme', theme);
   // Update meta theme-color for mobile browsers
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) {
-    meta.setAttribute('content', theme === 'light' ? '#F8FAFC' : '#0F1219');
+    meta.setAttribute('content', theme === 'light' ? '#F6F8FB' : '#0A0D14');
   }
 }
 
@@ -48,7 +57,7 @@ export function ThemeProvider({ children }) {
       if (!savedPref) {
         const newTheme = e.matches ? 'dark' : 'light';
         setTheme(newTheme);
-        applyTheme(newTheme);
+        applyTheme(newTheme, true);
       }
     };
 
@@ -60,7 +69,7 @@ export function ThemeProvider({ children }) {
     if (mode === 'dark' || mode === 'light') {
       setTheme(mode);
       localStorage.setItem('theme', mode);
-      applyTheme(mode);
+      applyTheme(mode, true);
     }
   }, []);
 
@@ -68,7 +77,7 @@ export function ThemeProvider({ children }) {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
     localStorage.setItem('theme', next);
-    applyTheme(next);
+    applyTheme(next, true);
   }, [theme]);
 
   return (

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { FiLogOut, FiX } from 'react-icons/fi';
 import LoadingButton from './LoadingButton';
 
@@ -34,98 +34,61 @@ export default function LogoutModal({ isOpen, onClose, onConfirm, isLoading = fa
       role="dialog"
       aria-modal="true"
       aria-labelledby="logout-modal-title"
+      aria-describedby="logout-modal-desc"
     >
-      <div className="modal" style={{ maxWidth: '440px', padding: '1.75rem', position: 'relative' }}>
-        {/* Close button */}
+      <div className="modal modal-sm">
         <button
           type="button"
+          className="btn-icon btn-sm modal-close"
           onClick={onClose}
           disabled={isLoading}
-          style={{
-            position: 'absolute',
-            top: '1rem',
-            right: '1rem',
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--text-muted)',
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            padding: '4px',
-            borderRadius: 'var(--radius-sm)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
           aria-label="Close modal"
         >
-          <FiX size={18} />
+          <FiX size={16} />
         </button>
 
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-          {/* Warning Icon */}
+        <div className="modal-body" style={{ paddingTop: '1.75rem' }}>
           <div
+            aria-hidden="true"
             style={{
-              width: '54px',
-              height: '54px',
-              borderRadius: '50%',
-              backgroundColor: 'var(--color-error-bg)',
-              border: '1px solid var(--color-error)',
+              width: 44,
+              height: 44,
+              borderRadius: 'var(--radius-lg)',
+              backgroundColor: 'var(--danger-subtle)',
+              color: 'var(--danger)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: '1.25rem',
-              color: 'var(--color-error)',
-              opacity: 0.9,
+              marginBottom: '1rem',
             }}
           >
-            <FiLogOut size={24} style={{ transform: 'translateX(2px)' }} />
+            <FiLogOut size={20} />
           </div>
-
-          <h3
-            id="logout-modal-title"
-            style={{
-              fontSize: 'var(--fs-xl)',
-              fontWeight: 'var(--fw-bold)',
-              color: 'var(--text-primary)',
-              marginBottom: '0.5rem',
-            }}
-          >
-            Confirm Sign Out
-          </h3>
-
-          <p
-            style={{
-              fontSize: 'var(--fs-sm)',
-              color: 'var(--text-secondary)',
-              lineHeight: '1.5',
-              marginBottom: '1.75rem',
-            }}
-          >
-            Are you sure you want to log out? Your current session will be terminated.
+          <h3 id="logout-modal-title" className="modal-title">Sign out of Codexia?</h3>
+          <p id="logout-modal-desc" className="modal-description">
+            Your current session will end on this device. You can sign back in at any time.
           </p>
+        </div>
 
-          {/* Action Buttons */}
-          <div style={{ display: 'flex', gap: '0.75rem', width: '100%' }}>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onClose}
-              disabled={isLoading}
-              style={{ flex: 1, height: '42px' }}
-            >
-              Cancel
-            </button>
-
-            <LoadingButton
-              type="button"
-              className="btn btn-danger"
-              onClick={onConfirm}
-              loading={isLoading}
-              loadingText="Signing out..."
-              style={{ flex: 1, height: '42px' }}
-            >
-              Log Out
-            </LoadingButton>
-          </div>
+        <div className="modal-footer">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={onClose}
+            disabled={isLoading}
+            autoFocus
+          >
+            Cancel
+          </button>
+          <LoadingButton
+            type="button"
+            className="btn btn-danger"
+            onClick={onConfirm}
+            loading={isLoading}
+            loadingText="Signing out..."
+          >
+            Sign out
+          </LoadingButton>
         </div>
       </div>
     </div>

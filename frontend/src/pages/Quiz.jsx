@@ -216,7 +216,7 @@ export default function Quiz() {
 
 const styles = {
   container: {
-    padding: '2rem',
+    padding: '0 0 2rem 0',
     maxWidth: '800px',
     margin: '0 auto',
     width: '100%',
@@ -316,7 +316,7 @@ const styles = {
     fontSize: '0.875rem',
     overflowX: 'auto',
     marginBottom: '1.5rem',
-    color: '#FFF',
+    color: 'var(--text-primary)',
   },
   answersGrid: {
     display: 'flex',
@@ -340,7 +340,7 @@ const styles = {
   },
   answerBtnSelected: {
     borderColor: 'var(--accent-primary)',
-    backgroundColor: 'rgba(255, 161, 22, 0.05)',
+    backgroundColor: 'var(--color-warning-bg)',
   },
   bullet: {
     width: '20px',
@@ -356,7 +356,7 @@ const styles = {
   },
   bulletSelected: {
     borderColor: 'var(--accent-primary)',
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
   },
   answerText: {
@@ -368,7 +368,7 @@ const styles = {
     justifyContent: 'flex-end',
   },
   submitBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.875rem 2rem',
@@ -440,7 +440,7 @@ const styles = {
     color: 'var(--color-error)',
   },
   dashboardBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.75rem 1.5rem',

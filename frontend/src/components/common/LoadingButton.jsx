@@ -1,5 +1,3 @@
-import { FiLoader } from 'react-icons/fi';
-
 /**
  * LoadingButton — A reusable button that shows a spinner + loading text
  * during async operations.
@@ -32,8 +30,7 @@ export default function LoadingButton({
     justifyContent: 'center',
     gap: '0.5rem',
     cursor: isDisabled ? 'not-allowed' : 'pointer',
-    opacity: loading ? 0.8 : (disabled ? 0.5 : 1),
-    transition: 'opacity 0.2s ease',
+    opacity: loading ? 0.85 : (disabled ? 0.5 : 1),
   };
 
   return (
@@ -41,12 +38,15 @@ export default function LoadingButton({
       className={`loading-btn ${className}`}
       style={mergedStyle}
       disabled={isDisabled}
+      aria-busy={loading || undefined}
       {...rest}
     >
       {loading && (
-        <span className="loading-btn-spinner" aria-hidden="true">
-          <FiLoader size={16} />
-        </span>
+        <span
+          className="spinner"
+          aria-hidden="true"
+          style={{ width: 14, height: 14, borderWidth: 2, borderColor: 'currentColor', borderTopColor: 'transparent', opacity: 0.9 }}
+        />
       )}
       {loading ? loadingText : children}
     </button>

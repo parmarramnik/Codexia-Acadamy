@@ -254,7 +254,7 @@ export default function ProblemSetHub() {
     <div style={styles.container}>
       {/* ── Daily Challenge Box ── */}
       <div style={styles.dailyCardContainer}>
-        <div style={styles.dailyCard}>
+        <div className="r-stack" style={styles.dailyCard}>
           <div style={styles.dailyLeft}>
             <div style={styles.dailyHeaderRow}>
               <span style={styles.bannerBadgeGold}>
@@ -295,10 +295,10 @@ export default function ProblemSetHub() {
                       ? 'var(--color-warning)'
                       : 'var(--color-error)',
                     backgroundColor: (dailyChallenge.problem.difficulty || '').toUpperCase() === 'EASY'
-                      ? 'rgba(16, 185, 129, 0.12)'
+                      ? 'var(--color-success-bg)'
                       : (dailyChallenge.problem.difficulty || '').toUpperCase() === 'MEDIUM'
-                      ? 'rgba(245, 158, 11, 0.12)'
-                      : 'rgba(239, 68, 68, 0.12)'
+                      ? 'var(--color-warning-bg)'
+                      : 'var(--color-error-bg)'
                   }}>
                     {dailyChallenge.problem.difficulty}
                   </span>
@@ -332,7 +332,7 @@ export default function ProblemSetHub() {
                   </div>
                 ) : (
                   <div style={styles.dailyUnsolvedIndicator}>
-                    <FiClock size={14} color="#F59E0B" />
+                    <FiClock size={14} color="var(--color-warning)" />
                     <span>Not Solved Yet</span>
                   </div>
                 )}
@@ -487,7 +487,7 @@ export default function ProblemSetHub() {
       </div>
 
       {/* ── Main Content Area: Problem Table + Stats Widget ── */}
-      <div style={styles.mainGrid}>
+      <div className="r-stack" style={styles.mainGrid}>
         {/* Left / Center Column: Problems List & Filter Toolbar */}
         <div style={styles.problemsColumn}>
           {/* Status Filter Tabs (Quick 1-Click Access to Solved Questions) */}
@@ -669,10 +669,10 @@ export default function ProblemSetHub() {
                     : 'var(--color-error)';
                 const diffBg =
                   diff === 'EASY'
-                    ? 'rgba(16, 185, 129, 0.12)'
+                    ? 'var(--color-success-bg)'
                     : diff === 'MEDIUM'
-                    ? 'rgba(245, 158, 11, 0.12)'
-                    : 'rgba(239, 68, 68, 0.12)';
+                    ? 'var(--color-warning-bg)'
+                    : 'var(--color-error-bg)';
 
                 const tagsList = (prob.tags || '')
                   .split(',')
@@ -694,7 +694,7 @@ export default function ProblemSetHub() {
                           <FiCheckCircle size={16} />
                         </span>
                       ) : (
-                        <span title="Not solved" style={{ color: 'rgba(255, 255, 255, 0.2)', fontSize: '0.95rem' }}>
+                        <span title="Not solved" style={{ color: 'var(--border-light)', fontSize: '0.95rem' }}>
                           —
                         </span>
                       )}
@@ -707,7 +707,7 @@ export default function ProblemSetHub() {
                         style={{
                           background: 'none',
                           border: 'none',
-                          color: isFav ? '#F59E0B' : 'rgba(255, 255, 255, 0.2)',
+                          color: isFav ? 'var(--color-warning)' : 'var(--border-light)',
                           cursor: 'pointer',
                           padding: '4px',
                           display: 'flex',
@@ -716,7 +716,7 @@ export default function ProblemSetHub() {
                         }}
                         title={isFav ? 'Remove from favorites' : 'Star problem'}
                       >
-                        <FiStar size={14} fill={isFav ? '#F59E0B' : 'none'} />
+                        <FiStar size={14} fill={isFav ? 'var(--color-warning)' : 'none'} />
                       </button>
                     </div>
 
@@ -881,7 +881,7 @@ export default function ProblemSetHub() {
             </div>
 
             {/* Acceptance & Submissions Metrics */}
-            <div style={styles.metricGrid}>
+            <div className="r-stack" style={styles.metricGrid}>
               <div style={styles.metricBox}>
                 <span style={styles.metricVal}>
                   {(userStats?.total_submissions || 0) > 0 ? `${userStats.acceptance_rate || 0}%` : '0%'}
@@ -902,7 +902,7 @@ export default function ProblemSetHub() {
 
 const styles = {
   container: {
-    padding: '24px 32px',
+    padding: '0 0 2rem 0',
     maxWidth: '1440px',
     margin: '0 auto',
     minHeight: '100vh',
@@ -912,15 +912,15 @@ const styles = {
     marginBottom: '24px'
   },
   dailyCard: {
-    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(20, 24, 33, 0.95) 100%)',
-    border: '1px solid rgba(245, 158, 11, 0.25)',
-    borderRadius: '12px',
+    background: 'radial-gradient(120% 160% at 0% 0%, var(--color-warning-bg) 0%, transparent 55%), var(--bg-card)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: 'var(--radius-lg)',
     padding: '20px 24px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: '20px',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)'
+    boxShadow: 'var(--shadow-sm)'
   },
   dailyLeft: {
     flex: 1,
@@ -937,7 +937,7 @@ const styles = {
     alignItems: 'center',
     fontSize: '0.72rem',
     fontWeight: 700,
-    color: '#F59E0B',
+    color: 'var(--color-warning)',
     letterSpacing: '0.5px'
   },
   bannerDate: {
@@ -946,7 +946,7 @@ const styles = {
     fontWeight: 500
   },
   adminAssignBtn: {
-    background: 'rgba(255, 255, 255, 0.08)',
+    background: 'var(--border-primary)',
     border: '1px solid var(--border-primary)',
     color: 'var(--text-secondary)',
     borderRadius: '4px',
@@ -970,7 +970,7 @@ const styles = {
     margin: 0
   },
   notAvailableBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'var(--border-primary)',
     border: '1px solid var(--border-primary)',
     color: 'var(--text-muted)',
     fontSize: '0.75rem',
@@ -994,8 +994,8 @@ const styles = {
     fontSize: '0.78rem',
     fontWeight: 600,
     color: 'var(--color-success)',
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    border: '1px solid rgba(16, 185, 129, 0.3)',
+    backgroundColor: 'var(--color-success-bg)',
+    border: '1px solid var(--color-success)',
     padding: '4px 10px',
     borderRadius: '16px'
   },
@@ -1005,15 +1005,15 @@ const styles = {
     gap: '5px',
     fontSize: '0.78rem',
     fontWeight: 600,
-    color: '#F59E0B',
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    border: '1px solid rgba(245, 158, 11, 0.3)',
+    color: 'var(--color-warning)',
+    backgroundColor: 'var(--color-warning-bg)',
+    border: '1px solid var(--color-warning)',
     padding: '4px 10px',
     borderRadius: '16px'
   },
   dailySolveBtn: {
-    backgroundColor: '#F59E0B',
-    color: '#0F1219',
+    backgroundColor: 'var(--color-warning)',
+    color: 'var(--bg-tertiary)',
     fontWeight: 700,
     fontSize: '0.85rem',
     padding: '9px 20px',
@@ -1025,7 +1025,7 @@ const styles = {
     alignItems: 'center'
   },
   dailyReviewBtn: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'var(--color-success-bg)',
     border: '1px solid var(--color-success)',
     color: 'var(--color-success)',
     fontWeight: 600,
@@ -1042,7 +1042,7 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'var(--overlay-bg)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1056,7 +1056,7 @@ const styles = {
     padding: '24px',
     maxWidth: '520px',
     width: '100%',
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
+    boxShadow: 'var(--shadow-xl)'
   },
   modalHeader: {
     display: 'flex',
@@ -1092,8 +1092,8 @@ const styles = {
     cursor: 'pointer'
   },
   modalSubmitBtn: {
-    backgroundColor: '#F59E0B',
-    color: '#0F1219',
+    backgroundColor: 'var(--color-warning)',
+    color: 'var(--bg-tertiary)',
     fontWeight: 700,
     border: 'none',
     padding: '8px 18px',
@@ -1120,9 +1120,9 @@ const styles = {
     color: 'var(--text-primary)'
   },
   clearTagBtn: {
-    background: 'rgba(239, 68, 68, 0.15)',
-    border: '1px solid rgba(239, 68, 68, 0.3)',
-    color: '#F87171',
+    background: 'var(--color-error-bg)',
+    border: '1px solid var(--color-error)',
+    color: 'var(--color-error)',
     padding: '2px 8px',
     borderRadius: '4px',
     fontSize: '0.72rem',
@@ -1145,7 +1145,7 @@ const styles = {
     gap: '8px'
   },
   tagPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'var(--border-secondary)',
     border: '1px solid var(--border-primary)',
     borderRadius: '16px',
     padding: '4px 12px',
@@ -1158,21 +1158,21 @@ const styles = {
     transition: 'all 0.15s ease'
   },
   tagPillSelected: {
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    borderColor: '#F59E0B',
-    color: '#F59E0B',
+    backgroundColor: 'var(--color-warning-bg)',
+    borderColor: 'var(--color-warning)',
+    color: 'var(--color-warning)',
     fontWeight: 600
   },
   tagBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'var(--border-primary)',
     color: 'var(--text-muted)',
     fontSize: '0.68rem',
     padding: '1px 6px',
     borderRadius: '10px'
   },
   tagBadgeSelected: {
-    backgroundColor: '#F59E0B',
-    color: '#0F1219',
+    backgroundColor: 'var(--color-warning)',
+    color: 'var(--bg-tertiary)',
     fontWeight: 700,
     fontSize: '0.68rem',
     padding: '1px 6px',
@@ -1196,7 +1196,7 @@ const styles = {
     flexWrap: 'wrap'
   },
   statusTab: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'var(--border-secondary)',
     border: '1px solid var(--border-primary)',
     borderRadius: '8px',
     padding: '6px 14px',
@@ -1208,7 +1208,7 @@ const styles = {
     transition: 'all 0.15s ease'
   },
   statusTabActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'var(--border-primary)',
     border: '1px solid var(--text-primary)',
     borderRadius: '8px',
     padding: '6px 14px',
@@ -1220,7 +1220,7 @@ const styles = {
     alignItems: 'center'
   },
   statusTabActiveSolved: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'var(--color-success-bg)',
     border: '1px solid var(--color-success)',
     borderRadius: '8px',
     padding: '6px 14px',
@@ -1232,20 +1232,20 @@ const styles = {
     alignItems: 'center'
   },
   statusTabActiveFav: {
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    border: '1px solid #F59E0B',
+    backgroundColor: 'var(--color-warning-bg)',
+    border: '1px solid var(--color-warning)',
     borderRadius: '8px',
     padding: '6px 14px',
     fontSize: '0.78rem',
-    color: '#F59E0B',
+    color: 'var(--color-warning)',
     fontWeight: 600,
     cursor: 'pointer',
     display: 'inline-flex',
     alignItems: 'center'
   },
   solvedActiveBanner: {
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    border: '1px solid rgba(16, 185, 129, 0.3)',
+    backgroundColor: 'var(--color-success-bg)',
+    border: '1px solid var(--color-success)',
     borderRadius: '8px',
     padding: '10px 16px',
     display: 'flex',
@@ -1377,7 +1377,7 @@ const styles = {
   probTagBadge: {
     fontSize: '0.68rem',
     color: 'var(--text-muted)',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'var(--border-secondary)',
     padding: '1px 6px',
     borderRadius: '4px',
     cursor: 'pointer'
@@ -1389,7 +1389,7 @@ const styles = {
   },
   miniProgressBar: {
     height: '4px',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'var(--border-primary)',
     borderRadius: '2px',
     width: '64px',
     margin: '4px auto 0 auto',
@@ -1409,7 +1409,7 @@ const styles = {
     display: 'inline-block'
   },
   solveBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: 'var(--border-primary)',
     border: '1px solid var(--border-primary)',
     color: 'var(--text-primary)',
     padding: '6px 14px',
@@ -1419,8 +1419,8 @@ const styles = {
     cursor: 'pointer'
   },
   reviewBtn: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    border: '1px solid rgba(16, 185, 129, 0.4)',
+    backgroundColor: 'var(--color-success-bg)',
+    border: '1px solid var(--color-success)',
     color: 'var(--color-success)',
     padding: '6px 14px',
     borderRadius: '6px',
@@ -1509,7 +1509,7 @@ const styles = {
   },
   statProgressBar: {
     height: '6px',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'var(--border-primary)',
     borderRadius: '3px',
     overflow: 'hidden'
   },
@@ -1525,7 +1525,7 @@ const styles = {
     marginBottom: '16px'
   },
   metricBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: 'var(--border-secondary)',
     border: '1px solid var(--border-primary)',
     borderRadius: '8px',
     padding: '10px',
@@ -1548,8 +1548,8 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '8px',
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-    border: '1px solid rgba(16, 185, 129, 0.25)',
+    backgroundColor: 'var(--color-success-bg)',
+    border: '1px solid var(--color-success-bg)',
     borderRadius: '8px',
     padding: '9px 12px',
     color: 'var(--color-success)',
@@ -1569,12 +1569,12 @@ const styles = {
     border: '1px solid var(--color-success)',
     borderRadius: '8px',
     padding: '9px 12px',
-    color: '#0F1219',
+    color: 'var(--bg-tertiary)',
     fontSize: '0.82rem',
     fontWeight: 700,
     cursor: 'pointer',
     marginBottom: '8px',
-    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+    boxShadow: '0 2px 8px var(--color-success)'
   },
   starredBtn: {
     width: '100%',
@@ -1582,7 +1582,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '8px',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'var(--border-secondary)',
     border: '1px solid var(--border-primary)',
     borderRadius: '8px',
     padding: '9px 12px',
@@ -1597,11 +1597,11 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '8px',
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    border: '1px solid rgba(245, 158, 11, 0.4)',
+    backgroundColor: 'var(--color-warning-bg)',
+    border: '1px solid var(--color-warning)',
     borderRadius: '8px',
     padding: '9px 12px',
-    color: '#F59E0B',
+    color: 'var(--color-warning)',
     fontSize: '0.82rem',
     fontWeight: 600,
     cursor: 'pointer'
@@ -1610,7 +1610,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    backgroundColor: '#2563EB',
+    backgroundColor: 'var(--primary)',
     color: '#FFFFFF',
     border: 'none',
     borderRadius: '8px',
@@ -1620,6 +1620,5 @@ const styles = {
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     transition: 'background-color 0.15s ease',
-    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
   }
 };

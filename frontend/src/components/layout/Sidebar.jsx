@@ -3,10 +3,18 @@ import { useAuth } from '../../context/AuthContext';
 import {
   FiHome, FiBook, FiCode, FiFileText, FiLayers,
   FiMessageSquare, FiAward, FiBarChart2, FiTrendingUp,
-  FiUser, FiSettings, FiShield, FiEdit3, FiCpu, FiCheckSquare,
-  FiMenu
+  FiShield, FiEdit3, FiCpu, FiCheckSquare,
+  FiSidebar
 } from 'react-icons/fi';
 import './Sidebar.css';
+
+function BrandMark() {
+  return (
+    <span className="sidebar-brand-mark" aria-hidden="true">
+      <FiCode size={16} strokeWidth={2.5} />
+    </span>
+  );
+}
 
 export default function Sidebar({ isCollapsed = false, isMobileOpen = false, onToggleSidebar }) {
   const { user } = useAuth();
@@ -16,23 +24,23 @@ export default function Sidebar({ isCollapsed = false, isMobileOpen = false, onT
   const isInstructor = user?.role === 'instructor';
 
   const learningLinks = [
-    { to: '/dashboard', icon: FiHome, label: 'Dashboard', color: '#818CF8' },
-    { to: '/courses', icon: FiBook, label: 'Courses', color: '#34D399' },
-    { to: '/quizzes', icon: FiCheckSquare, label: 'Quizzes & Tests', color: '#FBBF24' },
+    { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
+    { to: '/courses', icon: FiBook, label: 'Courses' },
+    { to: '/quizzes', icon: FiCheckSquare, label: 'Quizzes & Tests' },
   ];
 
   const toolsLinks = [
-    { to: '/coding', icon: FiCode, label: 'Coding Practice', color: '#2DD4BF' },
-    { to: '/ai-workspace', icon: FiCpu, label: 'Study Assistant', color: '#A78BFA' },
-    { to: '/notes', icon: FiFileText, label: 'Notes & Docs', color: '#F472B6' },
-    { to: '/flashcards', icon: FiLayers, label: 'Flashcards', color: '#FB923C' },
+    { to: '/coding', icon: FiCode, label: 'Coding Practice' },
+    { to: '/ai-workspace', icon: FiCpu, label: 'Study Assistant' },
+    { to: '/notes', icon: FiFileText, label: 'Notes & Docs' },
+    { to: '/flashcards', icon: FiLayers, label: 'Flashcards' },
   ];
 
   const communityLinks = [
-    { to: '/discussion', icon: FiMessageSquare, label: 'Discussions', color: '#60A5FA' },
-    { to: '/certificates', icon: FiAward, label: 'Certificates', color: '#FBBF24' },
-    { to: '/analytics', icon: FiBarChart2, label: 'Analytics', color: '#4ADE80' },
-    { to: '/leaderboard', icon: FiTrendingUp, label: 'Leaderboard', color: '#F43F5E' },
+    { to: '/discussion', icon: FiMessageSquare, label: 'Discussions' },
+    { to: '/certificates', icon: FiAward, label: 'Certificates' },
+    { to: '/analytics', icon: FiBarChart2, label: 'Analytics' },
+    { to: '/leaderboard', icon: FiTrendingUp, label: 'Leaderboard' },
   ];
 
   const adminLinks = [];
@@ -46,29 +54,33 @@ export default function Sidebar({ isCollapsed = false, isMobileOpen = false, onT
     adminLinks.push({ to: '/instructor', icon: FiEdit3, label: 'Instructor Panel' });
   }
 
-  const accountLinks = [
-    { to: '/profile', icon: FiUser, label: 'Profile' },
-    { to: '/settings', icon: FiSettings, label: 'Settings' },
-  ];
+  const initials = (user?.full_name || user?.email || '?')
+    .split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 
   const renderLink = (link) => (
     <NavLink
       key={link.to}
       to={link.to}
       className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-      aria-label={link.label}
+      aria-label={isCollapsed ? link.label : undefined}
     >
-      <link.icon className="sidebar-icon" style={{ color: link.color }} />
-      <span>{link.label}</span>
-      {isCollapsed && <span className="sidebar-tooltip">{link.label}</span>}
+      <link.icon className="sidebar-icon" aria-hidden="true" />
+      <span className="sidebar-link-label">{link.label}</span>
+      {isCollapsed && <span className="sidebar-tooltip" role="tooltip">{link.label}</span>}
     </NavLink>
+  );
+
+  const renderSection = (label, links) => (
+    <div className="sidebar-section">
+      <span className="sidebar-section-label">{label}</span>
+      {links.map(renderLink)}
+    </div>
   );
 
   return (
     <aside
       className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`}
       id="sidebar"
-      role="navigation"
       aria-label="Main navigation"
     >
       <div className="sidebar-header">
@@ -76,70 +88,49 @@ export default function Sidebar({ isCollapsed = false, isMobileOpen = false, onT
           <button
             onClick={onToggleSidebar}
             className="sidebar-brand-collapsed-btn"
-            title="Expand Sidebar (Codexia Academy)"
-            aria-label="Expand Sidebar"
+            title="Expand sidebar"
+            aria-label="Expand sidebar"
           >
-            <FiCode size={20} style={{ color: 'var(--accent-primary)' }} />
+            <BrandMark />
           </button>
         ) : (
           <>
-            <div className="sidebar-brand-wrapper">
-              <span className="sidebar-brand-logo" style={{ display: 'flex', alignItems: 'center' }}>
-                <FiCode size={20} style={{ color: 'var(--accent-primary)' }} />
-              </span>
+            <NavLink to="/dashboard" className="sidebar-brand-wrapper" aria-label="Codexia Academy home">
+              <BrandMark />
               <span className="sidebar-brand-title">
-                Codexia <span style={{ color: 'var(--accent-primary)' }}>Academy</span>
+                Codexia <span className="sidebar-brand-sub">Academy</span>
               </span>
-            </div>
+            </NavLink>
 
             <button
               onClick={onToggleSidebar}
               className="sidebar-header-toggle"
-              title="Collapse Sidebar"
-              aria-label="Collapse Sidebar"
+              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
             >
-              <FiMenu size={18} />
+              <FiSidebar size={16} />
             </button>
           </>
         )}
       </div>
 
       <nav className="sidebar-nav">
-        {/* Learning Hub */}
-        <div className="sidebar-section">
-          {!isCollapsed && <span className="sidebar-section-label">Learning Hub</span>}
-          {learningLinks.map(renderLink)}
-        </div>
-
-        {/* Practice & Tools */}
-        <div className="sidebar-section">
-          {!isCollapsed && <span className="sidebar-section-label">Practice & Tools</span>}
-          {toolsLinks.map(renderLink)}
-        </div>
-
-        {/* Community & Reports */}
-        <div className="sidebar-section">
-          {!isCollapsed && <span className="sidebar-section-label">Community & Reports</span>}
-          {communityLinks.map(renderLink)}
-        </div>
-
-        {/* Administration (Role Based) */}
-        {adminLinks.length > 0 && (
-          <div className="sidebar-section">
-            {!isCollapsed && <span className="sidebar-section-label">Administration</span>}
-            {adminLinks.map(renderLink)}
-          </div>
-        )}
+        {renderSection('Learn', learningLinks)}
+        {renderSection('Practice', toolsLinks)}
+        {renderSection('Community', communityLinks)}
+        {adminLinks.length > 0 && renderSection('Administration', adminLinks)}
       </nav>
 
-      {/* Account Footer */}
       <div className="sidebar-bottom">
-        {!isCollapsed && (
-          <span className="sidebar-section-label" style={{ paddingLeft: 'var(--space-6)', marginBottom: '4px' }}>
-            Account
+        <NavLink to="/profile" className="sidebar-user" title={user?.full_name || 'Profile'}>
+          <span className="avatar avatar-sm">
+            {user?.avatar_url ? <img src={user.avatar_url} alt="" loading="lazy" /> : initials}
           </span>
-        )}
-        {accountLinks.map(renderLink)}
+          <span className="sidebar-user-info">
+            <span className="sidebar-user-name">{user?.full_name || 'Your account'}</span>
+            <span className="sidebar-user-role">{user?.role?.replace('_', ' ') || 'student'}</span>
+          </span>
+        </NavLink>
       </div>
     </aside>
   );

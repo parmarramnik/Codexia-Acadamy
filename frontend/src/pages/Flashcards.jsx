@@ -246,7 +246,7 @@ export default function Flashcards() {
 
 const styles = {
   container: {
-    padding: '2rem',
+    padding: '0 0 2rem 0',
     maxWidth: 'var(--max-content-width)',
     margin: '0 auto',
     width: '100%',
@@ -263,16 +263,22 @@ const styles = {
     color: 'var(--text-secondary)',
   },
   header: {
-    marginBottom: '2.5rem',
+    marginBottom: '2rem',
   },
   title: {
-    fontSize: '2rem',
+    fontSize: 'clamp(1.4rem, 2.2vw, 1.75rem)',
     fontWeight: 'var(--fw-semibold)',
-    marginBottom: '0.5rem',
+    letterSpacing: '-0.025em',
+    lineHeight: 1.2,
+    color: 'var(--text-primary)',
+    margin: '0 0 0.5rem 0',
   },
   subtitle: {
     color: 'var(--text-secondary)',
     fontSize: '0.875rem',
+    lineHeight: 1.55,
+    maxWidth: '680px',
+    margin: 0,
   },
   actionRow: {
     display: 'flex',
@@ -284,7 +290,9 @@ const styles = {
   },
   filterBar: {
     display: 'flex',
-    gap: '1rem',
+    gap: '0.75rem',
+    flexWrap: 'wrap',
+    minWidth: 0,
   },
   select: {
     padding: '0.625rem 1rem',
@@ -307,7 +315,7 @@ const styles = {
     gap: '0.5rem',
   },
   createBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.625rem 1.25rem',
@@ -370,7 +378,7 @@ const styles = {
     marginTop: '0.5rem',
   },
   saveBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.625rem 1.25rem',

@@ -9,6 +9,7 @@ import {
   FiBookOpen, FiCheckCircle
 } from 'react-icons/fi';
 import { useStudentAnalytics, useStudySessions } from '../hooks/useQueries';
+import PageLoader from '../components/common/PageLoader';
 
 export default function Analytics() {
   const { user } = useAuth();
@@ -106,12 +107,7 @@ export default function Analytics() {
   const effectiveLoading = role === 'student' ? (isStudentLoading && !studentData) : isLoading;
 
   if (effectiveLoading) {
-    return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner} />
-        <p style={{ color: 'var(--text-secondary)' }}>Loading analytics...</p>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   const stats = rawStats;
@@ -165,7 +161,7 @@ export default function Analytics() {
           </div>
         </div>
 
-        <div style={styles.layoutGrid}>
+        <div className="r-stack" style={styles.layoutGrid}>
           <div style={styles.sessionsBox}>
             <h2 style={styles.sectionHeading}><FiCalendar /> Study History (Last 30 Days)</h2>
             {sessions.length === 0 ? (
@@ -387,7 +383,7 @@ export default function Analytics() {
           </div>
         </div>
 
-        <div style={styles.layoutGrid}>
+        <div className="r-stack" style={styles.layoutGrid}>
           <div style={styles.sessionsBox}>
             <h2 style={styles.sectionHeading}><FiLayers size={18} style={{ marginRight: '6px' }} /> Category Catalog Distribution</h2>
             {adminData.categories_distribution.length === 0 ? (
@@ -441,7 +437,7 @@ export default function Analytics() {
 
 const styles = {
   container: {
-    padding: '2rem',
+    padding: '0 0 2rem 0',
     maxWidth: 'var(--max-content-width)',
     margin: '0 auto',
     width: '100%',
@@ -458,20 +454,26 @@ const styles = {
     color: 'var(--text-secondary)',
   },
   header: {
-    marginBottom: '2.5rem',
+    marginBottom: '2rem',
   },
   title: {
-    fontSize: '2rem',
+    fontSize: 'clamp(1.4rem, 2.2vw, 1.75rem)',
     fontWeight: 'var(--fw-semibold)',
-    marginBottom: '0.5rem',
+    letterSpacing: '-0.025em',
+    lineHeight: 1.2,
+    color: 'var(--text-primary)',
+    margin: '0 0 0.5rem 0',
   },
   subtitle: {
     color: 'var(--text-secondary)',
     fontSize: '0.875rem',
+    lineHeight: 1.55,
+    maxWidth: '680px',
+    margin: 0,
   },
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
     gap: '1.5rem',
     marginBottom: '3rem',
   },
@@ -587,7 +589,7 @@ const styles = {
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     borderRadius: 'var(--radius-full)',
   },
   progressText: {

@@ -3,7 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import LoadingButton from '../components/common/LoadingButton';
-import { FiEye, FiEyeOff, FiCode } from 'react-icons/fi';
+import { FiEye, FiEyeOff, FiAlertCircle } from 'react-icons/fi';
+import AuthShell from '../components/common/AuthShell';
 
 export default function Login() {
   const { login } = useAuth();
@@ -67,205 +68,84 @@ export default function Login() {
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '80vh',
-        padding: '2rem 1rem',
-      }}
+    <AuthShell
+      title="Sign in"
+      subtitle="Welcome back to Codexia Academy"
+      footer={<>New to Codexia? <Link to="/signup">Create an account</Link></>}
     >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '420px',
-          backgroundColor: 'var(--bg-card)',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border-primary)',
-          padding: 'clamp(1.75rem, 3vw, 2.5rem) clamp(1.5rem, 3vw, 2rem)',
-          boxShadow: 'var(--shadow-lg)',
-        }}
-      >
-        {/* Header */}
-        <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
-          <div
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--accent-light)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 1rem',
-              color: 'var(--accent-primary)',
-            }}
-          >
-            <FiCode size={24} />
-          </div>
-          <h2
-            style={{
-              fontSize: '1.5rem',
-              fontWeight: 'var(--fw-bold)',
-              color: 'var(--text-primary)',
-              marginBottom: '0.4rem',
-            }}
-          >
-            Sign In
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Welcome back to Codexia Academy
-          </p>
+      {/* Resend verification notice */}
+      {showResend && (
+        <div className="alert alert-error" role="alert" style={{ marginBottom: '1.5rem', flexDirection: 'column', gap: '0.6rem' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FiAlertCircle size={16} /> Your account is not verified yet.
+          </span>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={handleResendVerification}>
+            Enter 6-Digit OTP Code
+          </button>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="form-stack">
+        <div className="form-group">
+          <label htmlFor="email" className="form-label">Email address or username</label>
+          <input
+            id="email"
+            type="text"
+            className="form-input"
+            placeholder="name@domain.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="username"
+          />
         </div>
 
-        {/* Resend verification notice */}
-        {showResend && (
-          <div
-            style={{
-              backgroundColor: 'var(--color-error-bg)',
-              border: '1px solid var(--color-error)',
-              borderRadius: 'var(--radius-md)',
-              padding: '0.85rem 1rem',
-              marginBottom: '1.5rem',
-              textAlign: 'center',
-            }}
-            role="alert"
-          >
-            <p style={{ color: 'var(--color-error)', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
-              Your account is not verified yet.
-            </p>
+        <div className="form-group">
+          <div className="form-label-row">
+            <label htmlFor="password" className="form-label">Password</label>
+            <Link to="/forgot-password" className="auth-link">Forgot password?</Link>
+          </div>
+          <div className="input-with-icon">
+            <input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              className="form-input"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
             <button
               type="button"
-              onClick={handleResendVerification}
-              style={{
-                backgroundColor: 'transparent',
-                border: '1px solid var(--color-error)',
-                borderRadius: 'var(--radius-md)',
-                color: 'var(--color-error)',
-                padding: '0.4rem 0.85rem',
-                fontSize: '0.78rem',
-                fontWeight: 'var(--fw-medium)',
-                cursor: 'pointer',
-              }}
+              className="input-action"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
-              Enter 6-Digit OTP Code
+              {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
             </button>
           </div>
-        )}
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div className="form-group">
-            <label htmlFor="email" className="form-label" style={{ color: 'var(--text-primary)' }}>
-              Email Address or Username
-            </label>
-            <input
-              id="email"
-              type="text"
-              className="form-input"
-              placeholder="e.g. name@domain.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="username"
-            />
-          </div>
-
-          <div className="form-group">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label htmlFor="password" className="form-label" style={{ color: 'var(--text-primary)' }}>
-                Password
-              </label>
-              <Link
-                to="/forgot-password"
-                style={{
-                  fontSize: '0.75rem',
-                  color: 'var(--accent-primary)',
-                  fontWeight: 'var(--fw-medium)',
-                }}
-              >
-                Forgot Password?
-              </Link>
-            </div>
-            <div style={{ position: 'relative' }}>
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                className="form-input"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                style={{ paddingRight: '3rem' }}
-              />
-              <button
-                type="button"
-                tabIndex={-1}
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                style={{
-                  position: 'absolute',
-                  right: '0.75rem',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-              >
-                {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
-              </button>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <input
-              id="remember_me"
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              style={{ accentColor: 'var(--accent-primary)', cursor: 'pointer', width: '16px', height: '16px' }}
-            />
-            <label
-              htmlFor="remember_me"
-              style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer' }}
-            >
-              Remember me for 7 days
-            </label>
-          </div>
-
-          <LoadingButton
-            type="submit"
-            loading={isLoading}
-            loadingText="Signing In..."
-            className="btn btn-primary"
-            style={{
-              width: '100%',
-              height: '44px',
-              fontSize: '0.9rem',
-              marginTop: '0.25rem',
-            }}
-          >
-            Sign In
-          </LoadingButton>
-        </form>
-
-        {/* Footer */}
-        <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            New to Codexia?{' '}
-            <Link to="/signup" style={{ color: 'var(--color-link)', fontWeight: 'var(--fw-medium)' }}>
-              Create an account
-            </Link>
-          </p>
         </div>
-      </div>
-    </div>
+
+        <label htmlFor="remember_me" className="checkbox-row">
+          <input
+            id="remember_me"
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+          />
+          Remember me for 7 days
+        </label>
+
+        <LoadingButton
+          type="submit"
+          loading={isLoading}
+          loadingText="Signing In..."
+          className="btn btn-primary btn-lg btn-block"
+        >
+          Sign In
+        </LoadingButton>
+      </form>
+    </AuthShell>
   );
 }

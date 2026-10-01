@@ -209,7 +209,7 @@ export default function QuizHub() {
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>
-            <FiCheckSquare style={{ color: '#818CF8', marginRight: '10px' }} />
+            <FiCheckSquare style={{ color: 'var(--accent-primary)', marginRight: '10px' }} />
             Quizzes & Assessments
           </h1>
           <p style={styles.subtitle}>
@@ -319,7 +319,7 @@ export default function QuizHub() {
             onClick={() => { setSearchQuery(''); setCourseFilter(''); }}
             style={{
               padding: '8px 16px',
-              backgroundColor: 'var(--accent-primary)',
+              backgroundColor: 'var(--primary)',
               color: '#fff',
               border: 'none',
               borderRadius: 'var(--radius-sm)',
@@ -354,9 +354,9 @@ export default function QuizHub() {
                     {hasScore ? (
                       <span style={{
                         ...styles.statusBadge,
-                        backgroundColor: isPassed ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                        color: isPassed ? '#10B981' : '#F59E0B',
-                        border: isPassed ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(245, 158, 11, 0.25)',
+                        backgroundColor: isPassed ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
+                        color: isPassed ? 'var(--color-success)' : 'var(--color-warning)',
+                        border: isPassed ? '1px solid var(--color-success-bg)' : '1px solid var(--color-warning-bg)',
                       }}>
                         {isPassed ? <FiCheckCircle size={12} /> : <FiClock size={12} />}
                         <span>{isPassed ? 'Passed' : 'Attempted'}</span>
@@ -364,7 +364,7 @@ export default function QuizHub() {
                     ) : (
                       <span style={{
                         ...styles.statusBadge,
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        backgroundColor: 'var(--border-primary)',
                         color: 'var(--text-muted)',
                         border: '1px solid var(--border-primary)',
                       }}>
@@ -395,15 +395,15 @@ export default function QuizHub() {
                 {/* Metadata Row */}
                 <div style={styles.metaRow}>
                   <div style={styles.metaItem}>
-                    <FiClock size={13} style={{ color: '#38BDF8' }} />
+                    <FiClock size={13} style={{ color: 'var(--color-info)' }} />
                     <span>{quiz.time_limit_minutes}m limit</span>
                   </div>
                   <div style={styles.metaItem}>
-                    <FiCheckSquare size={13} style={{ color: '#818CF8' }} />
+                    <FiCheckSquare size={13} style={{ color: 'var(--accent-primary)' }} />
                     <span>{quiz.question_count} items</span>
                   </div>
                   <div style={styles.metaItem}>
-                    <FiAward size={13} style={{ color: '#FBBF24' }} />
+                    <FiAward size={13} style={{ color: 'var(--color-warning)' }} />
                     <span>{quiz.passing_percentage}% pass</span>
                   </div>
                 </div>
@@ -413,7 +413,7 @@ export default function QuizHub() {
                   <div style={styles.scoreRow}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                       <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Best Score</span>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: isPassed ? '#10B981' : '#F59E0B' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: isPassed ? 'var(--color-success)' : 'var(--color-warning)' }}>
                         {Math.round(quiz.user_best_percentage)}%
                         <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400, marginLeft: '4px' }}>
                           (pass: {quiz.passing_percentage}%)
@@ -424,7 +424,7 @@ export default function QuizHub() {
                       <div style={{
                         ...styles.progressBarFill,
                         width: `${Math.min(100, Math.round(quiz.user_best_percentage))}%`,
-                        backgroundColor: isPassed ? '#10B981' : '#F59E0B',
+                        backgroundColor: isPassed ? 'var(--color-success)' : 'var(--color-warning)',
                       }} />
                     </div>
                   </div>
@@ -436,11 +436,11 @@ export default function QuizHub() {
                   style={{
                     ...styles.startBtn,
                     background: isPassed
-                      ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
-                      : 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+                      ? 'linear-gradient(135deg, var(--color-success) 0%, var(--color-success) 100%)'
+                      : 'linear-gradient(135deg, var(--primary) 0%, var(--primary) 100%)',
                     boxShadow: isPassed
-                      ? '0 4px 12px rgba(16, 185, 129, 0.22)'
-                      : '0 4px 12px rgba(99, 102, 241, 0.22)',
+                      ? '0 4px 12px var(--color-success-bg)'
+                      : '0 4px 12px var(--accent-light)',
                   }}
                 >
                   <FiPlay size={14} />
@@ -666,7 +666,7 @@ export default function QuizHub() {
                 ➕ Add Another Question
               </button>
 
-              <LoadingButton loading={isSubmitting} type="submit" style={{ ...styles.aiSubmitBtn, background: 'var(--accent-primary)', marginTop: '1rem' }}>
+              <LoadingButton loading={isSubmitting} type="submit" style={{ ...styles.aiSubmitBtn, background: 'var(--primary)', marginTop: '1rem' }}>
                 Publish Quiz
               </LoadingButton>
             </form>
@@ -678,14 +678,14 @@ export default function QuizHub() {
 }
 
 const styles = {
-  container: { padding: '2rem', maxWidth: '1200px', margin: '0 auto' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2.25rem', flexWrap: 'wrap', gap: '1rem' },
-  title: { fontSize: '1.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', color: 'var(--text-primary)', margin: 0 },
-  subtitle: { color: 'var(--text-secondary)', marginTop: '0.4rem', fontSize: '0.92rem' },
-  aiBtn: { backgroundColor: '#4F46E5', color: '#fff', border: 'none', padding: '0.55rem 1.15rem', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.86rem', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)' },
+  container: { padding: '0 0 2rem 0' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' },
+  title: { fontSize: 'clamp(1.4rem, 2.2vw, 1.75rem)', fontWeight: 'var(--fw-semibold)', letterSpacing: '-0.025em', lineHeight: 1.2, display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--text-primary)', margin: 0 },
+  subtitle: { color: 'var(--text-secondary)', marginTop: '0.5rem', fontSize: '0.875rem', lineHeight: 1.55, maxWidth: '680px' },
+  aiBtn: { backgroundColor: 'var(--primary)', color: '#FFFFFF', border: 'none', padding: '0.55rem 1.15rem', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.86rem' },
   createBtn: { backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)', padding: '0.55rem 1.15rem', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.86rem' },
   emptyCard: { backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-primary)', borderRadius: '16px', padding: '3.5rem 2rem', textAlign: 'center' },
-  quizGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' },
+  quizGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '1.5rem' },
   quizCard: {
     backgroundColor: 'var(--bg-card)',
     border: '1px solid var(--border-primary)',
@@ -693,7 +693,7 @@ const styles = {
     padding: '1.4rem',
     display: 'flex',
     flexDirection: 'column',
-    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.22)',
+    boxShadow: 'var(--shadow-md)',
     transition: 'all 0.2s ease',
   },
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', gap: '8px' },
@@ -703,8 +703,8 @@ const styles = {
     gap: '6px',
     fontSize: '0.74rem',
     fontWeight: 600,
-    color: '#38BDF8',
-    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    color: 'var(--color-info)',
+    backgroundColor: 'var(--color-info-bg)',
     padding: '4px 9px',
     borderRadius: '8px',
     maxWidth: '60%',
@@ -722,9 +722,9 @@ const styles = {
     letterSpacing: '0.02em',
   },
   deleteBtn: {
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
-    color: '#EF4444',
-    border: '1px solid rgba(239, 68, 68, 0.25)',
+    backgroundColor: 'var(--color-error-bg)',
+    color: 'var(--color-error)',
+    border: '1px solid var(--color-error-bg)',
     padding: '4px 7px',
     borderRadius: '6px',
     cursor: 'pointer',
@@ -772,7 +772,7 @@ const styles = {
   },
   scoreRow: {
     marginBottom: '1rem',
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    backgroundColor: 'var(--border-secondary)',
     border: '1px solid var(--border-primary)',
     borderRadius: '10px',
     padding: '0.6rem 0.85rem',
@@ -780,7 +780,7 @@ const styles = {
   progressBarBg: {
     height: '5px',
     borderRadius: '3px',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'var(--border-primary)',
     overflow: 'hidden',
   },
   progressBarFill: {
@@ -789,7 +789,7 @@ const styles = {
     transition: 'width 0.3s ease',
   },
   startBtn: {
-    color: '#ffffff',
+    color: 'var(--text-primary)',
     textAlign: 'center',
     padding: '0.65rem 1rem',
     borderRadius: '10px',
@@ -802,7 +802,7 @@ const styles = {
     gap: '8px',
     transition: 'all 0.2s ease',
   },
-  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.75)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '1rem' },
+  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'var(--overlay-bg)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '1rem' },
   modalContent: { backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-primary)', borderRadius: '16px', width: '100%', maxWidth: '540px', padding: '1.75rem', maxHeight: '90vh', overflowY: 'auto' },
   modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' },
   closeBtn: { background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' },
@@ -812,7 +812,7 @@ const styles = {
   input: { backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-primary)', borderRadius: '8px', padding: '0.6rem 0.8rem', color: 'var(--text-primary)' },
   select: { backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-primary)', borderRadius: '8px', padding: '0.6rem 0.8rem', color: 'var(--text-primary)' },
   row: { display: 'flex', gap: '1rem' },
-  aiSubmitBtn: { backgroundColor: '#4F46E5', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' },
-  questionBlock: { backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-primary)', borderRadius: '10px', padding: '12px' },
+  aiSubmitBtn: { backgroundColor: 'var(--primary)', color: '#FFFFFF', border: 'none', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontWeight: 600, cursor: 'pointer' },
+  questionBlock: { backgroundColor: 'var(--border-secondary)', border: '1px solid var(--border-primary)', borderRadius: '10px', padding: '12px' },
   addQBtn: { backgroundColor: 'transparent', color: 'var(--accent-primary)', border: '1px dashed var(--accent-primary)', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }
 };

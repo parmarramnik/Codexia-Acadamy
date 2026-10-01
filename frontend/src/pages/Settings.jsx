@@ -139,7 +139,7 @@ export default function Settings() {
         <p style={styles.subtitle}>Configure profile details, modify password policy options, and adjust notification alerts.</p>
       </div>
 
-      <div style={styles.settingsLayout}>
+      <div className="r-stack" style={styles.settingsLayout}>
         {/* Settings Navigation Menu */}
         <div style={styles.navMenu}>
           <button
@@ -281,7 +281,7 @@ export default function Settings() {
           {activeTab === 'preferences' && (
             <form onSubmit={handlePrefsSubmit} style={styles.form}>
               <h2 style={styles.sectionTitle}>Appearance & Theme</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div
                   onClick={() => setThemeMode('dark')}
                   style={{
@@ -297,7 +297,7 @@ export default function Settings() {
                     boxShadow: theme === 'dark' ? 'var(--shadow-md)' : 'none',
                   }}
                 >
-                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#1e293b', color: '#60a5fa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--color-info-bg)', color: 'var(--color-info)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
                     <FiMoon />
                   </div>
                   <div>
@@ -322,7 +322,7 @@ export default function Settings() {
                     boxShadow: theme === 'light' ? 'var(--shadow-md)' : 'none',
                   }}
                 >
-                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--color-warning-bg)', color: 'var(--color-warning)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
                     <FiSun />
                   </div>
                   <div>
@@ -480,7 +480,7 @@ export default function Settings() {
 
 const styles = {
   container: {
-    padding: '2rem',
+    padding: '0 0 2rem 0',
     maxWidth: 'var(--max-content-width)',
     margin: '0 auto',
     width: '100%',
@@ -488,16 +488,22 @@ const styles = {
     color: 'var(--text-primary)',
   },
   header: {
-    marginBottom: '2.5rem',
+    marginBottom: '2rem',
   },
   title: {
-    fontSize: '2rem',
+    fontSize: 'clamp(1.4rem, 2.2vw, 1.75rem)',
     fontWeight: 'var(--fw-semibold)',
-    marginBottom: '0.5rem',
+    letterSpacing: '-0.025em',
+    lineHeight: 1.2,
+    color: 'var(--text-primary)',
+    margin: '0 0 0.5rem 0',
   },
   subtitle: {
     color: 'var(--text-secondary)',
     fontSize: '0.875rem',
+    lineHeight: 1.55,
+    maxWidth: '680px',
+    margin: 0,
   },
   settingsLayout: {
     display: 'grid',
@@ -645,7 +651,7 @@ const styles = {
     accentColor: 'var(--accent-primary)',
   },
   submitBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.75rem 1.5rem',

@@ -1,0 +1,22 @@
+.cd-page { gap: var(--space-6); }
+
+.cd-module-header { transition: background-color var(--transition-fast); }
+.cd-module-header:hover { background-color: var(--surface-hover); }
+.cd-module-header:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--focus-ring); }
+
+.cd-lecture-row { transition: background-color var(--transition-fast); }
+.cd-lecture-row:hover { background-color: var(--surface-hover) !important; }
+
+@media (max-width: 1024px) {
+  .cd-hero { grid-template-columns: minmax(0, 1fr) !important; row-gap: 0 !important; }
+  .cd-hero-left { display: contents !important; }
+  .cd-hero-left > * { order: 0; }
+  .cd-hero-right { order: 1; position: static !important; max-width: 560px; width: 100%; margin-top: var(--space-6); }
+  .cd-tabs-wrap { order: 2; }
+}
+
+@media (max-width: 640px) {
+  .cd-lecture-row { padding-left: var(--space-4) !important; }
+  .cd-module-header { flex-wrap: wrap; padding: var(--space-4) !important; }
+}
+.cd-tabs-wrap > .tabs { margin-bottom: var(--space-6); }

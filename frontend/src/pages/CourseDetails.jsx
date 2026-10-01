@@ -10,6 +10,9 @@ import {
 } from 'react-icons/fi';
 import LoadingButton from '../components/common/LoadingButton';
 import PageLoader from '../components/common/PageLoader';
+import EmptyState from '../components/common/EmptyState';
+import CourseCover from '../components/common/CourseCover';
+import '../styles/pages/course-details.css';
 
 export default function CourseDetails() {
   const { slug } = useParams();
@@ -143,12 +146,12 @@ export default function CourseDetails() {
 
   if (!course) {
     return (
-      <div style={styles.emptyState}>
-        <FiBookOpen size={48} color="var(--text-muted)" />
-        <h3 style={styles.emptyTitle}>Course Not Found</h3>
-        <p style={styles.emptySub}>The requested course is currently unavailable or has been relocated.</p>
-        <Link to="/courses" style={styles.backBtn}>Browse All Courses</Link>
-      </div>
+      <EmptyState
+        icon={FiBookOpen}
+        title="Course not found"
+        description="The requested course is currently unavailable or has been relocated."
+        action={<Link to="/courses" className="btn btn-primary">Browse All Courses</Link>}
+      />
     );
   }
 
@@ -158,24 +161,24 @@ export default function CourseDetails() {
   const totalDurationHours = (totalDurationSeconds / 3600).toFixed(1);
 
   return (
-    <div style={styles.container}>
+    <div className="page cd-page">
       {/* Breadcrumbs Navigation - Clean Back to Courses without Home link */}
       <div style={styles.breadcrumbBar}>
         <Link to="/courses" style={styles.breadcrumbLink}>
           <FiArrowLeft size={14} style={{ marginRight: '6px' }} /> Courses
         </Link>
         <span style={styles.breadcrumbSep}>/</span>
-        <span style={styles.breadcrumbCurrent}>{course.category?.replace('_', ' ').toUpperCase()}</span>
+        <span style={styles.breadcrumbCurrent}>{course.category?.replace('_', ' ')}</span>
       </div>
 
       {/* Hero Section */}
-      <div style={styles.heroSection}>
-        <div style={styles.heroLeft}>
+      <div className="cd-hero" style={styles.heroSection}>
+        <div className="cd-hero-left" style={styles.heroLeft}>
           <div style={styles.badgeRow}>
-            <span style={styles.categoryPill}>{course.category?.replace('_', ' ').toUpperCase()}</span>
-            <span style={styles.difficultyPill}>{course.difficulty?.toUpperCase()}</span>
+            <span className="badge badge-primary">{course.category?.replace('_', ' ')}</span>
+            <span className="badge badge-neutral">{course.difficulty}</span>
             {course.enrollment_count > 0 && (
-              <span style={styles.enrollCountBadge}>{course.enrollment_count} Enrolled</span>
+              <span className="badge badge-success badge-dot">{course.enrollment_count} Enrolled</span>
             )}
           </div>
 
@@ -207,20 +210,219 @@ export default function CourseDetails() {
             <span style={styles.specItem}><FiClock size={14} /> {course.duration_hours || totalDurationHours} Hours</span>
             <span style={styles.specItem}><FiBookOpen size={14} /> {totalLecturesCount} Lectures</span>
           </div>
+
+          <div className="cd-tabs-wrap" style={{ marginTop: '2.5rem' }}>
+          {/* Navigation Sub-Tabs */}
+          <div className="tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'curriculum'}
+              onClick={() => setActiveTab('curriculum')}
+              className={`tab ${activeTab === 'curriculum' ? 'active' : ''}`}
+            >
+              Curriculum & Syllabus ({totalLecturesCount})
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'overview'}
+              onClick={() => setActiveTab('overview')}
+              className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
+            >
+              Overview & Objectives
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'instructor'}
+              onClick={() => setActiveTab('instructor')}
+              className={`tab ${activeTab === 'instructor' ? 'active' : ''}`}
+            >
+              Instructor
+            </button>
+          </div>
+
+          {/* Main Content Layout */}
+          <div style={styles.mainLayout}>
+            <div style={styles.leftContent}>
+              {/* TAB: Curriculum */}
+              {activeTab === 'curriculum' && (
+                <div style={styles.tabSection}>
+                  <div style={styles.curriculumTopBar}>
+                    <div>
+                      <h2 style={styles.sectionHeading}>Curriculum & Syllabus</h2>
+                      <p style={styles.sectionSubhead}>
+                        {modules.length} Modules • {totalLecturesCount} Lectures • {totalDurationHours} Hours Total Video Length
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button type="button" onClick={expandAllModules} className="btn btn-ghost btn-sm">Expand All</button>
+                      <button type="button" onClick={collapseAllModules} className="btn btn-ghost btn-sm">Collapse All</button>
+                    </div>
+                  </div>
+
+                  <div style={styles.curriculumModulesList}>
+                    {modules.length === 0 ? (
+                      <EmptyState icon={FiFolder} title="No modules yet" description="No syllabus modules added yet. Check back soon." />
+                    ) : (
+                      modules.map((module, mIdx) => {
+                        const isExpanded = !!expandedModules[module.id];
+                        const moduleLectures = module.lectures || [];
+                        const moduleDurationSec = moduleLectures.reduce((acc, l) => acc + (l.duration_seconds || 0), 0);
+                        const moduleMin = Math.round(moduleDurationSec / 60);
+
+                        return (
+                          <div key={module.id} style={styles.moduleCard}>
+                            <div
+                              onClick={() => toggleModule(module.id)}
+                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleModule(module.id); } }}
+                              role="button"
+                              tabIndex={0}
+                              aria-expanded={isExpanded}
+                              className="cd-module-header"
+                              style={styles.moduleCardHeader}
+                            >
+                              <div style={styles.moduleHeaderLeft}>
+                                {isExpanded ? (
+                                  <FiChevronUp size={18} style={styles.chevronIcon} />
+                                ) : (
+                                  <FiChevronDown size={18} style={styles.chevronIcon} />
+                                )}
+                                <span style={styles.moduleOrderTag}>Module {mIdx + 1}</span>
+                                <span style={styles.moduleTitleText}>{module.title}</span>
+                              </div>
+                              <div style={styles.moduleHeaderRight}>
+                                <span style={styles.moduleMetaBadge}>{moduleLectures.length} lectures</span>
+                                <span style={styles.moduleMetaBadge}>{moduleMin} min</span>
+                              </div>
+                            </div>
+
+                            {module.description && isExpanded && (
+                              <div style={styles.moduleDescBlock}>
+                                <p style={styles.moduleDescText}>{module.description}</p>
+                              </div>
+                            )}
+
+                            {isExpanded && (
+                              <div style={styles.lecturesList}>
+                                {moduleLectures.map((lecture) => {
+                                  const isLectureDone = completedLectures.includes(lecture.id);
+                                  const lectureMin = Math.round((lecture.duration_seconds || 0) / 60);
+
+                                  return (
+                                    <div key={lecture.id} className="cd-lecture-row" style={styles.lectureRow}>
+                                      <div style={styles.lectureRowLeft}>
+                                        {isLectureDone ? (
+                                          <FiCheckCircle size={16} style={{ color: 'var(--color-success)', flexShrink: 0 }} />
+                                        ) : (
+                                          <FiPlay size={15} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                                        )}
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                          <span style={styles.lectureRowTitle}>
+                                            {lecture.title}
+                                          </span>
+                                          {lecture.description && (
+                                            <span style={styles.lectureRowDesc}>{lecture.description}</span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div style={styles.lectureRowRight}>
+                                        <span style={styles.lectureDurationText}>{lectureMin} min</span>
+                                        {isEnrolled ? (
+                                          <Link to={`/courses/${course.slug}/learn/${lecture.id}`} className="btn btn-secondary btn-sm">
+                                            Start <FiChevronRight size={13} />
+                                          </Link>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: Overview & Objectives */}
+              {activeTab === 'overview' && (
+                <div style={styles.tabSection}>
+                  {/* Learning Objectives */}
+                  {course.learning_objectives && (
+                    <div style={styles.whatYouLearnBox}>
+                      <h2 style={styles.boxHeading}>What You'll Learn</h2>
+                      <div style={styles.objectivesGrid}>
+                        {course.learning_objectives.split('\n').filter(Boolean).map((obj, i) => (
+                          <div key={i} style={styles.objectiveRow}>
+                            <div style={styles.greenCheckCircle}>
+                              <FiCheck size={12} />
+                            </div>
+                            <span style={styles.objectiveText}>{obj}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Course Description */}
+                  <div style={styles.descriptionBox}>
+                    <h2 style={styles.sectionHeading}>Course Description</h2>
+                    <div style={styles.descriptionParagraphs}>
+                      <p style={styles.descText}>{course.description}</p>
+                    </div>
+                  </div>
+
+                  {/* Prerequisites */}
+                  {course.prerequisites && (
+                    <div style={styles.requirementsBox}>
+                      <h3 style={styles.reqTitle}>Requirements & Prerequisites</h3>
+                      <p style={styles.reqText}>{course.prerequisites}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB: Instructor Profile */}
+              {activeTab === 'instructor' && (
+                <div style={styles.tabSection}>
+                  <div style={styles.instructorProfileCard}>
+                    <div style={styles.instructorProfileHeader}>
+                      {course.instructor_avatar_url ? (
+                        <img src={course.instructor_avatar_url} alt={course.instructor_name} style={styles.instructorLargeAvatar} />
+                      ) : (
+                        <div style={styles.instructorLargeAvatarPlaceholder}>
+                          <FiUser size={36} />
+                        </div>
+                      )}
+                      <div>
+                        <h2 style={styles.instructorProfileName}>{course.instructor_name || 'Instructor'}</h2>
+                      </div>
+                    </div>
+
+                    {course.instructor_bio && (
+                      <div style={styles.instructorBioBody}>
+                        <p style={styles.instructorBioText}>{course.instructor_bio}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          </div>
         </div>
 
         {/* Right Action / Enrollment Card */}
-        <div style={styles.heroRight}>
+        <div className="cd-hero-right" style={styles.heroRight}>
           <div style={styles.enrollmentCard}>
             {/* Thumbnail */}
             <div style={styles.thumbnailWrapper}>
-              {course.thumbnail_url ? (
-                <img src={course.thumbnail_url} alt={course.title} style={styles.thumbnailImg} />
-              ) : (
-                <div style={styles.thumbnailEmpty}>
-                  <FiBookOpen size={48} />
-                </div>
-              )}
+              <CourseCover src={course.thumbnail_url} title={course.title} category={course.category} height="100%" />
             </div>
 
             <div style={styles.enrollmentCardBody}>
@@ -229,7 +431,7 @@ export default function CourseDetails() {
                   <span style={styles.pricingLabel}>Access Level</span>
                   <div style={styles.freePriceTag}>Free Enrollment</div>
                 </div>
-                <span style={styles.pricingBadge}>100% Free</span>
+                <span className="badge badge-success">100% Free</span>
               </div>
 
               {/* Action Buttons */}
@@ -240,19 +442,19 @@ export default function CourseDetails() {
                       <span style={styles.progressLabel}>Course Progress</span>
                       <span style={styles.progressPercent}>{Math.round(completionPercentage)}%</span>
                     </div>
-                    <div style={styles.progressBarTrack}>
-                      <div style={{ ...styles.progressBarFill, width: `${Math.min(100, Math.max(0, completionPercentage))}%` }} />
+                    <div className="progress-bar" role="progressbar" aria-valuenow={Math.round(completionPercentage)} aria-valuemin={0} aria-valuemax={100} aria-label="Course progress">
+                      <div className="progress-bar-fill" style={{ width: `${Math.min(100, Math.max(0, completionPercentage))}%`, backgroundColor: 'var(--success)' }} />
                     </div>
                   </div>
 
                   {firstLectureId ? (
-                    <Link to={`/courses/${course.slug}/learn/${firstLectureId}`} style={styles.resumeLearningBtn}>
+                    <Link to={`/courses/${course.slug}/learn/${firstLectureId}`} className="btn btn-primary btn-lg btn-block">
                       <FiPlay size={16} /> {completionPercentage > 0 ? `Continue Learning (${Math.round(completionPercentage)}%)` : 'Start Learning'}
                     </Link>
                   ) : null}
 
                   {hasCertificate ? (
-                    <Link to="/certificates" style={styles.viewCertBtn}>
+                    <Link to="/certificates" className="btn btn-secondary btn-block">
                       <FiAward size={15} /> View Official Certificate
                     </Link>
                   ) : completionPercentage >= 80 ? (
@@ -260,7 +462,7 @@ export default function CourseDetails() {
                       onClick={handleClaimCertificate}
                       loading={isClaiming}
                       loadingText="Issuing Certificate..."
-                      style={styles.claimCertBtn}
+                      className="btn btn-success btn-block"
                     >
                       <FiAward size={15} /> Claim Certificate
                     </LoadingButton>
@@ -277,7 +479,7 @@ export default function CourseDetails() {
                     onClick={handleEnroll}
                     loading={isEnrolling}
                     loadingText="Enrolling..."
-                    style={styles.primaryEnrollBtn}
+                    className="btn btn-primary btn-lg btn-block"
                   >
                     Enroll in Course for Free
                   </LoadingButton>
@@ -310,7 +512,7 @@ export default function CourseDetails() {
                   <div style={styles.roleHeaderSmall}>
                     <FiShield size={13} /> {user.role?.toUpperCase()}
                   </div>
-                  <Link to="/instructor" style={styles.adminStudioBtn}>
+                  <Link to="/instructor" className="btn btn-secondary btn-sm">
                     <FiLayers size={14} /> Open Course Studio
                   </Link>
                 </div>
@@ -329,202 +531,11 @@ export default function CourseDetails() {
         </div>
       </div>
 
-      {/* Navigation Sub-Tabs */}
-      <div style={styles.stickyTabsBar}>
-        <button
-          onClick={() => setActiveTab('curriculum')}
-          style={activeTab === 'curriculum' ? { ...styles.subTabBtn, ...styles.activeSubTab } : styles.subTabBtn}
-        >
-          Curriculum & Syllabus ({totalLecturesCount})
-        </button>
-        <button
-          onClick={() => setActiveTab('overview')}
-          style={activeTab === 'overview' ? { ...styles.subTabBtn, ...styles.activeSubTab } : styles.subTabBtn}
-        >
-          Overview & Objectives
-        </button>
-        <button
-          onClick={() => setActiveTab('instructor')}
-          style={activeTab === 'instructor' ? { ...styles.subTabBtn, ...styles.activeSubTab } : styles.subTabBtn}
-        >
-          Instructor
-        </button>
-      </div>
-
-      {/* Main Content Layout */}
-      <div style={styles.mainLayout}>
-        <div style={styles.leftContent}>
-          {/* TAB: Curriculum */}
-          {activeTab === 'curriculum' && (
-            <div style={styles.tabSection}>
-              <div style={styles.curriculumTopBar}>
-                <div>
-                  <h2 style={styles.sectionHeading}>Curriculum & Syllabus</h2>
-                  <p style={styles.sectionSubhead}>
-                    {modules.length} Modules • {totalLecturesCount} Lectures • {totalDurationHours} Hours Total Video Length
-                  </p>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button onClick={expandAllModules} style={styles.expandToggleBtn}>Expand All</button>
-                  <button onClick={collapseAllModules} style={styles.expandToggleBtn}>Collapse All</button>
-                </div>
-              </div>
-
-              <div style={styles.curriculumModulesList}>
-                {modules.length === 0 ? (
-                  <p style={styles.emptySyllabus}>No syllabus modules added yet.</p>
-                ) : (
-                  modules.map((module, mIdx) => {
-                    const isExpanded = !!expandedModules[module.id];
-                    const moduleLectures = module.lectures || [];
-                    const moduleDurationSec = moduleLectures.reduce((acc, l) => acc + (l.duration_seconds || 0), 0);
-                    const moduleMin = Math.round(moduleDurationSec / 60);
-
-                    return (
-                      <div key={module.id} style={styles.moduleCard}>
-                        <div onClick={() => toggleModule(module.id)} style={styles.moduleCardHeader}>
-                          <div style={styles.moduleHeaderLeft}>
-                            {isExpanded ? (
-                              <FiChevronUp size={18} style={styles.chevronIcon} />
-                            ) : (
-                              <FiChevronDown size={18} style={styles.chevronIcon} />
-                            )}
-                            <span style={styles.moduleOrderTag}>Module {mIdx + 1}</span>
-                            <span style={styles.moduleTitleText}>{module.title}</span>
-                          </div>
-                          <div style={styles.moduleHeaderRight}>
-                            <span style={styles.moduleMetaBadge}>{moduleLectures.length} lectures</span>
-                            <span style={styles.moduleMetaBadge}>{moduleMin} min</span>
-                          </div>
-                        </div>
-
-                        {module.description && isExpanded && (
-                          <div style={styles.moduleDescBlock}>
-                            <p style={styles.moduleDescText}>{module.description}</p>
-                          </div>
-                        )}
-
-                        {isExpanded && (
-                          <div style={styles.lecturesList}>
-                            {moduleLectures.map((lecture) => {
-                              const isLectureDone = completedLectures.includes(lecture.id);
-                              const lectureMin = Math.round((lecture.duration_seconds || 0) / 60);
-
-                              return (
-                                <div key={lecture.id} style={styles.lectureRow}>
-                                  <div style={styles.lectureRowLeft}>
-                                    {isLectureDone ? (
-                                      <FiCheckCircle size={16} style={{ color: 'var(--color-success)', flexShrink: 0 }} />
-                                    ) : (
-                                      <FiPlay size={15} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
-                                    )}
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                      <span style={styles.lectureRowTitle}>
-                                        {lecture.title}
-                                      </span>
-                                      {lecture.description && (
-                                        <span style={styles.lectureRowDesc}>{lecture.description}</span>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  <div style={styles.lectureRowRight}>
-                                    <span style={styles.lectureDurationText}>{lectureMin} min</span>
-                                    {isEnrolled ? (
-                                      <Link to={`/courses/${course.slug}/learn/${lecture.id}`} style={styles.startLectureBtn}>
-                                        Start <FiChevronRight size={13} />
-                                      </Link>
-                                    ) : null}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB: Overview & Objectives */}
-          {activeTab === 'overview' && (
-            <div style={styles.tabSection}>
-              {/* Learning Objectives */}
-              {course.learning_objectives && (
-                <div style={styles.whatYouLearnBox}>
-                  <h2 style={styles.boxHeading}>What You'll Learn</h2>
-                  <div style={styles.objectivesGrid}>
-                    {course.learning_objectives.split('\n').filter(Boolean).map((obj, i) => (
-                      <div key={i} style={styles.objectiveRow}>
-                        <div style={styles.greenCheckCircle}>
-                          <FiCheck size={14} color="#FFF" />
-                        </div>
-                        <span style={styles.objectiveText}>{obj}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Course Description */}
-              <div style={styles.descriptionBox}>
-                <h2 style={styles.sectionHeading}>Course Description</h2>
-                <div style={styles.descriptionParagraphs}>
-                  <p style={styles.descText}>{course.description}</p>
-                </div>
-              </div>
-
-              {/* Prerequisites */}
-              {course.prerequisites && (
-                <div style={styles.requirementsBox}>
-                  <h3 style={styles.reqTitle}>Requirements & Prerequisites</h3>
-                  <p style={styles.reqText}>{course.prerequisites}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB: Instructor Profile */}
-          {activeTab === 'instructor' && (
-            <div style={styles.tabSection}>
-              <div style={styles.instructorProfileCard}>
-                <div style={styles.instructorProfileHeader}>
-                  {course.instructor_avatar_url ? (
-                    <img src={course.instructor_avatar_url} alt={course.instructor_name} style={styles.instructorLargeAvatar} />
-                  ) : (
-                    <div style={styles.instructorLargeAvatarPlaceholder}>
-                      <FiUser size={36} />
-                    </div>
-                  )}
-                  <div>
-                    <h2 style={styles.instructorProfileName}>{course.instructor_name || 'Instructor'}</h2>
-                  </div>
-                </div>
-
-                {course.instructor_bio && (
-                  <div style={styles.instructorBioBody}>
-                    <p style={styles.instructorBioText}>{course.instructor_bio}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
 
 const styles = {
-  container: {
-    maxWidth: '100%',
-    margin: '0',
-    padding: '0 0 3rem 0',
-    color: 'var(--text-primary)',
-  },
   breadcrumbBar: {
     display: 'flex',
     alignItems: 'center',
@@ -534,6 +545,8 @@ const styles = {
     marginBottom: '1rem',
   },
   breadcrumbLink: {
+    display: 'inline-flex',
+    alignItems: 'center',
     color: 'var(--text-secondary)',
     textDecoration: 'none',
   },
@@ -541,19 +554,16 @@ const styles = {
     color: 'var(--border-primary)',
   },
   breadcrumbCurrent: {
-    color: 'var(--accent-primary)',
-    fontWeight: 'var(--fw-semibold)',
+    color: 'var(--text-primary)',
+    fontWeight: 'var(--fw-medium)',
+    textTransform: 'capitalize',
   },
   heroSection: {
     display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1.6fr) minmax(320px, 380px)',
-    gap: '2rem',
+    gridTemplateColumns: 'minmax(0, 1fr) 360px',
+    gap: '3rem',
     alignItems: 'flex-start',
-    backgroundColor: 'var(--bg-card)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-lg)',
-    padding: '2rem',
-    marginBottom: '1.75rem',
+    padding: '0.5rem 0 0',
   },
   heroLeft: {
     display: 'flex',
@@ -566,67 +576,39 @@ const styles = {
     flexWrap: 'wrap',
     marginBottom: '1rem',
   },
-  categoryPill: {
-    fontSize: '0.7rem',
-    fontWeight: 'var(--fw-bold)',
-    padding: '4px 10px',
-    borderRadius: 'var(--radius-full)',
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
-    color: 'var(--accent-primary)',
-    letterSpacing: '0.5px',
-  },
-  difficultyPill: {
-    fontSize: '0.7rem',
-    fontWeight: 'var(--fw-semibold)',
-    padding: '4px 10px',
-    borderRadius: 'var(--radius-full)',
-    backgroundColor: 'var(--bg-tertiary)',
-    color: 'var(--text-secondary)',
-  },
-  enrollCountBadge: {
-    fontSize: '0.7rem',
-    fontWeight: 'var(--fw-semibold)',
-    padding: '4px 10px',
-    borderRadius: 'var(--radius-full)',
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    color: 'var(--color-success)',
-  },
   heroTitle: {
-    fontSize: '2.3rem',
-    fontWeight: '800',
-    lineHeight: '1.2',
+    fontSize: 'clamp(1.75rem, 3.2vw, 2.5rem)',
+    fontWeight: 'var(--fw-semibold)',
+    lineHeight: '1.15',
     color: 'var(--text-primary)',
     marginBottom: '1rem',
-    letterSpacing: '-0.5px',
+    letterSpacing: '-0.035em',
   },
   heroSubtitle: {
-    fontSize: '1rem',
-    lineHeight: '1.6',
+    fontSize: '1.0625rem',
+    lineHeight: '1.65',
     color: 'var(--text-secondary)',
-    marginBottom: '1.5rem',
+    marginBottom: '1.75rem',
+    maxWidth: '680px',
   },
   instructorBar: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.85rem',
-    padding: '0.85rem 1.15rem',
-    backgroundColor: 'var(--bg-primary)',
-    border: '1px solid var(--border-secondary)',
-    borderRadius: 'var(--radius-md)',
     marginBottom: '1.5rem',
   },
   instructorAvatar: {
-    width: '42px',
-    height: '42px',
+    width: '40px',
+    height: '40px',
     borderRadius: '50%',
     objectFit: 'cover',
-    border: '2px solid var(--accent-primary)',
   },
   instructorAvatarPlaceholder: {
-    width: '42px',
-    height: '42px',
+    width: '40px',
+    height: '40px',
     borderRadius: '50%',
-    backgroundColor: 'var(--bg-tertiary)',
+    backgroundColor: 'var(--surface-hover)',
+    border: '1px solid var(--border)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -667,11 +649,11 @@ const styles = {
     top: '5rem',
   },
   enrollmentCard: {
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-lg)',
+    backgroundColor: 'var(--surface)',
+    border: '1px solid var(--border-strong)',
+    borderRadius: 'var(--radius-xl)',
     overflow: 'hidden',
-    boxShadow: 'var(--shadow-md)',
+    boxShadow: 'var(--shadow-lg)',
   },
   thumbnailWrapper: {
     position: 'relative',
@@ -679,20 +661,6 @@ const styles = {
     aspectRatio: '16/9',
     backgroundColor: 'var(--bg-tertiary)',
     overflow: 'hidden',
-  },
-  thumbnailImg: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-    display: 'block',
-  },
-  thumbnailEmpty: {
-    width: '100%',
-    height: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: 'var(--text-muted)',
   },
   enrollmentCardBody: {
     padding: '1.5rem',
@@ -708,27 +676,16 @@ const styles = {
     borderBottom: '1px solid var(--border-secondary)',
   },
   pricingLabel: {
-    fontSize: '0.72rem',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
+    fontSize: '0.75rem',
     color: 'var(--text-muted)',
-    fontWeight: 'var(--fw-semibold)',
+    fontWeight: 'var(--fw-medium)',
   },
   freePriceTag: {
-    fontSize: '1.25rem',
-    fontWeight: '800',
-    color: 'var(--color-success)',
+    fontSize: '1.375rem',
+    fontWeight: 'var(--fw-semibold)',
+    color: 'var(--text-primary)',
     letterSpacing: '-0.02em',
     marginTop: '2px',
-  },
-  pricingBadge: {
-    fontSize: '0.75rem',
-    fontWeight: 'var(--fw-bold)',
-    padding: '4px 10px',
-    borderRadius: 'var(--radius-full)',
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    color: 'var(--color-success)',
-    border: '1px solid rgba(16, 185, 129, 0.3)',
   },
   courseIncludesList: {
     display: 'flex',
@@ -751,8 +708,9 @@ const styles = {
     gap: '0.85rem',
   },
   progressContainer: {
-    padding: '0.85rem',
-    backgroundColor: 'var(--bg-tertiary)',
+    padding: '0.85rem 1rem',
+    backgroundColor: 'var(--surface-sunken)',
+    border: '1px solid var(--border-subtle)',
     borderRadius: 'var(--radius-md)',
   },
   progressHeaderRow: {
@@ -766,60 +724,8 @@ const styles = {
     color: 'var(--text-secondary)',
   },
   progressPercent: {
-    color: 'var(--color-success)',
-  },
-  progressBarTrack: {
-    width: '100%',
-    height: '6px',
-    backgroundColor: 'var(--border-secondary)',
-    borderRadius: 'var(--radius-full)',
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: 'var(--color-success)',
-    borderRadius: 'var(--radius-full)',
-    transition: 'width 0.4s ease',
-  },
-  resumeLearningBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.5rem',
-    padding: '0.85rem',
-    backgroundColor: 'var(--accent-primary)',
-    color: '#FFF',
-    textDecoration: 'none',
-    borderRadius: 'var(--radius-md)',
-    fontWeight: 'var(--fw-bold)',
-    fontSize: '0.95rem',
-    transition: 'all 0.2s',
-  },
-  viewCertBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.5rem',
-    padding: '0.85rem',
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    color: '#F59E0B',
-    border: '1px solid rgba(245, 158, 11, 0.4)',
-    textDecoration: 'none',
-    borderRadius: 'var(--radius-md)',
-    fontWeight: 'var(--fw-bold)',
-    fontSize: '0.95rem',
-    textAlign: 'center',
-  },
-  claimCertBtn: {
-    width: '100%',
-    padding: '0.85rem',
-    backgroundColor: 'var(--color-success)',
-    color: '#FFF',
-    borderRadius: 'var(--radius-md)',
-    fontWeight: 'var(--fw-bold)',
-    fontSize: '0.95rem',
-    border: 'none',
-    cursor: 'pointer',
+    color: 'var(--text-primary)',
+    fontVariantNumeric: 'tabular-nums',
   },
   certNotice: {
     display: 'flex',
@@ -834,26 +740,13 @@ const styles = {
     flexDirection: 'column',
     gap: '0.65rem',
   },
-  primaryEnrollBtn: {
-    width: '100%',
-    padding: '1rem',
-    backgroundColor: 'var(--accent-primary)',
-    color: '#FFF',
-    border: 'none',
-    borderRadius: 'var(--radius-md)',
-    fontSize: '1rem',
-    fontWeight: '800',
-    cursor: 'pointer',
-    letterSpacing: '0.3px',
-    boxShadow: '0 4px 15px rgba(99, 102, 241, 0.35)',
-  },
   instructorAdminPanel: {
-    backgroundColor: 'var(--bg-tertiary)',
-    padding: '0.85rem',
+    padding: '0.85rem 1rem',
     borderRadius: 'var(--radius-md)',
-    border: '1px dashed var(--border-primary)',
+    border: '1px dashed var(--border-strong)',
     display: 'flex',
-    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: '0.5rem',
   },
   roleHeaderSmall: {
@@ -865,20 +758,6 @@ const styles = {
     alignItems: 'center',
     gap: '0.4rem',
   },
-  adminStudioBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.4rem',
-    padding: '0.6rem',
-    backgroundColor: 'var(--bg-tertiary)',
-    color: 'var(--text-primary)',
-    borderRadius: 'var(--radius-sm)',
-    fontSize: '0.85rem',
-    fontWeight: 'var(--fw-semibold)',
-    textDecoration: 'none',
-    border: '1px solid var(--border-secondary)',
-  },
   includesBox: {
     display: 'flex',
     flexDirection: 'column',
@@ -887,39 +766,15 @@ const styles = {
     color: 'var(--text-secondary)',
   },
   includesTitle: {
-    fontSize: '0.8rem',
-    fontWeight: 'var(--fw-bold)',
-    color: 'var(--text-primary)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-    marginBottom: '4px',
+    fontSize: '0.75rem',
+    fontWeight: 'var(--fw-semibold)',
+    color: 'var(--text-muted)',
+    marginBottom: '2px',
   },
   includesItem: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.55rem',
-  },
-  stickyTabsBar: {
-    display: 'flex',
-    gap: '1rem',
-    borderBottom: '2px solid var(--border-primary)',
-    marginBottom: '2rem',
-  },
-  subTabBtn: {
-    padding: '0.85rem 1.25rem',
-    backgroundColor: 'transparent',
-    border: 'none',
-    borderBottom: '2px solid transparent',
-    color: 'var(--text-secondary)',
-    fontSize: '0.95rem',
-    fontWeight: 'var(--fw-semibold)',
-    cursor: 'pointer',
-    marginBottom: '-2px',
-    transition: 'all 0.2s',
-  },
-  activeSubTab: {
-    color: 'var(--accent-primary)',
-    borderBottom: '2px solid var(--accent-primary)',
   },
   mainLayout: {
     display: 'block',
@@ -935,15 +790,13 @@ const styles = {
   curriculumTopBar: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     flexWrap: 'wrap',
     gap: '1rem',
-    paddingBottom: '1rem',
-    borderBottom: '1px solid var(--border-secondary)',
   },
   sectionHeading: {
-    fontSize: '1.4rem',
-    fontWeight: 'var(--fw-bold)',
+    fontSize: 'var(--fs-xl)',
+    fontWeight: 'var(--fw-semibold)',
     color: 'var(--text-primary)',
     marginBottom: '0.35rem',
   },
@@ -951,41 +804,24 @@ const styles = {
     fontSize: '0.85rem',
     color: 'var(--text-muted)',
   },
-  expandToggleBtn: {
-    padding: '6px 12px',
-    backgroundColor: 'var(--bg-tertiary)',
-    border: '1px solid var(--border-secondary)',
-    borderRadius: 'var(--radius-sm)',
-    color: 'var(--text-secondary)',
-    fontSize: '0.8rem',
-    cursor: 'pointer',
-    fontWeight: 'var(--fw-medium)',
-  },
   curriculumModulesList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '1rem',
-  },
-  emptySyllabus: {
-    padding: '2rem',
-    textAlign: 'center',
-    color: 'var(--text-muted)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: 'var(--radius-lg)',
+    overflow: 'hidden',
     backgroundColor: 'var(--bg-card)',
-    borderRadius: 'var(--radius-md)',
   },
   moduleCard: {
-    backgroundColor: 'var(--bg-card)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    overflow: 'hidden',
+    borderBottom: '1px solid var(--border-primary)',
   },
   moduleCardHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: '1rem',
     padding: '1rem 1.25rem',
     cursor: 'pointer',
-    backgroundColor: 'var(--bg-secondary)',
     userSelect: 'none',
   },
   moduleHeaderLeft: {
@@ -998,13 +834,14 @@ const styles = {
   },
   moduleOrderTag: {
     fontSize: '0.75rem',
-    fontWeight: 'var(--fw-bold)',
-    color: 'var(--accent-primary)',
-    textTransform: 'uppercase',
+    fontWeight: 'var(--fw-medium)',
+    color: 'var(--text-muted)',
+    fontFamily: 'var(--font-mono)',
+    whiteSpace: 'nowrap',
   },
   moduleTitleText: {
-    fontSize: '1rem',
-    fontWeight: 'var(--fw-bold)',
+    fontSize: '0.95rem',
+    fontWeight: 'var(--fw-semibold)',
     color: 'var(--text-primary)',
   },
   moduleHeaderRight: {
@@ -1015,15 +852,10 @@ const styles = {
   moduleMetaBadge: {
     fontSize: '0.75rem',
     color: 'var(--text-muted)',
-    backgroundColor: 'var(--bg-primary)',
-    padding: '3px 8px',
-    borderRadius: 'var(--radius-sm)',
-    border: '1px solid var(--border-secondary)',
+    whiteSpace: 'nowrap',
   },
   moduleDescBlock: {
-    padding: '0.75rem 1.25rem',
-    backgroundColor: 'var(--bg-primary)',
-    borderBottom: '1px solid var(--border-secondary)',
+    padding: '0 1.25rem 0.85rem 3.35rem',
   },
   moduleDescText: {
     fontSize: '0.85rem',
@@ -1039,9 +871,9 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '0.9rem 1.25rem',
+    padding: '0.75rem 1.25rem 0.75rem 3.35rem',
     borderTop: '1px solid var(--border-secondary)',
-    backgroundColor: 'var(--bg-card)',
+    backgroundColor: 'var(--bg-tertiary)',
     gap: '1rem',
   },
   lectureRowLeft: {
@@ -1051,7 +883,7 @@ const styles = {
     flex: 1,
   },
   lectureRowTitle: {
-    fontSize: '0.9rem',
+    fontSize: '0.875rem',
     fontWeight: 'var(--fw-medium)',
     color: 'var(--text-primary)',
   },
@@ -1070,18 +902,6 @@ const styles = {
     color: 'var(--text-muted)',
     whiteSpace: 'nowrap',
   },
-  startLectureBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '3px',
-    padding: '5px 12px',
-    backgroundColor: 'var(--accent-primary)',
-    color: '#FFF',
-    textDecoration: 'none',
-    borderRadius: 'var(--radius-sm)',
-    fontSize: '0.8rem',
-    fontWeight: 'var(--fw-semibold)',
-  },
   whatYouLearnBox: {
     padding: '1.75rem',
     backgroundColor: 'var(--bg-card)',
@@ -1089,14 +909,14 @@ const styles = {
     borderRadius: 'var(--radius-lg)',
   },
   boxHeading: {
-    fontSize: '1.25rem',
-    fontWeight: 'var(--fw-bold)',
+    fontSize: 'var(--fs-lg)',
+    fontWeight: 'var(--fw-semibold)',
     color: 'var(--text-primary)',
     marginBottom: '1.25rem',
   },
   objectivesGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
     gap: '1rem',
   },
   objectiveRow: {
@@ -1108,7 +928,8 @@ const styles = {
     width: '20px',
     height: '20px',
     borderRadius: '50%',
-    backgroundColor: 'var(--color-success)',
+    backgroundColor: 'var(--color-success-bg)',
+    color: 'var(--color-success)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1172,7 +993,6 @@ const styles = {
     height: '72px',
     borderRadius: '50%',
     objectFit: 'cover',
-    border: '3px solid var(--accent-primary)',
   },
   instructorLargeAvatarPlaceholder: {
     width: '72px',
@@ -1185,8 +1005,8 @@ const styles = {
     color: 'var(--text-muted)',
   },
   instructorProfileName: {
-    fontSize: '1.35rem',
-    fontWeight: 'var(--fw-bold)',
+    fontSize: 'var(--fs-xl)',
+    fontWeight: 'var(--fw-semibold)',
     color: 'var(--text-primary)',
     margin: 0,
   },
@@ -1199,29 +1019,5 @@ const styles = {
     lineHeight: '1.7',
     color: 'var(--text-secondary)',
     margin: 0,
-  },
-  emptyState: {
-    textAlign: 'center',
-    padding: '5rem 2rem',
-  },
-  emptyTitle: {
-    fontSize: '1.5rem',
-    fontWeight: 'var(--fw-bold)',
-    color: 'var(--text-primary)',
-    marginTop: '1rem',
-  },
-  emptySub: {
-    color: 'var(--text-muted)',
-    marginTop: '0.5rem',
-    marginBottom: '1.5rem',
-  },
-  backBtn: {
-    display: 'inline-block',
-    padding: '0.75rem 1.5rem',
-    backgroundColor: 'var(--accent-primary)',
-    color: '#FFF',
-    borderRadius: 'var(--radius-md)',
-    textDecoration: 'none',
-    fontWeight: 'var(--fw-semibold)',
   },
 };

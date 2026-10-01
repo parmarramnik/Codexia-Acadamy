@@ -177,7 +177,7 @@ export default function ProblemMakerModal({ isOpen, onClose, onSuccess }) {
         <div style={styles.header}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div style={styles.headerIconWrapper}>
-              <FiCode size={22} style={{ color: '#3B82F6' }} />
+              <FiCode size={22} style={{ color: 'var(--color-info)' }} />
             </div>
             <div>
               <h2 style={styles.title}>Create Coding Challenge</h2>
@@ -379,7 +379,7 @@ export default function ProblemMakerModal({ isOpen, onClose, onSuccess }) {
               <div style={styles.templateNotice}>
                 <div>
                   <h4 style={styles.noticeTitle}>
-                    <FiZap style={{ color: '#F59E0B' }} /> Pure Scratch Starter Code
+                    <FiZap style={{ color: 'var(--color-warning)' }} /> Pure Scratch Starter Code
                   </h4>
                   <p style={styles.noticeText}>
                     Provide only clean starter signatures with <code># Write your solution here</code>. Never include pre-solved algorithms or answers!
@@ -441,7 +441,7 @@ export default function ProblemMakerModal({ isOpen, onClose, onSuccess }) {
                   />
                   <div>
                     <label htmlFor="set-as-daily" style={styles.dailyLabel}>
-                      <FiCalendar style={{ color: '#F59E0B', marginRight: '0.4rem' }} />
+                      <FiCalendar style={{ color: 'var(--color-warning)', marginRight: '0.4rem' }} />
                       Set as Today's Daily Coding Challenge
                     </label>
                     <p style={styles.dailyDescription}>
@@ -453,7 +453,7 @@ export default function ProblemMakerModal({ isOpen, onClose, onSuccess }) {
 
               {/* Test Cases Builder */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h4 style={{ margin: 0, color: '#FFF', fontSize: '0.95rem' }}>Test Cases ({testCases.length})</h4>
+                <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.95rem' }}>Test Cases ({testCases.length})</h4>
                 <button
                   type="button"
                   onClick={handleAddTestCase}
@@ -582,7 +582,7 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'var(--overlay-bg)',
     backdropFilter: 'blur(4px)',
     display: 'flex',
     alignItems: 'center',
@@ -591,15 +591,15 @@ const styles = {
     padding: '1.5rem',
   },
   modal: {
-    backgroundColor: '#18181B',
-    border: '1px solid #27272A',
+    backgroundColor: 'var(--bg-card)',
+    border: '1px solid var(--border-light)',
     borderRadius: '12px',
     width: '100%',
     maxWidth: '900px',
     maxHeight: '90vh',
     display: 'flex',
     flexDirection: 'column',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    boxShadow: 'var(--shadow-xl)',
     overflow: 'hidden',
   },
   header: {
@@ -607,14 +607,14 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '1.25rem 1.75rem',
-    borderBottom: '1px solid #27272A',
-    backgroundColor: '#1F1F23',
+    borderBottom: '1px solid var(--border-light)',
+    backgroundColor: 'var(--bg-card)',
   },
   headerIconWrapper: {
     width: '42px',
     height: '42px',
     borderRadius: '8px',
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    backgroundColor: 'var(--color-info-bg)',
     border: '1px solid rgba(59, 130, 246, 0.3)',
     display: 'flex',
     alignItems: 'center',
@@ -623,18 +623,18 @@ const styles = {
   title: {
     fontSize: '1.2rem',
     fontWeight: '700',
-    color: '#FAFAFA',
+    color: 'var(--text-primary)',
     margin: 0,
   },
   subtitle: {
     fontSize: '0.8125rem',
-    color: '#A1A1AA',
+    color: 'var(--text-secondary)',
     margin: '0.25rem 0 0 0',
   },
   closeBtn: {
     backgroundColor: 'transparent',
     border: 'none',
-    color: '#71717A',
+    color: 'var(--text-muted)',
     cursor: 'pointer',
     padding: '0.5rem',
     borderRadius: '6px',
@@ -645,8 +645,8 @@ const styles = {
   },
   tabNav: {
     display: 'flex',
-    backgroundColor: '#141416',
-    borderBottom: '1px solid #27272A',
+    backgroundColor: 'var(--bg-tertiary)',
+    borderBottom: '1px solid var(--border-light)',
     padding: '0 1.25rem',
     overflowX: 'auto',
   },
@@ -654,7 +654,7 @@ const styles = {
     backgroundColor: 'transparent',
     border: 'none',
     borderBottom: '2px solid transparent',
-    color: '#71717A',
+    color: 'var(--text-muted)',
     padding: '0.85rem 1.25rem',
     fontSize: '0.875rem',
     fontWeight: '500',
@@ -666,8 +666,8 @@ const styles = {
     transition: 'all 0.15s ease',
   },
   tabBtnActive: {
-    color: '#3B82F6',
-    borderBottomColor: '#3B82F6',
+    color: 'var(--color-info)',
+    borderBottomColor: 'var(--color-info)',
     fontWeight: '600',
   },
   body: {
@@ -700,24 +700,24 @@ const styles = {
   label: {
     fontSize: '0.8125rem',
     fontWeight: '600',
-    color: '#D4D4D8',
+    color: 'var(--text-secondary)',
   },
   miniLabel: {
     fontSize: '0.75rem',
     fontWeight: '500',
-    color: '#A1A1AA',
+    color: 'var(--text-secondary)',
   },
   hintText: {
     fontSize: '0.75rem',
-    color: '#71717A',
+    color: 'var(--text-muted)',
     marginTop: '0.2rem',
   },
   input: {
-    backgroundColor: '#121214',
-    border: '1px solid #27272A',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '1px solid var(--border-light)',
     borderRadius: '6px',
     padding: '0.625rem 0.85rem',
-    color: '#FAFAFA',
+    color: 'var(--text-primary)',
     fontSize: '0.875rem',
     outline: 'none',
     transition: 'border-color 0.15s ease',
@@ -727,35 +727,35 @@ const styles = {
     left: '0.85rem',
     top: '50%',
     transform: 'translateY(-50%)',
-    color: '#71717A',
+    color: 'var(--text-muted)',
   },
   select: {
-    backgroundColor: '#121214',
-    border: '1px solid #27272A',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '1px solid var(--border-light)',
     borderRadius: '6px',
     padding: '0.625rem 0.85rem',
-    color: '#FAFAFA',
+    color: 'var(--text-primary)',
     fontSize: '0.875rem',
     outline: 'none',
     cursor: 'pointer',
   },
   textarea: {
-    backgroundColor: '#121214',
-    border: '1px solid #27272A',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '1px solid var(--border-light)',
     borderRadius: '6px',
     padding: '0.75rem 0.85rem',
-    color: '#FAFAFA',
+    color: 'var(--text-primary)',
     fontSize: '0.875rem',
     outline: 'none',
     fontFamily: 'inherit',
     resize: 'vertical',
   },
   codeTextarea: {
-    backgroundColor: '#0F0F11',
-    border: '1px solid #27272A',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '1px solid var(--border-light)',
     borderRadius: '6px',
     padding: '0.85rem',
-    color: '#E4E4E7',
+    color: 'var(--text-secondary)',
     fontSize: '0.8125rem',
     fontFamily: 'Fira Code, Consolas, Monaco, monospace',
     outline: 'none',
@@ -763,19 +763,19 @@ const styles = {
     lineHeight: '1.5',
   },
   codeMiniArea: {
-    backgroundColor: '#0F0F11',
-    border: '1px solid #27272A',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '1px solid var(--border-light)',
     borderRadius: '4px',
     padding: '0.5rem 0.75rem',
-    color: '#E4E4E7',
+    color: 'var(--text-secondary)',
     fontSize: '0.8125rem',
     fontFamily: 'Fira Code, Consolas, Monaco, monospace',
     outline: 'none',
     resize: 'vertical',
   },
   templateNotice: {
-    backgroundColor: 'rgba(245, 158, 11, 0.08)',
-    border: '1px solid rgba(245, 158, 11, 0.25)',
+    backgroundColor: 'var(--color-warning-bg)',
+    border: '1px solid var(--color-warning-bg)',
     borderRadius: '8px',
     padding: '1rem 1.25rem',
     display: 'flex',
@@ -786,7 +786,7 @@ const styles = {
   noticeTitle: {
     fontSize: '0.875rem',
     fontWeight: '600',
-    color: '#F59E0B',
+    color: 'var(--color-warning)',
     margin: '0 0 0.25rem 0',
     display: 'flex',
     alignItems: 'center',
@@ -794,13 +794,13 @@ const styles = {
   },
   noticeText: {
     fontSize: '0.75rem',
-    color: '#D4D4D8',
+    color: 'var(--text-secondary)',
     margin: 0,
   },
   generateBtn: {
-    backgroundColor: '#27272A',
-    border: '1px solid #3F3F46',
-    color: '#FAFAFA',
+    backgroundColor: 'var(--bg-hover)',
+    border: '1px solid var(--border-primary)',
+    color: 'var(--text-primary)',
     padding: '0.5rem 1rem',
     borderRadius: '6px',
     fontSize: '0.8125rem',
@@ -815,13 +815,13 @@ const styles = {
   langSubNav: {
     display: 'flex',
     gap: '0.5rem',
-    borderBottom: '1px solid #27272A',
+    borderBottom: '1px solid var(--border-light)',
     paddingBottom: '0.5rem',
   },
   langSubBtn: {
     backgroundColor: 'transparent',
     border: 'none',
-    color: '#71717A',
+    color: 'var(--text-muted)',
     padding: '0.35rem 0.75rem',
     borderRadius: '4px',
     fontSize: '0.8125rem',
@@ -829,13 +829,13 @@ const styles = {
     cursor: 'pointer',
   },
   langSubBtnActive: {
-    backgroundColor: '#27272A',
-    color: '#FAFAFA',
+    backgroundColor: 'var(--bg-hover)',
+    color: 'var(--text-primary)',
     fontWeight: '600',
   },
   dailyCard: {
-    backgroundColor: 'rgba(245, 158, 11, 0.05)',
-    border: '1px solid rgba(245, 158, 11, 0.3)',
+    backgroundColor: 'var(--color-warning-bg)',
+    border: '1px solid var(--color-warning)',
     borderRadius: '8px',
     padding: '1.25rem',
     marginBottom: '0.5rem',
@@ -849,20 +849,20 @@ const styles = {
   dailyLabel: {
     fontSize: '0.95rem',
     fontWeight: '600',
-    color: '#F59E0B',
+    color: 'var(--color-warning)',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
   },
   dailyDescription: {
     fontSize: '0.8125rem',
-    color: '#D4D4D8',
+    color: 'var(--text-secondary)',
     margin: '0.25rem 0 0 0',
   },
   addCaseBtn: {
-    backgroundColor: '#27272A',
-    border: '1px solid #3F3F46',
-    color: '#FAFAFA',
+    backgroundColor: 'var(--bg-hover)',
+    border: '1px solid var(--border-primary)',
+    color: 'var(--text-primary)',
     padding: '0.4rem 0.85rem',
     borderRadius: '6px',
     fontSize: '0.8125rem',
@@ -878,8 +878,8 @@ const styles = {
     gap: '1rem',
   },
   testCaseItem: {
-    backgroundColor: '#141416',
-    border: '1px solid #27272A',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '1px solid var(--border-light)',
     borderRadius: '8px',
     padding: '1rem',
     display: 'flex',
@@ -890,20 +890,20 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottom: '1px solid #202024',
+    borderBottom: '1px solid var(--border-primary)',
     paddingBottom: '0.5rem',
   },
   caseBadge: {
     fontSize: '0.75rem',
     fontWeight: '600',
-    color: '#3B82F6',
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    color: 'var(--color-info)',
+    backgroundColor: 'var(--color-info-bg)',
     padding: '0.2rem 0.5rem',
     borderRadius: '4px',
   },
   hiddenCheckboxLabel: {
     fontSize: '0.75rem',
-    color: '#A1A1AA',
+    color: 'var(--text-secondary)',
     display: 'flex',
     alignItems: 'center',
     gap: '0.35rem',
@@ -912,7 +912,7 @@ const styles = {
   deleteCaseBtn: {
     backgroundColor: 'transparent',
     border: 'none',
-    color: '#EF4444',
+    color: 'var(--color-error)',
     cursor: 'pointer',
     padding: '0.25rem',
     display: 'flex',
@@ -920,16 +920,16 @@ const styles = {
   },
   footer: {
     padding: '1.25rem 1.75rem',
-    borderTop: '1px solid #27272A',
-    backgroundColor: '#1F1F23',
+    borderTop: '1px solid var(--border-light)',
+    backgroundColor: 'var(--bg-card)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   primaryBtn: {
-    backgroundColor: '#27272A',
-    border: '1px solid #3F3F46',
-    color: '#FAFAFA',
+    backgroundColor: 'var(--bg-hover)',
+    border: '1px solid var(--border-primary)',
+    color: 'var(--text-primary)',
     padding: '0.5rem 1.25rem',
     borderRadius: '6px',
     fontSize: '0.875rem',
@@ -938,8 +938,8 @@ const styles = {
   },
   secondaryBtn: {
     backgroundColor: 'transparent',
-    border: '1px solid #27272A',
-    color: '#A1A1AA',
+    border: '1px solid var(--border-light)',
+    color: 'var(--text-secondary)',
     padding: '0.5rem 1.25rem',
     borderRadius: '6px',
     fontSize: '0.875rem',
@@ -948,15 +948,15 @@ const styles = {
   cancelBtn: {
     backgroundColor: 'transparent',
     border: 'none',
-    color: '#A1A1AA',
+    color: 'var(--text-secondary)',
     padding: '0.5rem 1rem',
     fontSize: '0.875rem',
     cursor: 'pointer',
   },
   publishBtn: {
-    backgroundColor: '#10B981',
+    backgroundColor: 'var(--success-solid)',
     border: 'none',
-    color: '#FFF',
+    color: '#FFFFFF',
     padding: '0.55rem 1.5rem',
     borderRadius: '6px',
     fontSize: '0.875rem',

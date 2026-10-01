@@ -156,7 +156,7 @@ export default function EnterpriseAI() {
                         </button>
                       </div>
                     </div>
-                    <pre style={{ margin: 0, borderRadius: '0 0 6px 6px', background: '#0B0F17', padding: '0.85rem' }}>
+                    <pre style={{ margin: 0, borderRadius: '0 0 6px 6px', background: 'var(--bg-tertiary)', padding: '0.85rem' }}>
                       <code className={className} {...props}>{children}</code>
                     </pre>
                   </div>
@@ -257,7 +257,7 @@ export default function EnterpriseAI() {
   };
 
   return (
-    <div style={styles.container}>
+    <div className="ai-workspace-page" style={styles.container}>
       <style>{`
         .markdown-content {
           line-height: 1.6;
@@ -281,7 +281,7 @@ export default function EnterpriseAI() {
         }
         .markdown-content code {
           font-family: var(--font-mono);
-          background-color: #283142;
+          background-color: var(--bg-hover);
           padding: 0.15rem 0.35rem;
           border-radius: 4px;
           font-size: 0.85rem;
@@ -313,7 +313,7 @@ export default function EnterpriseAI() {
         .markdown-content h3 { font-size: 1rem; }
         .markdown-content blockquote {
           border-left: 4px solid var(--accent-primary);
-          background-color: #161B26;
+          background-color: var(--bg-tertiary);
           margin: 0.75rem 0;
           padding: 0.4rem 0.8rem;
           border-radius: 0 4px 4px 0;
@@ -322,9 +322,9 @@ export default function EnterpriseAI() {
       `}</style>
       
       {/* Top Banner Header */}
-      <div style={styles.header}>
+      <div className="r-wrap" style={styles.header}>
         <h1 style={styles.title}>
-          <FiCpu style={{ color: 'var(--accent-primary)', marginRight: '10px' }} /> Study Assistant
+          <FiCpu style={{ color: 'var(--accent-primary)' }} /> Study Assistant
         </h1>
         <p style={styles.subtitle}>
           Ask conceptual programming questions, debug code, or explore topics from your courses.
@@ -332,10 +332,10 @@ export default function EnterpriseAI() {
       </div>
 
       {/* Main split-screen panel (Sidebar Left, Workspace Right) */}
-      <div style={styles.workspaceSplit}>
+      <div className="r-stack" style={styles.workspaceSplit}>
         
         {/* Left Navigation Sidebar */}
-        <div style={styles.sidebar}>
+        <div className="r-sidebar" style={styles.sidebar}>
           <div style={styles.sidebarBrand}>
             <span>AI TOOLS</span>
           </div>
@@ -432,7 +432,7 @@ export default function EnterpriseAI() {
                   <div key={idx} style={{
                     ...styles.chatBubble,
                     alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-                    backgroundColor: m.role === 'user' ? '#272F45' : '#161B26',
+                    backgroundColor: m.role === 'user' ? 'var(--bg-hover)' : 'var(--bg-card)',
                     borderColor: m.role === 'user' ? 'var(--accent-primary)' : 'var(--border-primary)',
                     borderRadius: m.role === 'user' ? '12px 12px 0 12px' : '12px 12px 12px 0',
                     maxWidth: '85%'
@@ -449,7 +449,7 @@ export default function EnterpriseAI() {
                   </div>
                 ))}
                 {isTutorLoading && (
-                  <div style={{ alignSelf: 'flex-start', color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#161B26', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
+                  <div style={{ alignSelf: 'flex-start', color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
                     <FiClock className="spin-icon" /> AI is drafting explanation...
                   </div>
                 )}
@@ -460,7 +460,7 @@ export default function EnterpriseAI() {
                 <button 
                   type="button" 
                   onClick={() => startSpeechRecognition(setTutorMsg)} 
-                  style={{ ...styles.speechBtn, backgroundColor: isListening ? 'var(--color-error)' : '#1E2533' }}
+                  style={{ ...styles.speechBtn, backgroundColor: isListening ? 'var(--color-error)' : 'var(--bg-hover)' }}
                   title="Voice dictation"
                 >
                   {isListening ? <FiMicOff /> : <FiMic />}
@@ -600,7 +600,7 @@ export default function EnterpriseAI() {
 
         {/* Interactive Side Canvas Workspace */}
         {activeCanvasCode !== null && (
-          <div style={styles.canvasPanel}>
+          <div className="r-sidebar" style={styles.canvasPanel}>
             <div style={styles.canvasHeader}>
               <div>
                 <h3 style={styles.canvasTitle}>{activeCanvasTitle}</h3>
@@ -633,31 +633,42 @@ export default function EnterpriseAI() {
 
 const styles = {
   container: {
-    padding: '0.25rem 0 1rem 0',
+    padding: 0,
     maxWidth: '100%',
     margin: '0',
     width: '100%',
     color: 'var(--text-primary)',
     display: 'flex',
     flexDirection: 'column',
-    height: 'calc(100vh - 130px)',
+    height: 'calc(100vh - var(--navbar-height) - 2rem)',
     minHeight: 0,
     boxSizing: 'border-box'
   },
   header: {
-    marginBottom: '0.65rem',
+    display: 'flex',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    gap: '0.35rem 1rem',
+    marginBottom: '1rem',
     flexShrink: 0
   },
   title: {
-    fontSize: '1.5rem',
+    fontSize: 'clamp(1.4rem, 2.2vw, 1.75rem)',
     fontWeight: 'var(--fw-semibold)',
-    marginBottom: '0.2rem',
+    letterSpacing: '-0.025em',
+    lineHeight: 1.2,
+    color: 'var(--text-primary)',
+    margin: 0,
     display: 'flex',
-    alignItems: 'center'
+    alignItems: 'center',
+    gap: '0.6rem',
   },
   subtitle: {
     color: 'var(--text-secondary)',
-    fontSize: '0.85rem'
+    fontSize: '0.875rem',
+    lineHeight: 1.55,
+    maxWidth: '680px',
+    margin: 0,
   },
   workspaceSplit: {
     display: 'flex',
@@ -709,7 +720,7 @@ const styles = {
     cursor: 'pointer'
   },
   sidebarTabActive: {
-    backgroundColor: '#272F45',
+    backgroundColor: 'var(--bg-hover)',
     color: 'var(--accent-primary)',
     fontWeight: 'var(--fw-semibold)'
   },
@@ -718,7 +729,7 @@ const styles = {
     alignItems: 'center',
     gap: '0.5rem',
     padding: '0.45rem 0.65rem',
-    backgroundColor: '#161B26',
+    backgroundColor: 'var(--bg-card)',
     border: '1px solid var(--border-primary)',
     borderRadius: '6px',
     color: 'var(--text-secondary)',
@@ -824,7 +835,7 @@ const styles = {
   },
   sendBtn: {
     padding: '0 1.15rem',
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'white',
     border: 'none',
     borderRadius: 'var(--radius-sm)',
@@ -913,7 +924,7 @@ const styles = {
   },
   debugSubmitBtn: {
     padding: '0.65rem 1.25rem',
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'white',
     border: 'none',
     borderRadius: 'var(--radius-sm)',
@@ -931,18 +942,18 @@ const styles = {
     minHeight: 0
   },
   resultPre: {
-    backgroundColor: '#0B0F17',
+    backgroundColor: 'var(--bg-tertiary)',
     border: '1px solid var(--border-primary)',
     padding: '0.85rem',
     borderRadius: '6px',
     overflowX: 'auto',
     fontFamily: 'var(--font-mono)',
     fontSize: '0.82rem',
-    color: '#34D399',
+    color: 'var(--color-success)',
     margin: 0
   },
   resultExplanation: {
-    backgroundColor: '#161B26',
+    backgroundColor: 'var(--bg-card)',
     border: '1px solid var(--border-primary)',
     borderRadius: '6px',
     padding: '0.85rem',
@@ -985,7 +996,7 @@ const styles = {
     gap: '3px'
   },
   openCanvasBtn: {
-    background: '#272F45',
+    background: 'var(--bg-hover)',
     border: '1px solid var(--border-primary)',
     color: 'var(--accent-primary)',
     fontSize: '0.72rem',

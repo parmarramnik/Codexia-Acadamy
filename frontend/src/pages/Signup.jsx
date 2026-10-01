@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import LoadingButton from '../components/common/LoadingButton';
+import AuthShell from '../components/common/AuthShell';
+import { FiEye, FiEyeOff, FiUserPlus } from 'react-icons/fi';
 
 export default function Signup() {
   const { signup } = useAuth();
@@ -73,242 +75,132 @@ export default function Signup() {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <div style={styles.header}>
-          <h2 style={styles.title}>Create Account</h2>
-          <p style={styles.subtitle}>Join Codexia to personalize your learning journey</p>
-        </div>
-
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.inputGroup}>
-            <label htmlFor="fullName" style={styles.label}>Full Name</label>
+    <AuthShell
+      title="Create your account"
+      subtitle="Join Codexia to personalize your learning journey"
+      icon={FiUserPlus}
+      width={460}
+      footer={<>Already have an account? <Link to="/login">Sign In</Link></>}
+    >
+      <form onSubmit={handleSubmit} className="form-stack">
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="fullName" className="form-label">Full name</label>
             <input
               id="fullName"
               name="fullName"
               type="text"
-              placeholder="e.g. John Doe"
+              className="form-input"
+              placeholder="John Doe"
               value={formData.fullName}
               onChange={handleChange}
-              style={styles.input}
+              autoComplete="name"
               required
             />
           </div>
 
-          <div style={styles.inputGroup}>
-            <label htmlFor="username" style={styles.label}>Username</label>
+          <div className="form-group">
+            <label htmlFor="username" className="form-label">Username</label>
             <input
               id="username"
               name="username"
               type="text"
-              placeholder="e.g. johndoe"
+              className="form-input"
+              placeholder="johndoe"
               value={formData.username}
               onChange={handleChange}
-              style={styles.input}
+              autoComplete="username"
               required
             />
           </div>
-
-          <div style={styles.inputGroup}>
-            <label htmlFor="email" style={styles.label}>Email Address</label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="e.g. name@domain.com"
-              value={formData.email}
-              onChange={handleChange}
-              style={styles.input}
-              required
-            />
-          </div>
-
-          <div style={styles.inputGroup}>
-            <label htmlFor="role" style={styles.label}>Register As</label>
-            <select
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              style={styles.select}
-              required
-            >
-              <option value="student">Student (Learn with AI)</option>
-              <option value="instructor">Instructor (Create Courses)</option>
-              <option value="admin">Admin (Manage Platform)</option>
-              <option value="super_admin">Super Admin (Full System Control)</option>
-            </select>
-          </div>
-
-          <div style={styles.inputGroup}>
-            <label htmlFor="password" style={styles.label}>Password</label>
-            <div style={styles.passwordWrapper}>
-              <input
-                id="password"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={handleChange}
-                style={styles.inputPassword}
-                required
-              />
-              <button
-                type="button"
-                tabIndex="-1"
-                onClick={() => setShowPassword(!showPassword)}
-                style={styles.showButton}
-              >
-                {showPassword ? 'Hide' : 'Show'}
-              </button>
-            </div>
-          </div>
-
-          <div style={styles.inputGroup}>
-            <label htmlFor="confirmPassword" style={styles.label}>Confirm Password</label>
-            <input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              placeholder="••••••••"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              style={styles.input}
-              required
-            />
-          </div>
-
-          <LoadingButton
-            type="submit"
-            loading={isLoading}
-            loadingText="Creating Account..."
-            style={styles.submitBtn}
-          >
-            Sign Up
-          </LoadingButton>
-        </form>
-
-        <div style={styles.footer}>
-          <p style={styles.footerText}>
-            Already have an account? <Link to="/login" style={styles.link}>Sign In</Link>
-          </p>
         </div>
-      </div>
-    </div>
+
+        <div className="form-group">
+          <label htmlFor="email" className="form-label">Email address</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            className="form-input"
+            placeholder="name@domain.com"
+            value={formData.email}
+            onChange={handleChange}
+            autoComplete="email"
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="role" className="form-label">Register as</label>
+          <select
+            id="role"
+            name="role"
+            className="form-input form-select"
+            value={formData.role}
+            onChange={handleChange}
+            required
+          >
+            <option value="student">Student (Learn with AI)</option>
+            <option value="instructor">Instructor (Create Courses)</option>
+            <option value="admin">Admin (Manage Platform)</option>
+            <option value="super_admin">Super Admin (Full System Control)</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="password" className="form-label">Password</label>
+          <div className="input-with-icon">
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              className="form-input"
+              placeholder="At least 6 characters"
+              value={formData.password}
+              onChange={handleChange}
+              autoComplete="new-password"
+              required
+            />
+            <button
+              type="button"
+              className="input-action"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+            </button>
+          </div>
+          <span className="form-hint">Use 6 or more characters.</span>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="confirmPassword" className="form-label">Confirm password</label>
+          <input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            className="form-input"
+            placeholder="Re-enter your password"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            autoComplete="new-password"
+            aria-invalid={formData.confirmPassword && formData.confirmPassword !== formData.password ? 'true' : undefined}
+            required
+          />
+          {formData.confirmPassword && formData.confirmPassword !== formData.password && (
+            <span className="form-error">Passwords do not match</span>
+          )}
+        </div>
+
+        <LoadingButton
+          type="submit"
+          loading={isLoading}
+          loadingText="Creating Account..."
+          className="btn btn-primary btn-lg btn-block"
+        >
+          Sign Up
+        </LoadingButton>
+      </form>
+    </AuthShell>
   );
 }
-
-const styles = {
-  container: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: 'calc(100vh - var(--navbar-height))',
-    backgroundColor: 'var(--bg-primary)',
-    padding: '2rem 1rem',
-  },
-  card: {
-    width: '100%',
-    maxWidth: '440px',
-    backgroundColor: 'var(--bg-card)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    padding: '2.5rem',
-  },
-  header: {
-    marginBottom: '2rem',
-    textAlign: 'center',
-  },
-  title: {
-    fontSize: '1.75rem',
-    fontWeight: 'var(--fw-semibold)',
-    color: 'var(--text-primary)',
-    marginBottom: '0.5rem',
-  },
-  subtitle: {
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.25rem',
-  },
-  inputGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem',
-  },
-  label: {
-    fontSize: '0.875rem',
-    fontWeight: 'var(--fw-medium)',
-    color: 'var(--text-primary)',
-  },
-  input: {
-    padding: '0.75rem 1rem',
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    color: 'var(--text-primary)',
-    fontSize: '0.875rem',
-    transition: 'border-color var(--transition-fast)',
-  },
-  select: {
-    padding: '0.75rem 1rem',
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    color: 'var(--text-primary)',
-    fontSize: '0.875rem',
-    outline: 'none',
-    cursor: 'pointer',
-    transition: 'border-color var(--transition-fast)',
-  },
-  passwordWrapper: {
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-  },
-  inputPassword: {
-    width: '100%',
-    padding: '0.75rem 3.5rem 0.75rem 1rem',
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    color: 'var(--text-primary)',
-    fontSize: '0.875rem',
-    transition: 'border-color var(--transition-fast)',
-  },
-  showButton: {
-    position: 'absolute',
-    right: '0.75rem',
-    background: 'none',
-    border: 'none',
-    color: 'var(--text-secondary)',
-    fontSize: '0.75rem',
-    padding: '0.25rem',
-  },
-  submitBtn: {
-    backgroundColor: 'var(--accent-primary)',
-    color: 'var(--text-inverse)',
-    fontWeight: 'var(--fw-semibold)',
-    padding: '0.75rem',
-    borderRadius: 'var(--radius-md)',
-    fontSize: '0.875rem',
-    marginTop: '0.5rem',
-    cursor: 'pointer',
-    textAlign: 'center',
-  },
-  footer: {
-    marginTop: '1.5rem',
-    textAlign: 'center',
-  },
-  footerText: {
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)',
-  },
-  link: {
-    color: 'var(--color-link)',
-    fontWeight: 'var(--fw-medium)',
-  },
-};

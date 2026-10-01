@@ -319,7 +319,7 @@ export default function AdminDashboard() {
                   </td>
                   <td style={styles.td}>
                     {u.role === 'super_admin' && user?.role !== 'super_admin' ? (
-                      <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--accent-primary)', padding: '0.25rem 0.5rem', backgroundColor: 'rgba(255,152,0,0.15)', borderRadius: '4px', border: '1px solid rgba(255,152,0,0.3)' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--accent-primary)', padding: '0.25rem 0.5rem', backgroundColor: 'var(--color-warning-bg)', borderRadius: '4px', border: '1px solid var(--color-warning)' }}>
                         🔒 Root Super Admin
                       </span>
                     ) : (
@@ -394,7 +394,7 @@ export default function AdminDashboard() {
 
       {/* Announcements Tab */}
       {activeTab === 'announcements' && (
-        <div style={styles.tabContentAnnounce}>
+        <div className="r-stack" style={styles.tabContentAnnounce}>
           <form onSubmit={handleCreateAnnouncement} style={styles.announceForm}>
             <h3 style={styles.sectionHeading}>Publish Site Announcement</h3>
             <input
@@ -443,7 +443,7 @@ export default function AdminDashboard() {
 
 const styles = {
   container: {
-    padding: '2rem',
+    padding: '0 0 2rem 0',
     maxWidth: 'var(--max-content-width)',
     margin: '0 auto',
     width: '100%',
@@ -460,16 +460,22 @@ const styles = {
     color: 'var(--text-secondary)',
   },
   header: {
-    marginBottom: '2.5rem',
+    marginBottom: '2rem',
   },
   title: {
-    fontSize: '2rem',
+    fontSize: 'clamp(1.4rem, 2.2vw, 1.75rem)',
     fontWeight: 'var(--fw-semibold)',
-    marginBottom: '0.5rem',
+    letterSpacing: '-0.025em',
+    lineHeight: 1.2,
+    color: 'var(--text-primary)',
+    margin: '0 0 0.5rem 0',
   },
   subtitle: {
     color: 'var(--text-secondary)',
     fontSize: '0.875rem',
+    lineHeight: 1.55,
+    maxWidth: '680px',
+    margin: 0,
   },
   tabsRow: {
     display: 'flex',
@@ -506,7 +512,7 @@ const styles = {
   },
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
     gap: '1.5rem',
   },
   statCard: {
@@ -575,18 +581,18 @@ const styles = {
     gap: '0.5rem',
   },
   deleteUserBtn: {
-    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+    backgroundColor: 'var(--color-error-bg)',
     color: 'var(--color-error)',
-    border: '1px solid rgba(231, 76, 60, 0.2)',
+    border: '1px solid var(--color-error-bg)',
     padding: '0.375rem 0.75rem',
     borderRadius: 'var(--radius-md)',
     fontSize: '0.75rem',
     cursor: 'pointer',
   },
   resetPassBtn: {
-    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+    backgroundColor: 'var(--color-info-bg)',
     color: 'var(--color-link)',
-    border: '1px solid rgba(54, 162, 235, 0.2)',
+    border: '1px solid transparent',
     padding: '0.375rem 0.75rem',
     borderRadius: 'var(--radius-md)',
     fontSize: '0.75rem',
@@ -608,7 +614,7 @@ const styles = {
   },
   listGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
     gap: '1.5rem',
   },
   pendingCard: {
@@ -631,8 +637,8 @@ const styles = {
     flex: 1,
   },
   approveBtn: {
-    backgroundColor: 'var(--color-success)',
-    color: '#FFF',
+    backgroundColor: 'var(--success-solid)',
+    color: '#FFFFFF',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.5rem 1rem',
     borderRadius: 'var(--radius-md)',
@@ -685,7 +691,7 @@ const styles = {
     resize: 'vertical',
   },
   submitBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.75rem',

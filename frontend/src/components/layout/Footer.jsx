@@ -11,7 +11,7 @@ export default function Footer() {
         <div className="footer-grid">
           <div className="footer-brand">
             <div className="footer-logo">
-              <FiCode className="brand-icon" />
+              <span className="brand-icon" aria-hidden="true"><FiCode size={16} strokeWidth={2.5} /></span>
               <span>Codexia</span>
             </div>
             <p className="footer-desc">

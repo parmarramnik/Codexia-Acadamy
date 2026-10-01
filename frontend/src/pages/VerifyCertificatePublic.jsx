@@ -126,7 +126,7 @@ const styles = {
     padding: '2.5rem',
     width: '100%',
     maxWidth: '520px',
-    boxShadow: '0 15px 35px rgba(0,0,0,0.4)',
+    boxShadow: 'var(--shadow-xl)',
     overflow: 'hidden'
   },
   decorBar: {
@@ -135,7 +135,7 @@ const styles = {
     left: 0,
     width: '100%',
     height: '4px',
-    backgroundColor: 'var(--accent-primary)'
+    backgroundColor: 'var(--primary)'
   },
   verifiedHeader: {
     display: 'flex',

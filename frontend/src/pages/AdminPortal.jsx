@@ -373,7 +373,7 @@ export default function AdminPortal() {
 
 const styles = {
   container: {
-    padding: '2rem',
+    padding: '0 0 2rem 0',
     maxWidth: 'var(--max-content-width)',
     margin: '0 auto',
     width: '100%',
@@ -383,15 +383,22 @@ const styles = {
     marginBottom: '2rem'
   },
   title: {
-    fontSize: '2rem',
+    fontSize: 'clamp(1.4rem, 2.2vw, 1.75rem)',
     fontWeight: 'var(--fw-semibold)',
-    marginBottom: '0.25rem',
+    letterSpacing: '-0.025em',
+    lineHeight: 1.2,
+    color: 'var(--text-primary)',
+    margin: '0 0 0.5rem 0',
     display: 'flex',
-    alignItems: 'center'
+    alignItems: 'center',
+    gap: '0.6rem',
   },
   subtitle: {
     color: 'var(--text-secondary)',
-    fontSize: '0.875rem'
+    fontSize: '0.875rem',
+    lineHeight: 1.55,
+    maxWidth: '680px',
+    margin: 0,
   },
   loadingContainer: {
     display: 'flex',
@@ -401,7 +408,7 @@ const styles = {
   },
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
     gap: '1.5rem',
     marginBottom: '2.5rem'
   },
@@ -436,8 +443,10 @@ const styles = {
   panel: {
     backgroundColor: 'var(--bg-card)',
     border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    padding: '2rem'
+    borderRadius: 'var(--radius-lg)',
+    padding: 'clamp(1.25rem, 3vw, 2rem)',
+    minWidth: 0,
+    overflowX: 'auto'
   },
   panelTitle: {
     fontSize: '1.2rem',
@@ -485,7 +494,7 @@ const styles = {
     outline: 'none'
   },
   suspendBtn: {
-    backgroundColor: 'rgba(231, 76, 60, 0.15)',
+    backgroundColor: 'var(--color-error-bg)',
     color: 'var(--color-error)',
     border: 'none',
     padding: '0.25rem 0.6rem',
@@ -494,7 +503,7 @@ const styles = {
     fontSize: '0.8rem'
   },
   activateBtn: {
-    backgroundColor: 'rgba(46, 204, 113, 0.15)',
+    backgroundColor: 'var(--color-success-bg)',
     color: 'var(--color-success)',
     border: 'none',
     padding: '0.25rem 0.6rem',
@@ -522,7 +531,7 @@ const styles = {
     width: '180px'
   },
   saveBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
@@ -534,7 +543,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.3rem',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: 'var(--border-secondary)',
     border: '1px solid var(--border-primary)',
     color: 'var(--text-primary)',
     padding: '0.5rem 1rem',
@@ -544,7 +553,7 @@ const styles = {
   },
   healthItem: {
     padding: '1rem',
-    backgroundColor: 'rgba(255,255,255,0.02)',
+    backgroundColor: 'var(--border-secondary)',
     border: '1px solid var(--border-primary)',
     borderRadius: '6px'
   }

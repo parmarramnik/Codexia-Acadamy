@@ -5,6 +5,7 @@ import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import LoadingButton from '../components/common/LoadingButton';
 import PageLoader from '../components/common/PageLoader';
+import { useTheme } from '../context/ThemeContext';
 import { 
   FiCode, 
   FiPlay, 
@@ -48,7 +49,8 @@ export default function CodingPractice() {
   const [code, setCode] = useState('');
   
   // Monaco configurations
-  const [editorTheme, setEditorTheme] = useState('vs-dark');
+  const { theme: appTheme } = useTheme();
+  const [editorTheme, setEditorTheme] = useState(() => (appTheme === 'light' ? 'light' : 'vs-dark'));
   const [fontSize, setFontSize] = useState(14);
   const [wordWrap, setWordWrap] = useState('on');
   const [fullScreen, setFullScreen] = useState(false);
@@ -490,7 +492,7 @@ export default function CodingPractice() {
             style={isFav ? styles.topFavBtnActive : styles.topFavBtn}
             title={isFav ? 'Starred' : 'Star problem'}
           >
-            <FiStar size={14} fill={isFav ? '#F59E0B' : 'none'} color="#F59E0B" />
+            <FiStar size={14} fill={isFav ? 'var(--color-warning)' : 'none'} color="var(--color-warning)" />
             <span>{isFav ? 'Starred' : 'Star'}</span>
           </button>
         </div>
@@ -504,14 +506,14 @@ export default function CodingPractice() {
             height: 6px;
           }
           ::-webkit-scrollbar-track {
-            background: rgba(30, 30, 30, 0.5);
+            background: var(--bg-tertiary);
           }
           ::-webkit-scrollbar-thumb {
-            background: #444;
+            background: var(--border-primary);
             border-radius: 3px;
           }
           ::-webkit-scrollbar-thumb:hover {
-            background: #666;
+            background: var(--scrollbar-thumb-hover);
           }
           /* Custom animations & interactive elements */
           .tab-btn {
@@ -522,7 +524,7 @@ export default function CodingPractice() {
             color: var(--text-primary) !important;
           }
           .problem-link:hover {
-            background-color: rgba(255, 255, 255, 0.05) !important;
+            background-color: var(--border-primary) !important;
           }
           .action-icon {
             transition: transform 0.2s ease;
@@ -531,10 +533,10 @@ export default function CodingPractice() {
             transform: scale(1.1);
           }
           .gutter-resizer-h:hover {
-            background-color: var(--accent-primary, #6366F1) !important;
+            background-color: var(--accent-primary) !important;
           }
           .gutter-resizer-v:hover {
-            background-color: var(--accent-primary, #6366F1) !important;
+            background-color: var(--accent-primary) !important;
           }
         `}</style>
 
@@ -592,20 +594,20 @@ export default function CodingPractice() {
                           background: 'none',
                           border: 'none',
                           cursor: 'pointer',
-                          color: isFav ? '#f1c40f' : 'var(--text-secondary)',
+                          color: isFav ? 'var(--color-warning)' : 'var(--text-secondary)',
                           padding: '4px',
                           display: 'flex',
                           alignItems: 'center'
                         }}
                         title="Add to Favorites"
                       >
-                        <FiStar size={20} fill={isFav ? '#f1c40f' : 'none'} />
+                        <FiStar size={20} fill={isFav ? 'var(--color-warning)' : 'none'} />
                       </button>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                       <span style={{
                         ...styles.difficultyBadge,
-                        backgroundColor: selectedProblem.difficulty.toLowerCase() === 'easy' ? 'rgba(46, 204, 113, 0.12)' : selectedProblem.difficulty.toLowerCase() === 'medium' ? 'rgba(243, 156, 18, 0.12)' : 'rgba(231, 76, 60, 0.12)',
+                        backgroundColor: selectedProblem.difficulty.toLowerCase() === 'easy' ? 'var(--color-success-bg)' : selectedProblem.difficulty.toLowerCase() === 'medium' ? 'var(--color-warning-bg)' : 'var(--color-error-bg)',
                         color: selectedProblem.difficulty.toLowerCase() === 'easy' ? 'var(--color-success)' : selectedProblem.difficulty.toLowerCase() === 'medium' ? 'var(--color-warning)' : 'var(--color-error)'
                       }}>{selectedProblem.difficulty.toUpperCase()}</span>
 
@@ -738,7 +740,7 @@ export default function CodingPractice() {
                       loadingText="Analyzing..."
                       style={{
                         padding: '0.4rem 0.8rem',
-                        backgroundColor: 'var(--accent-primary)',
+                        backgroundColor: 'var(--primary)',
                         color: 'white',
                         border: 'none',
                         borderRadius: '4px',
@@ -758,8 +760,8 @@ export default function CodingPractice() {
                   ) : aiReview ? (
                     <div>
                       {/* Quality Score Progress Radial */}
-                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '6px', marginBottom: '1.5rem' }}>
-                        <div style={{ position: 'relative', width: '60px', height: '60px', borderRadius: '50%', background: `conic-gradient(var(--accent-primary) ${aiReview.quality_score * 3.6}deg, rgba(255,255,255,0.1) 0deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', backgroundColor: 'var(--border-secondary)', padding: '1rem', borderRadius: '6px', marginBottom: '1.5rem' }}>
+                        <div style={{ position: 'relative', width: '60px', height: '60px', borderRadius: '50%', background: `conic-gradient(var(--accent-primary) ${aiReview.quality_score * 3.6}deg, var(--border-primary) 0deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <div style={{ position: 'absolute', width: '50px', height: '50px', borderRadius: '50%', backgroundColor: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 'bold' }}>
                             {aiReview.quality_score}
                           </div>
@@ -772,11 +774,11 @@ export default function CodingPractice() {
 
                       {/* Complexity Badges */}
                       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
-                        <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-primary)', padding: '0.75rem', borderRadius: '4px', textAlign: 'center' }}>
+                        <div style={{ flex: 1, backgroundColor: 'var(--border-secondary)', border: '1px solid var(--border-primary)', padding: '0.75rem', borderRadius: '4px', textAlign: 'center' }}>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Time Complexity</span>
                           <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--accent-primary)', marginTop: '0.25rem' }}>{aiReview.time_complexity}</div>
                         </div>
-                        <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-primary)', padding: '0.75rem', borderRadius: '4px', textAlign: 'center' }}>
+                        <div style={{ flex: 1, backgroundColor: 'var(--border-secondary)', border: '1px solid var(--border-primary)', padding: '0.75rem', borderRadius: '4px', textAlign: 'center' }}>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Space Complexity</span>
                           <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--accent-primary)', marginTop: '0.25rem' }}>{aiReview.space_complexity}</div>
                         </div>
@@ -787,7 +789,7 @@ export default function CodingPractice() {
                       {aiReview.bugs && aiReview.bugs.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
                           {aiReview.bugs.map((bug, idx) => (
-                            <div key={idx} style={{ display: 'flex', gap: '0.5rem', backgroundColor: 'rgba(231, 76, 60, 0.08)', borderLeft: '3px solid var(--color-error)', padding: '0.75rem', borderRadius: '4px', fontSize: '0.85rem' }}>
+                            <div key={idx} style={{ display: 'flex', gap: '0.5rem', backgroundColor: 'var(--color-error-bg)', borderLeft: '3px solid var(--color-error)', padding: '0.75rem', borderRadius: '4px', fontSize: '0.85rem' }}>
                               <FiAlertCircle style={{ color: 'var(--color-error)', flexShrink: 0, marginTop: '0.1rem' }} />
                               <span>{bug}</span>
                             </div>
@@ -826,9 +828,9 @@ export default function CodingPractice() {
             style={{
               width: '8px',
               cursor: 'col-resize',
-              backgroundColor: isDraggingH ? 'var(--accent-primary, #6366F1)' : '#1E1E1E',
-              borderLeft: '1px solid #2A2A2A',
-              borderRight: '1px solid #2A2A2A',
+              backgroundColor: isDraggingH ? 'var(--accent-primary)' : 'var(--bg-card)',
+              borderLeft: '1px solid var(--border-primary)',
+              borderRight: '1px solid var(--border-primary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -843,7 +845,7 @@ export default function CodingPractice() {
               width: '2px',
               height: '24px',
               borderRadius: '1px',
-              backgroundColor: isDraggingH ? '#FFF' : '#555'
+              backgroundColor: isDraggingH ? '#FFF' : 'var(--border-light)'
             }} />
           </div>
 
@@ -960,7 +962,7 @@ export default function CodingPractice() {
                   onClick={() => setWordWrap(wordWrap === 'on' ? 'off' : 'on')}
                   style={{
                     padding: '0.35rem 0.6rem',
-                    backgroundColor: wordWrap === 'on' ? 'rgba(255,255,255,0.08)' : 'transparent',
+                    backgroundColor: wordWrap === 'on' ? 'var(--border-primary)' : 'transparent',
                     border: '1px solid var(--border-primary)',
                     borderRadius: '4px',
                     color: 'var(--text-primary)',
@@ -1034,9 +1036,9 @@ export default function CodingPractice() {
                 style={{
                   height: '8px',
                   cursor: 'row-resize',
-                  backgroundColor: isDraggingV ? 'var(--accent-primary, #6366F1)' : '#1E1E1E',
-                  borderTop: '1px solid #2A2A2A',
-                  borderBottom: '1px solid #2A2A2A',
+                  backgroundColor: isDraggingV ? 'var(--accent-primary)' : 'var(--bg-card)',
+                  borderTop: '1px solid var(--border-primary)',
+                  borderBottom: '1px solid var(--border-primary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1051,7 +1053,7 @@ export default function CodingPractice() {
                   height: '2px',
                   width: '28px',
                   borderRadius: '1px',
-                  backgroundColor: isDraggingV ? '#FFF' : '#555'
+                  backgroundColor: isDraggingV ? '#FFF' : 'var(--border-light)'
                 }} />
               </div>
             )}
@@ -1064,7 +1066,7 @@ export default function CodingPractice() {
               minHeight: '100px',
               maxHeight: 'none',
               flexShrink: 0,
-              borderTop: consoleOpen ? 'none' : '1px solid #2A2A2A',
+              borderTop: consoleOpen ? 'none' : '1px solid var(--border-primary)',
               transition: isDraggingV ? 'none' : 'height 0.2s ease-out'
             }}>
               {/* Drawer Tabs */}
@@ -1111,7 +1113,7 @@ export default function CodingPractice() {
                           onClick={() => setActiveCaseIndex(idx)}
                           style={{
                             ...styles.caseTabBtn,
-                            backgroundColor: activeCaseIndex === idx ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                            backgroundColor: activeCaseIndex === idx ? 'var(--border-primary)' : 'transparent',
                             color: activeCaseIndex === idx ? 'var(--text-primary)' : 'var(--text-secondary)',
                             fontWeight: activeCaseIndex === idx ? 'bold' : 'normal',
                           }}
@@ -1145,7 +1147,7 @@ export default function CodingPractice() {
                         loadingText="Executing..."
                         style={{
                           padding: '0.3rem 0.75rem',
-                          backgroundColor: 'var(--accent-primary)',
+                          backgroundColor: 'var(--primary)',
                           color: '#FFF',
                           border: 'none',
                           borderRadius: '4px',
@@ -1167,10 +1169,10 @@ export default function CodingPractice() {
                       style={{
                         width: '100%',
                         height: '75px',
-                        backgroundColor: '#1E1E1E',
-                        border: '1px solid #333',
+                        backgroundColor: 'var(--bg-card)',
+                        border: '1px solid var(--border-primary)',
                         borderRadius: '4px',
-                        color: '#FFF',
+                        color: 'var(--text-primary)',
                         fontFamily: 'Fira Code, monospace',
                         fontSize: '0.82rem',
                         padding: '0.5rem',
@@ -1285,7 +1287,7 @@ export default function CodingPractice() {
                                   }}>Actual Output:</span>
                                   <pre style={{
                                     ...styles.ioPre,
-                                    border: results.test_results[activeCaseIndex].passed ? '1px solid rgba(46, 204, 113, 0.2)' : '1px solid rgba(231, 76, 60, 0.2)'
+                                    border: results.test_results[activeCaseIndex].passed ? '1px solid var(--color-success-bg)' : '1px solid var(--color-error-bg)'
                                   }}>{results.test_results[activeCaseIndex].actual_output || '(Empty)'}</pre>
                                 </div>
                               </div>
@@ -1353,7 +1355,7 @@ const styles = {
     width: '100%',
     margin: 0,
     padding: 0,
-    backgroundColor: '#0F1219',
+    backgroundColor: 'var(--bg-tertiary)',
     overflow: 'hidden'
   },
   topWorkspaceBar: {
@@ -1375,7 +1377,7 @@ const styles = {
     fontWeight: 600,
     padding: '4px 8px',
     borderRadius: '4px',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'var(--border-primary)',
     transition: 'background-color 0.2s'
   },
   topNavDivider: {
@@ -1387,7 +1389,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '5px',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: 'var(--border-secondary)',
     border: '1px solid var(--border-primary)',
     borderRadius: '4px',
     color: 'var(--text-secondary)',
@@ -1400,10 +1402,10 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '5px',
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    backgroundColor: 'var(--accent-light)',
     border: '1px solid var(--accent-primary)',
     borderRadius: '4px',
-    color: '#818CF8',
+    color: 'var(--accent-primary)',
     padding: '4px 8px',
     fontSize: '0.78rem',
     fontWeight: 600,
@@ -1415,7 +1417,7 @@ const styles = {
     justifyContent: 'center',
     width: '26px',
     height: '26px',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'var(--border-secondary)',
     border: '1px solid var(--border-primary)',
     borderRadius: '4px',
     color: 'var(--text-secondary)',
@@ -1451,10 +1453,10 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '5px',
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    border: '1px solid rgba(245, 158, 11, 0.4)',
+    backgroundColor: 'var(--color-warning-bg)',
+    border: '1px solid var(--color-warning)',
     borderRadius: '4px',
-    color: '#F59E0B',
+    color: 'var(--color-warning)',
     padding: '4px 10px',
     fontSize: '0.78rem',
     fontWeight: 600,
@@ -1465,8 +1467,8 @@ const styles = {
     flex: 1,
     minHeight: 0,
     overflow: 'hidden',
-    backgroundColor: '#0F1219',
-    color: '#E0E0E0',
+    backgroundColor: 'var(--bg-tertiary)',
+    color: 'var(--text-secondary)',
     fontFamily: 'Inter, system-ui, sans-serif',
   },
   loadingContainer: {
@@ -1476,24 +1478,24 @@ const styles = {
     alignItems: 'center',
     flex: 1,
     gap: '1rem',
-    backgroundColor: '#121212',
+    backgroundColor: 'var(--bg-tertiary)',
   },
   spinner: {
     width: '32px',
     height: '32px',
-    border: '3px solid rgba(255, 255, 255, 0.1)',
+    border: '3px solid var(--border-primary)',
     borderTop: '3px solid var(--accent-primary)',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
   },
   loadingText: {
-    color: '#888',
+    color: 'var(--text-muted)',
     fontSize: '0.875rem',
   },
   problemsSidebar: {
     width: '260px',
-    borderRight: '1px solid #2A2A2A',
-    backgroundColor: '#1E1E1E',
+    borderRight: '1px solid var(--border-primary)',
+    backgroundColor: 'var(--bg-card)',
     display: 'flex',
     flexDirection: 'column',
     flexShrink: 0,
@@ -1502,8 +1504,8 @@ const styles = {
     padding: '1.25rem',
     fontSize: '1rem',
     fontWeight: '600',
-    color: '#FFF',
-    borderBottom: '1px solid #2A2A2A',
+    color: 'var(--text-primary)',
+    borderBottom: '1px solid var(--border-primary)',
   },
   problemsList: {
     flex: 1,
@@ -1516,17 +1518,17 @@ const styles = {
     flexDirection: 'column',
     gap: '0.25rem',
     padding: '0.875rem 1.25rem',
-    borderBottom: '1px solid #2A2A2A',
+    borderBottom: '1px solid var(--border-primary)',
     textDecoration: 'none',
     transition: 'background-color 0.2s',
   },
   problemItemSelected: {
-    backgroundColor: '#2A2A2A',
+    backgroundColor: 'var(--border-primary)',
   },
   problemTitle: {
     fontSize: '0.875rem',
     fontWeight: '500',
-    color: '#E0E0E0',
+    color: 'var(--text-secondary)',
   },
   diffBadge: {
     fontSize: '0.75rem',
@@ -1538,28 +1540,28 @@ const styles = {
     flex: 1,
     minHeight: 0,
     overflow: 'hidden',
-    backgroundColor: '#121212',
+    backgroundColor: 'var(--bg-tertiary)',
   },
   leftPanel: {
     flex: 1,
     minHeight: 0,
-    borderRight: '1px solid #2A2A2A',
+    borderRight: '1px solid var(--border-primary)',
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: '#1E1E1E',
+    backgroundColor: 'var(--bg-card)',
     overflow: 'hidden',
   },
   leftTabHeader: {
     display: 'flex',
-    backgroundColor: '#1A1A1A',
-    borderBottom: '1px solid #2A2A2A',
+    backgroundColor: 'var(--bg-tertiary)',
+    borderBottom: '1px solid var(--border-primary)',
     padding: '0 0.5rem',
   },
   leftTabBtn: {
     backgroundColor: 'transparent',
     border: 'none',
     borderBottom: '2px solid transparent',
-    color: '#888',
+    color: 'var(--text-muted)',
     padding: '0.75rem 1rem',
     fontSize: '0.875rem',
     fontWeight: '500',
@@ -1569,7 +1571,7 @@ const styles = {
     gap: '0.5rem',
   },
   leftTabBtnActive: {
-    color: '#FFF',
+    color: 'var(--text-primary)',
     borderBottom: '2px solid var(--accent-primary)',
   },
   leftTabContent: {
@@ -1591,7 +1593,7 @@ const styles = {
   title: {
     fontSize: '1.375rem',
     fontWeight: '600',
-    color: '#FFF',
+    color: 'var(--text-primary)',
     margin: 0,
   },
   difficultyBadge: {
@@ -1608,9 +1610,9 @@ const styles = {
     borderRadius: '12px',
     fontSize: '0.75rem',
     fontWeight: '700',
-    backgroundColor: 'rgba(16, 185, 129, 0.14)',
-    color: '#10B981',
-    border: '1px solid rgba(16, 185, 129, 0.35)',
+    backgroundColor: 'var(--color-success-bg)',
+    color: 'var(--color-success)',
+    border: '1px solid var(--color-success)',
     letterSpacing: '0.02em',
   },
   descContent: {
@@ -1620,7 +1622,7 @@ const styles = {
   },
   descText: {
     fontSize: '0.875rem',
-    color: '#C0C0C0',
+    color: 'var(--text-secondary)',
     lineHeight: '1.6',
     margin: 0,
   },
@@ -1632,25 +1634,25 @@ const styles = {
   sectionHeading: {
     fontSize: '0.9375rem',
     fontWeight: '600',
-    color: '#FFF',
-    borderBottom: '1px solid #2A2A2A',
+    color: 'var(--text-primary)',
+    borderBottom: '1px solid var(--border-primary)',
     paddingBottom: '0.375rem',
     margin: 0,
   },
   constraintsBlock: {
-    backgroundColor: '#151515',
-    border: '1px solid #2A2A2A',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '1px solid var(--border-primary)',
     borderRadius: '6px',
     padding: '0.75rem 1rem',
     fontFamily: 'Fira Code, monospace',
     fontSize: '0.8125rem',
-    color: '#E0E0E0',
+    color: 'var(--text-secondary)',
     margin: 0,
     whiteSpace: 'pre-wrap',
   },
   exampleBlock: {
-    backgroundColor: '#151515',
-    border: '1px solid #2A2A2A',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '1px solid var(--border-primary)',
     borderRadius: '6px',
     padding: '1rem',
     marginBottom: '0.5rem',
@@ -1658,7 +1660,7 @@ const styles = {
   exampleTitle: {
     fontSize: '0.8125rem',
     fontWeight: '700',
-    color: '#FFF',
+    color: 'var(--text-primary)',
     margin: '0 0 0.5rem 0',
   },
   exampleContent: {
@@ -1668,12 +1670,12 @@ const styles = {
   },
   exampleLabel: {
     fontSize: '0.75rem',
-    color: '#888',
+    color: 'var(--text-muted)',
     fontWeight: '500',
   },
   examplePre: {
     backgroundColor: 'transparent',
-    color: '#C0C0C0',
+    color: 'var(--text-secondary)',
     fontFamily: 'Fira Code, monospace',
     fontSize: '0.8125rem',
     margin: '0.125rem 0 0 0',
@@ -1691,8 +1693,8 @@ const styles = {
     gap: '0.75rem',
   },
   subCard: {
-    backgroundColor: '#1A1A1A',
-    border: '1px solid #2A2A2A',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '1px solid var(--border-primary)',
     borderRadius: '6px',
     overflow: 'hidden',
   },
@@ -1711,31 +1713,31 @@ const styles = {
   },
   subLang: {
     fontSize: '0.75rem',
-    color: '#888',
-    backgroundColor: '#2A2A2A',
+    color: 'var(--text-muted)',
+    backgroundColor: 'var(--border-primary)',
     padding: '0.125rem 0.375rem',
     borderRadius: '3px',
     textTransform: 'uppercase',
   },
   subMeta: {
     fontSize: '0.75rem',
-    color: '#888',
+    color: 'var(--text-muted)',
     display: 'flex',
     alignItems: 'center',
     gap: '0.25rem',
   },
   subMetaDate: {
     fontSize: '0.75rem',
-    color: '#666',
+    color: 'var(--text-muted)',
   },
   subCardContent: {
     padding: '1.25rem',
-    borderTop: '1px solid #2A2A2A',
-    backgroundColor: '#151515',
+    borderTop: '1px solid var(--border-primary)',
+    backgroundColor: 'var(--bg-tertiary)',
   },
   subCodeWrapper: {
-    backgroundColor: '#0F0F0F',
-    border: '1px solid #222',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '1px solid var(--border-primary)',
     borderRadius: '4px',
     padding: '1rem',
     overflowX: 'auto',
@@ -1744,12 +1746,12 @@ const styles = {
     margin: 0,
     fontFamily: 'Fira Code, monospace',
     fontSize: '0.8125rem',
-    color: '#C0C0C0',
+    color: 'var(--text-secondary)',
   },
   subErrorMessage: {
     marginTop: '0.75rem',
-    backgroundColor: 'rgba(231, 76, 60, 0.08)',
-    border: '1px solid rgba(231, 76, 60, 0.3)',
+    backgroundColor: 'var(--color-error-bg)',
+    border: '1px solid var(--color-error)',
     borderRadius: '4px',
     padding: '0.75rem 1rem',
     fontSize: '0.8125rem',
@@ -1760,22 +1762,22 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
-    backgroundColor: '#151515',
+    backgroundColor: 'var(--bg-tertiary)',
   },
   editorHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '0.625rem 1.25rem',
-    borderBottom: '1px solid #2A2A2A',
-    backgroundColor: '#1E1E1E',
+    borderBottom: '1px solid var(--border-primary)',
+    backgroundColor: 'var(--bg-card)',
   },
   langSelect: {
     padding: '0.25rem 0.5rem',
-    backgroundColor: '#2A2A2A',
-    border: '1px solid #333',
+    backgroundColor: 'var(--border-primary)',
+    border: '1px solid var(--border-primary)',
     borderRadius: '4px',
-    color: '#FFF',
+    color: 'var(--text-primary)',
     fontSize: '0.8125rem',
     outline: 'none',
     cursor: 'pointer',
@@ -1783,10 +1785,10 @@ const styles = {
   editorWrapper: {
     flex: 1,
     minHeight: 0,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: 'var(--bg-card)',
   },
   consolePanel: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: 'var(--bg-tertiary)',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
@@ -1796,28 +1798,28 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#141414',
-    borderBottom: '1px solid #2A2A2A',
+    backgroundColor: 'var(--bg-tertiary)',
+    borderBottom: '1px solid var(--border-primary)',
     padding: '0 1rem',
   },
   consoleTabBtn: {
     backgroundColor: 'transparent',
     border: 'none',
     borderBottom: '2px solid transparent',
-    color: '#888',
+    color: 'var(--text-muted)',
     padding: '0.625rem 0.75rem',
     fontSize: '0.8125rem',
     fontWeight: '500',
     cursor: 'pointer',
   },
   consoleTabBtnActive: {
-    color: '#FFF',
-    borderBottom: '2px solid #FFF',
+    color: 'var(--text-primary)',
+    borderBottom: '2px solid var(--primary)',
   },
   collapseBtn: {
     backgroundColor: 'transparent',
     border: 'none',
-    color: '#888',
+    color: 'var(--text-muted)',
     cursor: 'pointer',
     padding: '0.25rem',
     display: 'flex',
@@ -1830,7 +1832,7 @@ const styles = {
   },
   consoleHelpText: {
     fontSize: '0.75rem',
-    color: '#888',
+    color: 'var(--text-muted)',
     margin: '0 0 0.75rem 0',
   },
   testcaseTabContent: {
@@ -1858,10 +1860,10 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '0.875rem',
-    backgroundColor: '#141414',
+    backgroundColor: 'var(--bg-tertiary)',
     padding: '1rem',
     borderRadius: '6px',
-    border: '1px solid #252525',
+    border: '1px solid var(--border-primary)',
   },
   ioField: {
     display: 'flex',
@@ -1870,16 +1872,16 @@ const styles = {
   },
   ioLabel: {
     fontSize: '0.75rem',
-    color: '#888',
+    color: 'var(--text-muted)',
     fontWeight: '500',
   },
   ioPre: {
-    backgroundColor: '#202020',
+    backgroundColor: 'var(--bg-hover)',
     padding: '0.5rem 0.75rem',
     borderRadius: '4px',
     fontFamily: 'Fira Code, monospace',
     fontSize: '0.8125rem',
-    color: '#FFF',
+    color: 'var(--text-primary)',
     margin: 0,
     whiteSpace: 'pre-wrap',
   },
@@ -1899,7 +1901,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     height: '150px',
-    color: '#666',
+    color: 'var(--text-muted)',
     fontSize: '0.875rem',
   },
   resultWrapper: {
@@ -1913,19 +1915,19 @@ const styles = {
   },
   passedText: {
     fontSize: '0.875rem',
-    color: '#888',
+    color: 'var(--text-muted)',
     marginLeft: '1rem',
   },
   runtimeBadge: {
     fontSize: '0.75rem',
-    color: '#C0C0C0',
-    backgroundColor: '#2A2A2A',
+    color: 'var(--text-secondary)',
+    backgroundColor: 'var(--border-primary)',
     padding: '0.25rem 0.5rem',
     borderRadius: '4px',
   },
   errorConsole: {
-    backgroundColor: 'rgba(231, 76, 60, 0.08)',
-    border: '1px solid rgba(231, 76, 60, 0.3)',
+    backgroundColor: 'var(--color-error-bg)',
+    border: '1px solid var(--color-error)',
     borderRadius: '6px',
     padding: '1rem',
   },
@@ -1939,7 +1941,7 @@ const styles = {
     margin: 0,
     fontFamily: 'Fira Code, monospace',
     fontSize: '0.8125rem',
-    color: '#E0E0E0',
+    color: 'var(--text-secondary)',
     whiteSpace: 'pre-wrap',
     maxHeight: '120px',
     overflowY: 'auto',
@@ -1947,7 +1949,7 @@ const styles = {
   caseTabRow: {
     display: 'flex',
     gap: '0.5rem',
-    borderBottom: '1px solid #2A2A2A',
+    borderBottom: '1px solid var(--border-primary)',
     marginBottom: '0.75rem',
     paddingBottom: '0.25rem',
   },
@@ -1956,15 +1958,15 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '0.5rem 1.25rem',
-    borderTop: '1px solid #2A2A2A',
-    backgroundColor: '#1E1E1E',
+    borderTop: '1px solid var(--border-primary)',
+    backgroundColor: 'var(--bg-card)',
     flexShrink: 0,
     zIndex: 10,
   },
   consoleToggleBtn: {
-    backgroundColor: '#262626',
-    border: '1px solid #3A3A3A',
-    color: '#D1D5DB',
+    backgroundColor: 'var(--bg-hover)',
+    border: '1px solid var(--border-primary)',
+    color: 'var(--text-secondary)',
     cursor: 'pointer',
     fontSize: '0.8125rem',
     display: 'flex',
@@ -1976,9 +1978,9 @@ const styles = {
     transition: 'all 0.15s ease',
   },
   runBtn: {
-    backgroundColor: '#2A2A2A',
-    border: '1px solid #3A3A3A',
-    color: '#FFF',
+    backgroundColor: 'var(--border-primary)',
+    border: '1px solid var(--border-primary)',
+    color: 'var(--text-primary)',
     fontWeight: '600',
     padding: '0.375rem 1rem',
     borderRadius: '4px',
@@ -1990,7 +1992,7 @@ const styles = {
     transition: 'background-color 0.2s',
   },
   submitBtn: {
-    backgroundColor: 'var(--color-success)',
+    backgroundColor: '#059669',
     border: 'none',
     color: '#FFF',
     fontWeight: '600',
@@ -2011,6 +2013,6 @@ const styles = {
     gap: '1rem',
     flex: 1,
     textAlign: 'center',
-    color: '#666',
+    color: 'var(--text-muted)',
   },
 };

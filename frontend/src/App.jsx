@@ -11,7 +11,6 @@ import { NotificationProvider } from './context/NotificationContext';
 import MainLayout from './components/layout/MainLayout';
 import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/common/ProtectedRoute';
-import PageLoader from './components/common/PageLoader';
 
 /* Lazy Loaded Public Pages (Code Splitting for Ultra Fast Initial Load) */
 const Landing = lazy(() => import('./pages/Landing'));
@@ -64,24 +63,23 @@ function AppContent() {
         toastOptions={{
           duration: 2500,
           style: {
-            background: isDark ? '#1D222E' : '#FFFFFF',
-            color: isDark ? '#F8FAFC' : '#0F172A',
-            border: `1px solid ${isDark ? '#283040' : '#E2E8F0'}`,
+            background: 'var(--surface-elevated)',
+            color: 'var(--text)',
+            border: '1px solid var(--border-strong)',
             borderRadius: '10px',
             fontSize: '0.875rem',
-            boxShadow: isDark
-              ? '0 8px 24px rgba(0, 0, 0, 0.4)'
-              : '0 8px 24px rgba(0, 0, 0, 0.1)',
+            padding: '10px 14px',
+            boxShadow: 'var(--shadow-lg)',
           },
           success: {
-            iconTheme: { primary: '#10B981', secondary: isDark ? '#1D222E' : '#FFFFFF' },
+            iconTheme: { primary: isDark ? '#34D399' : '#047857', secondary: isDark ? '#161D29' : '#FFFFFF' },
           },
           error: {
-            iconTheme: { primary: '#EF4444', secondary: isDark ? '#1D222E' : '#FFFFFF' },
+            iconTheme: { primary: isDark ? '#F87171' : '#DC2626', secondary: isDark ? '#161D29' : '#FFFFFF' },
           },
         }}
       />
-      <Suspense fallback={<PageLoader />}>
+      <Suspense fallback={<div className="page-loader" style={{ minHeight: '100vh' }} role="status" aria-label="Loading"><span className="loader loader-lg" /></div>}>
         <Routes>
           {/* Public routes with main layout */}
           <Route element={<MainLayout />}>

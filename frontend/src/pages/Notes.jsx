@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import LoadingButton from '../components/common/LoadingButton';
 import { useNotes, useCourses, useInvalidateCache } from '../hooks/useQueries';
+import PageLoader from '../components/common/PageLoader';
 
 export default function Notes() {
   const [search, setSearch] = useState('');
@@ -638,11 +639,7 @@ export default function Notes() {
   const activeBranchName = branches.find(b => b.id === activeBranchId)?.name || 'main';
 
   if (isLoading && notes.length === 0) {
-    return (
-      <div style={styles.loadingContainer}>
-        <p style={styles.loadingText}>Loading notebook index...</p>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   // --- Render Note Workspace (Workspace Workspace Mode) ---
@@ -687,7 +684,7 @@ export default function Notes() {
         </div>
 
         {/* Split Grid */}
-        <div style={styles.workspaceGridSplit}>
+        <div className="r-stack" style={styles.workspaceGridSplit}>
           {/* Left panel: Editor Area */}
           <div style={styles.editorPanel}>
             <div style={styles.formGroup}>
@@ -899,7 +896,7 @@ export default function Notes() {
 
               {activeTab === 'diff' && (
                 <div style={styles.diffTab}>
-                  <div style={styles.diffSelectorRow}>
+                  <div className="r-stack" style={styles.diffSelectorRow}>
                     <div style={styles.selectGroup}>
                       <label style={styles.selectLabel}>Base Commit (A)</label>
                       <select
@@ -933,7 +930,7 @@ export default function Notes() {
                     <div style={styles.diffPlaceholder}>No modifications found between versions.</div>
                   ) : (
                     <div style={styles.diffViewerContainer}>
-                      <div style={styles.diffViewerHeader}>
+                      <div className="r-stack" style={styles.diffViewerHeader}>
                         <div style={styles.diffHeaderCol}>Old Copy</div>
                         <div style={styles.diffHeaderCol}>New Copy</div>
                       </div>
@@ -1062,7 +1059,7 @@ export default function Notes() {
                   onClick={() => handleCheckoutBranch(pendingBranchId, true)}
                   loading={isCheckingOut}
                   loadingText="Discarding..."
-                  style={{ ...styles.saveBtn, backgroundColor: 'var(--color-error)' }}
+                  style={{ ...styles.saveBtn, backgroundColor: 'var(--danger-solid)', color: '#FFFFFF' }}
                 >
                   Discard Changes & Checkout
                 </LoadingButton>
@@ -1227,6 +1224,7 @@ export default function Notes() {
   // --- Normal Note Grid Index ---
   return (
     <div style={styles.container}>
+      <div style={styles.headRow}>
       <div style={styles.header}>
         <h1 style={styles.title}>Notebook</h1>
         <p style={styles.subtitle}>Save key definitions, algorithm layouts, and study notes.</p>
@@ -1267,6 +1265,7 @@ export default function Notes() {
         <button onClick={() => setShowCreate(!showCreate)} style={styles.createBtn}>
           <FiPlus /> New Note
         </button>
+      </div>
       </div>
 
       <div style={styles.workspaceGrid}>
@@ -1361,7 +1360,7 @@ export default function Notes() {
 const styles = {
   // Reuse existing styles
   container: {
-    padding: '2rem',
+    padding: '0 0 2rem 0',
     maxWidth: 'var(--max-content-width)',
     margin: '0 auto',
     width: '100%',
@@ -1377,31 +1376,47 @@ const styles = {
   loadingText: {
     color: 'var(--text-secondary)',
   },
+  headRow: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: '1rem 2rem',
+    marginBottom: '2rem',
+  },
   header: {
-    marginBottom: '2.5rem',
+    flex: '0 1 auto',
+    minWidth: 0,
   },
   title: {
-    fontSize: '2rem',
+    fontSize: 'clamp(1.4rem, 2.2vw, 1.75rem)',
     fontWeight: 'var(--fw-semibold)',
-    marginBottom: '0.5rem',
+    letterSpacing: '-0.025em',
+    lineHeight: 1.2,
+    color: 'var(--text-primary)',
+    margin: '0 0 0.5rem 0',
   },
   subtitle: {
     color: 'var(--text-secondary)',
     fontSize: '0.875rem',
+    lineHeight: 1.55,
+    maxWidth: '680px',
+    margin: 0,
   },
   actionRow: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: '1.5rem',
-    marginBottom: '2.5rem',
+    gap: '1rem',
+    flex: '1 1 560px',
     flexWrap: 'wrap',
   },
   searchBar: {
     display: 'flex',
-    gap: '1rem',
+    justifyContent: 'flex-end',
+    gap: '0.75rem',
     flex: 1,
-    minWidth: '300px',
+    minWidth: 'min(100%, 300px)',
     flexWrap: 'wrap',
   },
   searchWrapper: {
@@ -1410,6 +1425,7 @@ const styles = {
     alignItems: 'center',
     flex: 1,
     minWidth: '200px',
+    maxWidth: '360px',
   },
   searchIcon: {
     position: 'absolute',
@@ -1426,6 +1442,7 @@ const styles = {
     fontSize: '0.875rem',
   },
   select: {
+    maxWidth: '220px',
     padding: '0.625rem 1rem',
     backgroundColor: 'var(--bg-card)',
     border: '1px solid var(--border-primary)',
@@ -1452,7 +1469,7 @@ const styles = {
     color: 'var(--accent-primary)',
   },
   createBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.625rem 1.25rem',
@@ -1464,7 +1481,7 @@ const styles = {
   },
   workspaceGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
     gap: '2rem',
   },
   formCard: {
@@ -1527,7 +1544,7 @@ const styles = {
     marginTop: '0.5rem',
   },
   saveBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.625rem 1.25rem',
@@ -1547,7 +1564,7 @@ const styles = {
   notesGrid: {
     gridColumn: 'span 2',
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
     gap: '1.5rem',
   },
   emptyState: {
@@ -1609,7 +1626,7 @@ const styles = {
     fontSize: '0.75rem',
   },
   aiBadge: {
-    backgroundColor: 'rgba(255, 161, 22, 0.1)',
+    backgroundColor: 'var(--color-warning-bg)',
     color: 'var(--accent-primary)',
     padding: '0.125rem 0.375rem',
     borderRadius: 'var(--radius-md)',
@@ -1630,7 +1647,7 @@ const styles = {
     WebkitBoxOrient: 'vertical',
   },
   branchIndicator: {
-    backgroundColor: 'rgba(78, 161, 255, 0.1)',
+    backgroundColor: 'var(--color-info-bg)',
     color: 'var(--color-info)',
     padding: '0.125rem 0.375rem',
     borderRadius: 'var(--radius-md)',
@@ -1810,7 +1827,7 @@ const styles = {
     cursor: 'pointer',
   },
   commitBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.5rem 1rem',
@@ -2085,25 +2102,25 @@ const styles = {
   diffRowEqual: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    borderBottom: '1px solid rgba(255,255,255,0.02)',
+    borderBottom: '1px solid var(--border-secondary)',
   },
   diffRowAdded: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    backgroundColor: 'rgba(46, 204, 113, 0.08)',
-    borderBottom: '1px solid rgba(255,255,255,0.02)',
+    backgroundColor: 'var(--color-success-bg)',
+    borderBottom: '1px solid var(--border-secondary)',
   },
   diffRowDeleted: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    backgroundColor: 'rgba(231, 76, 60, 0.08)',
-    borderBottom: '1px solid rgba(255,255,255,0.02)',
+    backgroundColor: 'var(--color-error-bg)',
+    borderBottom: '1px solid var(--border-secondary)',
   },
   diffRowModified: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    backgroundColor: 'rgba(243, 156, 18, 0.08)',
-    borderBottom: '1px solid rgba(255,255,255,0.02)',
+    backgroundColor: 'var(--color-warning-bg)',
+    borderBottom: '1px solid var(--border-secondary)',
   },
   diffCell: {
     padding: '0.375rem 1rem',
@@ -2150,7 +2167,7 @@ const styles = {
     fontSize: '0.8125rem',
   },
   saveSettingsBtn: {
-    backgroundColor: 'var(--accent-primary)',
+    backgroundColor: 'var(--primary)',
     color: 'var(--text-inverse)',
     fontWeight: 'var(--fw-semibold)',
     padding: '0.625rem 1.25rem',
@@ -2165,7 +2182,7 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'var(--overlay-bg)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

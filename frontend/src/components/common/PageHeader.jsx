@@ -1,98 +1,33 @@
+/**
+ * PageHeader — consistent title block for every page.
+ * Props: title, description, badge, icon (component), actions (node), eyebrow (string)
+ */
 export default function PageHeader({
   title,
   description,
   badge,
   icon: Icon,
-  actions
+  actions,
+  eyebrow,
 }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '1.25rem',
-        marginBottom: '2rem',
-        paddingBottom: '1.25rem',
-        borderBottom: '1px solid var(--border-primary)',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+    <header className="page-header">
+      <div className="page-header-main">
         {Icon && (
-          <div
-            style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--accent-light)',
-              border: '1px solid var(--border-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--accent-primary)',
-              fontSize: '1.35rem',
-              flexShrink: 0,
-            }}
-          >
+          <div className="page-header-icon" aria-hidden="true">
             <Icon />
           </div>
         )}
-
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: 'clamp(1.25rem, 2.5vw, 1.65rem)',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              {title}
-            </h1>
-
-            {badge && (
-              <span
-                style={{
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  padding: '2px 8px',
-                  borderRadius: '9999px',
-                  backgroundColor: 'var(--accent-light)',
-                  color: 'var(--accent-primary)',
-                  border: '1px solid var(--border-primary)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                }}
-              >
-                {badge}
-              </span>
-            )}
+        <div style={{ minWidth: 0 }}>
+          {eyebrow && <div className="page-eyebrow">{eyebrow}</div>}
+          <div className="page-title-row">
+            <h1 className="page-title">{title}</h1>
+            {badge && <span className="badge badge-primary">{badge}</span>}
           </div>
-
-          {description && (
-            <p
-              style={{
-                margin: '0.35rem 0 0 0',
-                fontSize: '0.88rem',
-                color: 'var(--text-secondary)',
-                lineHeight: 1.5,
-                maxWidth: '680px',
-              }}
-            >
-              {description}
-            </p>
-          )}
+          {description && <p className="page-description">{description}</p>}
         </div>
       </div>
-
-      {actions && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {actions}
-        </div>
-      )}
-    </div>
+      {actions && <div className="page-actions">{actions}</div>}
+    </header>
   );
 }
