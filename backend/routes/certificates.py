@@ -13,7 +13,7 @@ from auth.permissions import require_role
 from models.user import User, UserRole
 from schemas.analytics import CertificateResponse, CertificateVerifyResponse
 from services import certificate_service
-from utils.cache import cache_get, cache_set, cache_invalidate_prefix
+from utils.cache import cache_get, cache_set, invalidate_learner_cache
 
 router = APIRouter()
 
@@ -50,7 +50,7 @@ def generate_certificate(
 ):
     """Issue a certificate for a completed course (server-side checks only)."""
     cert = certificate_service.generate_certificate(db, current_user.id, course_id)
-    cache_invalidate_prefix(f"certificates:user:{current_user.id}")
+    invalidate_learner_cache(current_user.id)
     return cert
 
 

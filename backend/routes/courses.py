@@ -21,7 +21,7 @@ from services import course_service
 from services.audit_service import log_audit_event
 from config import settings
 from utils.helpers import generate_unique_filename, ensure_directory
-from utils.cache import cache_get, cache_set, cache_invalidate_prefix
+from utils.cache import cache_get, cache_set, cache_invalidate_prefix, invalidate_learner_cache
 
 router = APIRouter()
 
@@ -253,6 +253,7 @@ def enroll_in_course(
     if not course.is_published or not course.is_approved:
         raise HTTPException(status_code=400, detail="Course is not available for enrollment")
     enrollment = course_service.enroll_student(db, current_user.id, course_id)
+    invalidate_learner_cache(current_user.id)
     try:
         from services import analytics_service
         analytics_service.create_notification(

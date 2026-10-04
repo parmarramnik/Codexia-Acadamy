@@ -167,3 +167,21 @@ def test_qr_ignores_untrusted_referer(client, db_session, monkeypatch):
     trusted = client.get(f"/api/certificates/{uid}/verify",
                          headers={"Referer": "https://codexia-acadamy.vercel.app/certificates"}).json()
     assert trusted["verification_url"] == f"https://codexia-acadamy.vercel.app/verify/{uid}"
+
+
+def test_claim_is_visible_immediately(client, db_session, prod_frontend):
+    """Regression: the cached certificate list must be invalidated when a certificate is issued."""
+    _, course, auth = _seed(db_session)
+    assert client.get("/api/certificates", headers=auth).json() == []      # primes the cache
+    client.post(f"/api/certificates/{course.id}/generate", headers=auth)
+    assert len(client.get("/api/certificates", headers=auth).json()) == 1
+
+
+def test_cache_prefix_invalidation_matches_exact_key():
+    from utils.cache import cache_set, cache_get, cache_invalidate_prefix
+    cache_set("t:user:1", "a"); cache_set("t:user:1:x", "b"); cache_set("t:user:10", "c")
+    cache_invalidate_prefix("t:user:1")
+    assert cache_get("t:user:1") is None and cache_get("t:user:1:x") is None
+    assert cache_get("t:user:10") == "c"          # sibling ids are untouched
+    cache_invalidate_prefix("t:")                  # trailing colon form
+    assert cache_get("t:user:10") is None

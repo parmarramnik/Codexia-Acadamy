@@ -17,7 +17,7 @@ export default function Certificates() {
   const [certificates, setCertificates] = useState([]);
   const [courses, setCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingId, setGeneratingId] = useState(null);
   const [previewCert, setPreviewCert] = useState(null);
 
   async function loadData() {
@@ -41,16 +41,16 @@ export default function Certificates() {
   }, []);
 
   const handleGenerateCertificate = async (courseId) => {
-    setIsGenerating(true);
+    setGeneratingId(courseId);
     try {
       const res = await api.post(`/certificates/${courseId}/generate`);
-      toast.success('Certificate generated successfully!');
-      setCertificates(prev => [res.data, ...prev]);
-      loadData();
+      toast.success('Certificate issued successfully!');
+      setCertificates((prev) => (prev.some((c) => c.id === res.data.id) ? prev : [res.data, ...prev]));
+      setPreviewCert(res.data);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'You must complete at least 80% of the course lectures to earn a certificate.');
     } finally {
-      setIsGenerating(false);
+      setGeneratingId(null);
     }
   };
 
@@ -102,10 +102,13 @@ export default function Certificates() {
                     </div>
                     {hasCert ? (
                       <span style={styles.claimedText}><FiCheckCircle /> Claimed</span>
+                    ) : (enrollment.completion_percentage || 0) < 80 ? (
+                      <span style={styles.lockedText}>{80 - Math.round(enrollment.completion_percentage || 0)}% to go</span>
                     ) : (
                       <LoadingButton
                         onClick={() => handleGenerateCertificate(enrollment.course_id)}
-                        loading={isGenerating}
+                        loading={generatingId === enrollment.course_id}
+                        disabled={generatingId !== null}
                         loadingText="Claiming..."
                         style={styles.claimBtn}
                       >
@@ -308,6 +311,11 @@ const styles = {
     borderRadius: 'var(--radius-md)',
     fontSize: '0.75rem',
     cursor: 'pointer',
+  },
+  lockedText: {
+    color: 'var(--text-3)',
+    fontSize: '0.75rem',
+    whiteSpace: 'nowrap',
   },
   claimedText: {
     color: 'var(--color-success)',

@@ -125,26 +125,48 @@ def cache_delete(key: str) -> bool:
 
 
 def cache_invalidate_prefix(prefix: str) -> int:
-    """Invalidate all keys matching the prefix pattern '{prefix}:*'."""
+    """
+    Invalidate the key named exactly `prefix` and every key under it (`{prefix}:*`).
+
+    Accepts prefixes with or without a trailing colon, so both
+    cache_invalidate_prefix("certificates:user:5") and cache_invalidate_prefix("quizzes:")
+    clear what callers expect.
+    """
+    base = prefix.rstrip(":")
+    if not base:
+        return 0
     deleted_count = 0
     client = get_redis_client()
     if client:
         try:
-            pattern = f"{prefix}:*"
-            keys = list(client.scan_iter(match=pattern, count=100))
-            if keys:
-                deleted_count += client.delete(*keys)
-                logger.info(f"Invalidated {deleted_count} cache keys for prefix '{prefix}'")
+            keys = [base] + list(client.scan_iter(match=f"{base}:*", count=100))
+            deleted_count += client.delete(*keys)
+            if deleted_count:
+                logger.info(f"Invalidated {deleted_count} cache keys for prefix '{base}'")
         except Exception as e:
-            logger.debug(f"Cache invalidation error for prefix '{prefix}': {e}")
+            logger.debug(f"Cache invalidation error for prefix '{base}': {e}")
 
     # In-memory invalidation
-    mem_keys = [k for k in _mem_cache if k.startswith(f"{prefix}:")]
+    mem_keys = [k for k in list(_mem_cache) if k == base or k.startswith(f"{base}:")]
     for k in mem_keys:
         _mem_cache.pop(k, None)
         deleted_count += 1
 
     return deleted_count
+
+
+def invalidate_learner_cache(user_id: int) -> None:
+    """Clear every cached view derived from a learner's progress, enrollments or credentials."""
+    for prefix in (
+        f"analytics:dashboard:{user_id}",
+        f"analytics:student:{user_id}",
+        f"analytics:sessions:{user_id}",
+        f"certificates:user:{user_id}",
+        f"quizzes:list:{user_id}",
+        "analytics:instructor",
+        "analytics:admin",
+    ):
+        cache_invalidate_prefix(prefix)
 
 
 def cached(prefix: str, ttl: int = 300, key_builder: Optional[Callable] = None):

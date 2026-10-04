@@ -18,7 +18,7 @@ from schemas.user import MessageResponse
 from services import course_service, analytics_service
 from config import settings
 from utils.helpers import generate_unique_filename, ensure_directory
-from utils.cache import cache_invalidate_prefix
+from utils.cache import cache_invalidate_prefix, invalidate_learner_cache
 
 router = APIRouter()
 
@@ -224,4 +224,5 @@ def update_progress(
         db, current_user.id, lecture_id,
         data.watch_percentage, data.last_position_seconds,
     )
+    invalidate_learner_cache(current_user.id)
     return {"message": "Progress updated"}
