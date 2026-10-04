@@ -94,6 +94,7 @@ function AppContent() {
           </Route>
 
           {/* Public standalone verification pages */}
+          <Route path="/verify" element={<VerifyCertificate />} />
           <Route path="/verify/:uid" element={<VerifyCertificate />} />
           <Route path="/verify-public/:uid" element={<VerifyCertificatePublic />} />
           <Route path="/verify-email" element={<VerifyEmail />} />

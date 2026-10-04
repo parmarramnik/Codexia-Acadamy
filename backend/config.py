@@ -58,8 +58,13 @@ class Settings(BaseSettings):
     ADMIN_EMAIL: str = "admin@codexia.com"
     INSTRUCTOR_EMAIL: str = "instructor@codexia.com"
 
-    # Frontend URL (for email links)
+    # Frontend URL (for email links and certificate verification links / QR codes).
+    # In production this MUST be the public frontend origin, e.g. https://your-app.vercel.app
     FRONTEND_URL: str = "http://localhost:3000"
+
+    # Key used to sign issued certificates (tamper detection). Falls back to JWT_SECRET_KEY.
+    # Keep it stable: changing it makes previously issued certificates fail the integrity check.
+    CERTIFICATE_SIGNING_KEY: Optional[str] = None
 
     @property
     def cors_origins_list(self) -> list[str]:

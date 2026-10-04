@@ -43,13 +43,6 @@ export default function Profile() {
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const isInstructor = user?.role === 'instructor';
 
-  const getFullCertUrl = (relativeUrl) => {
-    if (!relativeUrl) return '';
-    if (relativeUrl.startsWith('http')) return relativeUrl;
-    const backendHost = api.defaults.baseURL.replace(/\/api$/, '');
-    return `${backendHost}${relativeUrl}`;
-  };
-
   useEffect(() => {
     async function loadProfileData() {
       try {
@@ -218,7 +211,7 @@ export default function Profile() {
                         </span>
                       </div>
                       <a
-                        href={getFullCertUrl(cert.certificate_url)}
+                        href={`/verify/${cert.certificate_uid}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="btn btn-ghost btn-sm"

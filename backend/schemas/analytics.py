@@ -84,6 +84,8 @@ class FlashcardResponse(BaseModel):
 class CertificateResponse(BaseModel):
     id: int
     certificate_uid: str
+    credential_id: Optional[str] = None
+    verification_code: Optional[str] = None
     user_id: int
     course_id: int
     user_full_name: str
@@ -100,13 +102,23 @@ class CertificateResponse(BaseModel):
 
 
 class CertificateVerifyResponse(BaseModel):
+    status: str = "VERIFIED"  # VERIFIED | REVOKED | INTEGRITY_FAILED
     is_valid: bool = True
     certificate_uid: str
+    credential_id: Optional[str] = None
+    verification_code: Optional[str] = None
     user_full_name: str
     course_title: str
+    course_slug: Optional[str] = None
+    course_duration_hours: Optional[float] = None
+    course_total_lectures: Optional[int] = None
     instructor_name: str
     completion_date: datetime
+    issued_at: Optional[datetime] = None
+    issuer: str = "Codexia Academy"
     certificate_url: Optional[str] = None
+    verification_url: Optional[str] = None
+    checked_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

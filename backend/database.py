@@ -202,6 +202,39 @@ def create_tables():
                     except Exception as col_err:
                         print(f"[Migration Warning] Could not add '{col_name}' to 'lectures': {col_err}")
 
+        # 8. certificates table migrations (credential number + integrity signature)
+        if "certificates" in existing_tables:
+            cert_cols = {col["name"] for col in inspector.get_columns("certificates")}
+            for col_name, col_type in [
+                ("credential_id", "VARCHAR(32)"),
+                ("signature", "VARCHAR(64)"),
+            ]:
+                if col_name not in cert_cols:
+                    try:
+                        with engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE certificates ADD COLUMN {col_name} {col_type}"))
+                        print(f"[Migration] Added missing column '{col_name}' to 'certificates'")
+                    except Exception as col_err:
+                        print(f"[Migration Warning] Could not add '{col_name}' to 'certificates': {col_err}")
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_certificates_credential_id ON certificates (credential_id)"))
+            except Exception as idx_err:
+                print(f"[Migration Notice] credential_id index: {idx_err}")
+
     except Exception as e:
         print(f"[Migration Warning] Dynamic schema migration failed: {str(e)}")
+
+    # Backfill credential numbers, signatures and download URLs for certificates issued before this release
+    try:
+        from services.certificate_service import backfill_certificates
+        db = SessionLocal()
+        try:
+            updated = backfill_certificates(db)
+            if updated:
+                print(f"[Migration] Backfilled security data for {updated} certificate(s)")
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[Migration Warning] Certificate backfill failed: {str(e)}")
 

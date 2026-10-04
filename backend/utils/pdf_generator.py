@@ -1,351 +1,447 @@
 """
-PDF certificate generator using ReportLab.
-Creates prestigious, executive-grade verified certificates with QR authentication and official Codexia branding.
+Certificate rendering (ReportLab) and QR code generation.
+
+PDFs are rendered on demand, in memory, from the certificate record in the database.
+Nothing is written to local disk, so certificates survive redeploys and restarts on
+platforms with ephemeral filesystems (Render, containers), and the QR code always
+points at the currently configured public verification URL.
 """
 
-import os
 import io
+import math
+import unicodedata
 from datetime import datetime
+from typing import List, Optional
 
 import qrcode
+from qrcode.constants import ERROR_CORRECT_M
+from reportlab.lib.colors import HexColor, Color
 from reportlab.lib.pagesizes import landscape, A4
-from reportlab.lib.colors import HexColor
-from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas
 
-from config import settings
-from utils.helpers import ensure_directory
+# Palette
+IVORY = HexColor("#FBF8F1")
+NAVY = HexColor("#0E1B30")
+NAVY_2 = HexColor("#16294A")
+GOLD = HexColor("#B08D57")
+GOLD_LIGHT = HexColor("#D8C08E")
+INK = HexColor("#1B2333")
+MUTED = HexColor("#5B6475")
+PANEL_MUTED = HexColor("#9FB0C8")
+WHITE = HexColor("#FFFFFF")
+GUILLOCHE = Color(0.69, 0.55, 0.34, alpha=0.18)
+
+ISSUER = "Codexia Academy"
 
 
-def _wrap_course_title(course_title: str, max_chars: int = 52) -> list:
-    """Intelligently wraps long course titles at colons or word boundaries."""
-    if len(course_title) <= max_chars:
-        return [course_title]
-    if ":" in course_title:
-        parts = course_title.split(":", 1)
-        return [parts[0].strip() + ":", parts[1].strip()]
-    
-    words = course_title.split()
-    lines = []
-    current = []
-    current_len = 0
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _safe(text: Optional[str]) -> str:
+    """Built-in PDF fonts are Latin-1; transliterate anything outside it."""
+    text = (text or "").strip()
+    try:
+        text.encode("latin-1")
+        return text
+    except UnicodeEncodeError:
+        norm = unicodedata.normalize("NFKD", text)
+        return "".join(ch for ch in norm if ord(ch) < 256 and not unicodedata.combining(ch)) or "?"
+
+
+def _fmt_date(value) -> str:
+    if hasattr(value, "strftime"):
+        return f"{value.strftime('%B')} {value.day}, {value.year}"
+    return str(value or "")
+
+
+def _seed(uid: str) -> int:
+    try:
+        return int(uid.replace("-", "")[:8], 16)
+    except ValueError:
+        return 0x9E3779B9
+
+
+def mulberry32(seed: int):
+    """Small deterministic PRNG (mirrors frontend/src/utils/certificates.js)."""
+    state = [seed & 0xFFFFFFFF]
+
+    def imul(a, b):
+        return (a * b) & 0xFFFFFFFF
+
+    def nxt():
+        state[0] = (state[0] + 0x6D2B79F5) & 0xFFFFFFFF
+        a = state[0]
+        t = imul(a ^ (a >> 15), 1 | a)
+        t = ((t + imul(t ^ (t >> 7), 61 | t)) & 0xFFFFFFFF) ^ t
+        return ((t ^ (t >> 14)) & 0xFFFFFFFF) / 4294967296
+
+    return nxt
+
+
+def guilloche_params(uid: str) -> dict:
+    """Per-certificate security pattern parameters (unique to each certificate)."""
+    rnd = mulberry32(_seed(uid))
+    return {
+        "k1": 10 + int(rnd() * 9),        # outer petals
+        "k2": 3 + int(rnd() * 5),         # inner modulation
+        "a1": 0.10 + rnd() * 0.06,
+        "a2": 0.04 + rnd() * 0.04,
+        "phase": rnd() * math.pi * 2,
+        "rings": 11,
+    }
+
+
+def _wrap(pdf, text: str, font: str, size: float, max_width: float) -> List[str]:
+    words, lines, cur = text.split(), [], ""
     for w in words:
-        if current_len + len(w) + 1 > max_chars and current:
-            lines.append(" ".join(current))
-            current = [w]
-            current_len = len(w)
+        trial = f"{cur} {w}".strip()
+        if pdf.stringWidth(trial, font, size) <= max_width or not cur:
+            cur = trial
         else:
-            current.append(w)
-            current_len += len(w) + 1
-    if current:
-        lines.append(" ".join(current))
+            lines.append(cur)
+            cur = w
+    if cur:
+        lines.append(cur)
     return lines
 
 
-def generate_certificate_pdf(
+def _fit(pdf, text: str, font: str, max_size: float, min_size: float, max_width: float) -> float:
+    size = max_size
+    while size > min_size and pdf.stringWidth(text, font, size) > max_width:
+        size -= 0.5
+    return size
+
+
+def _spaced(pdf, text: str, x: float, y: float, font: str, size: float, spacing: float, align="center"):
+    width = pdf.stringWidth(text, font, size) + spacing * (len(text) - 1)
+    start = x - width / 2 if align == "center" else (x - width if align == "right" else x)
+    t = pdf.beginText(start, y)
+    t.setFont(font, size)
+    t.setCharSpace(spacing)
+    t.textOut(text)
+    t.setCharSpace(0)  # Tc persists in the PDF graphics state; reset it for later text
+    pdf.drawText(t)
+
+
+def _circle_text(pdf, text: str, cx: float, cy: float, radius: float, font: str, size: float):
+    pdf.setFont(font, size)
+    step = 360.0 / len(text)
+    for i, ch in enumerate(text):
+        angle = 90 - i * step
+        pdf.saveState()
+        pdf.translate(cx, cy)
+        pdf.rotate(angle - 90)
+        pdf.drawCentredString(0, radius, ch)
+        pdf.restoreState()
+
+
+def _qr_matrix(data: str):
+    qr = qrcode.QRCode(error_correction=ERROR_CORRECT_M, border=0, box_size=1)
+    qr.add_data(data)
+    qr.make(fit=True)
+    return qr.get_matrix()
+
+
+def render_qr_png(data: str, scale: int = 10, border: int = 4) -> bytes:
+    qr = qrcode.QRCode(error_correction=ERROR_CORRECT_M, border=border, box_size=scale)
+    qr.add_data(data)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def render_qr_svg(data: str, border: int = 4) -> str:
+    """Crisp, dependency-free SVG QR code (one path, scales to any size)."""
+    matrix = _qr_matrix(data)
+    n = len(matrix)
+    size = n + border * 2
+    parts = []
+    for y, row in enumerate(matrix):
+        x = 0
+        while x < n:
+            if row[x]:
+                start = x
+                while x < n and row[x]:
+                    x += 1
+                parts.append(f"M{start + border} {y + border}h{x - start}v1h-{x - start}z")
+            else:
+                x += 1
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {size} {size}" '
+        f'shape-rendering="crispEdges" role="img" aria-label="Certificate verification QR code">'
+        f'<rect width="{size}" height="{size}" fill="#fff"/>'
+        f'<path d="{"".join(parts)}" fill="#000"/></svg>'
+    )
+
+
+def _draw_guilloche(pdf, cx: float, cy: float, radius: float, uid: str):
+    p = guilloche_params(uid)
+    pdf.saveState()
+    pdf.setStrokeColor(GUILLOCHE)
+    pdf.setLineWidth(0.35)
+    steps = 720
+    for ring in range(p["rings"]):
+        base = radius * (0.38 + 0.6 * ring / (p["rings"] - 1))
+        shift = p["phase"] + ring * 0.21
+        path = pdf.beginPath()
+        for i in range(steps + 1):
+            th = 2 * math.pi * i / steps
+            r = base * (1 + p["a1"] * math.sin(p["k1"] * th + shift) + p["a2"] * math.cos(p["k2"] * th - shift))
+            x, y = cx + r * math.cos(th), cy + r * math.sin(th)
+            if i == 0:
+                path.moveTo(x, y)
+            else:
+                path.lineTo(x, y)
+        pdf.drawPath(path, stroke=1, fill=0)
+    pdf.restoreState()
+
+
+def _draw_seal(pdf, cx: float, cy: float, year: int):
+    # Serrated gold rosette
+    points = 60
+    path = pdf.beginPath()
+    for i in range(points * 2 + 1):
+        r = 40 if i % 2 == 0 else 37
+        a = math.pi * i / points
+        x, y = cx + r * math.cos(a), cy + r * math.sin(a)
+        if i == 0:
+            path.moveTo(x, y)
+        else:
+            path.lineTo(x, y)
+    path.close()
+    pdf.setFillColor(GOLD)
+    pdf.setStrokeColor(GOLD)
+    pdf.setLineWidth(0.5)
+    pdf.drawPath(path, fill=1, stroke=1)
+
+    pdf.setFillColor(NAVY)
+    pdf.circle(cx, cy, 33, fill=1, stroke=0)
+    pdf.setStrokeColor(GOLD_LIGHT)
+    pdf.setLineWidth(0.6)
+    pdf.circle(cx, cy, 31, fill=0, stroke=1)
+    pdf.circle(cx, cy, 19, fill=0, stroke=1)
+
+    pdf.setFillColor(GOLD_LIGHT)
+    _circle_text(pdf, " CODEXIA ACADEMY · VERIFIED CREDENTIAL ·", cx, cy, 23.2, "Helvetica-Bold", 5.2)
+
+    pdf.setFillColor(WHITE)
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawCentredString(cx, cy + 0.5, "</>")
+    pdf.setFillColor(GOLD_LIGHT)
+    pdf.setFont("Helvetica-Bold", 6)
+    pdf.drawCentredString(cx, cy - 8, str(year))
+
+
+# ---------------------------------------------------------------------------
+# Certificate
+# ---------------------------------------------------------------------------
+
+def render_certificate_pdf(
+    *,
     certificate_uid: str,
+    credential_id: str,
+    verification_code: str,
     user_full_name: str,
     course_title: str,
     instructor_name: str,
     completion_date: datetime,
-    output_dir: str = None,
-) -> str:
-    """
-    Generate an authentic, prestigious academic PDF certificate for Codexia Academy.
-    Uses archival ivory/parchment background, deep academic navy & burnished gold borders,
-    official seal, working QR code, dynamic instructor, and authentic verification details.
-    """
-    if output_dir is None:
-        output_dir = os.path.join(settings.UPLOAD_DIR, "certificates")
-    ensure_directory(output_dir)
+    verification_url: str,
+    duration_hours: Optional[float] = None,
+    total_lectures: Optional[int] = None,
+) -> bytes:
+    """Render the certificate as a single-page landscape A4 PDF and return the bytes."""
+    buf = io.BytesIO()
+    W, H = landscape(A4)
+    pdf = canvas.Canvas(buf, pagesize=(W, H))
 
-    filename = f"certificate_{certificate_uid}.pdf"
-    filepath = os.path.join(output_dir, filename)
+    name = _safe(user_full_name) or "Certificate Holder"
+    course = _safe(course_title) or "Course"
+    instructor = _safe(instructor_name) or "Course Instructor"
+    issued = _fmt_date(completion_date)
+    year = completion_date.year if hasattr(completion_date, "year") else datetime.utcnow().year
 
-    width, height = landscape(A4)
-    pdf = canvas.Canvas(filepath, pagesize=landscape(A4))
+    pdf.setTitle(f"Certificate of Completion - {name} - {course}")
+    pdf.setAuthor(ISSUER)
+    pdf.setSubject(f"Credential {credential_id} - verify at {verification_url}")
+    pdf.setCreator(f"{ISSUER} Credential Service")
+    pdf.setKeywords(f"certificate, {credential_id}, {certificate_uid}")
 
-    # --- 1. PRESTIGIOUS ACADEMIC COLOR PALETTE ---
-    BG_IVORY = HexColor("#FCFBF7")        # Archival Ivory Canvas
-    BG_WHITE = HexColor("#FFFFFF")        # Pure White Plaque Interior
-    NAVY_DEEP = HexColor("#0F172A")       # Slate/Academic Midnight Navy
-    NAVY_ACCENT = HexColor("#1E3A8A")     # Royal Academic Blue
-    GOLD_BURNISHED = HexColor("#996515")  # Rich Burnished Gold
-    GOLD_METALLIC = HexColor("#C5A059")   # Elegant Metallic Gold
-    GOLD_LIGHT = HexColor("#FEF3C7")      # Pale Warm Gold Tint
-    TEXT_PRIMARY = HexColor("#0F172A")    # Crisp Charcoal/Navy Text
-    TEXT_MUTED = HexColor("#475569")      # Neutral Steel Gray
-    TEXT_LIGHT = HexColor("#64748B")      # Secondary Descriptor Gray
-    BORDER_LIGHT = HexColor("#E2E8F0")    # Subtle Border Tone
+    # --- Background, security pattern and frame ---
+    pdf.setFillColor(IVORY)
+    pdf.rect(0, 0, W, H, fill=1, stroke=0)
 
-    # --- 2. CANVAS & DUAL ARCHIVAL BACKGROUND ---
-    # Canvas background: Warm Ivory
-    pdf.setFillColor(BG_IVORY)
-    pdf.rect(0, 0, width, height, fill=True, stroke=False)
+    panel_w = 214
+    main_x0, main_x1 = 20 + panel_w + 28, W - 48
+    cx = (main_x0 + main_x1) / 2
 
-    # Inner certificate plaque: Clean White
-    pdf.setFillColor(BG_WHITE)
-    pdf.rect(20, 20, width - 40, height - 40, fill=True, stroke=False)
+    _draw_guilloche(pdf, cx, H / 2 + 18, 190, certificate_uid)
 
-    # --- 3. CLASSICAL SECURITY FRAMES & CORNER FLOURISHES ---
-    # Outer Heavy Navy Frame
-    pdf.setStrokeColor(NAVY_DEEP)
-    pdf.setLineWidth(3.0)
-    pdf.rect(26, 26, width - 52, height - 52, fill=False, stroke=True)
+    pdf.setStrokeColor(NAVY)
+    pdf.setLineWidth(2)
+    pdf.rect(12, 12, W - 24, H - 24, fill=0, stroke=1)
+    pdf.setStrokeColor(GOLD)
+    pdf.setLineWidth(0.8)
+    pdf.rect(17, 17, W - 34, H - 34, fill=0, stroke=1)
 
-    # Burnished Gold Inset Frame
-    pdf.setStrokeColor(GOLD_METALLIC)
+    # Microtext security lines (top and bottom of the main area)
+    pdf.setFillColor(GOLD)
+    micro = (f"{ISSUER.upper()} · {credential_id} · ") * 40
+    pdf.setFont("Helvetica", 3.4)
+    for y in (H - 28, 26):
+        pdf.saveState()
+        p = pdf.beginPath()
+        p.rect(main_x0 - 10, y - 2, (W - 22) - (main_x0 - 10), 6)
+        pdf.clipPath(p, stroke=0, fill=0)
+        pdf.drawString(main_x0 - 10, y, micro)
+        pdf.restoreState()
+
+    # --- Left identity panel ---
+    pdf.setFillColor(NAVY)
+    pdf.rect(20, 20, panel_w, H - 40, fill=1, stroke=0)
+    pdf.setFillColor(NAVY_2)
+    pdf.rect(20 + panel_w - 3, 20, 3, H - 40, fill=1, stroke=0)
+    pdf.setFillColor(GOLD)
+    pdf.rect(20 + panel_w, 20, 1.2, H - 40, fill=1, stroke=0)
+
+    px = 20 + panel_w / 2
+    # Brand mark
+    pdf.setStrokeColor(GOLD)
     pdf.setLineWidth(1.2)
-    pdf.rect(32, 32, width - 64, height - 64, fill=False, stroke=True)
+    pdf.roundRect(px - 18, H - 92, 36, 36, 8, fill=0, stroke=1)
+    pdf.setFillColor(GOLD_LIGHT)
+    pdf.setFont("Helvetica-Bold", 13)
+    pdf.drawCentredString(px, H - 79, "</>")
+    pdf.setFillColor(WHITE)
+    _spaced(pdf, "CODEXIA", px, H - 118, "Helvetica-Bold", 15, 3.2)
+    pdf.setFillColor(GOLD_LIGHT)
+    _spaced(pdf, "ACADEMY", px, H - 132, "Helvetica", 7.5, 4.2)
 
-    # Thin Interior Navy Pinstripe
-    pdf.setStrokeColor(NAVY_DEEP)
+    pdf.setStrokeColor(Color(1, 1, 1, alpha=0.14))
     pdf.setLineWidth(0.6)
-    pdf.rect(36, 36, width - 72, height - 72, fill=False, stroke=True)
+    pdf.line(44, H - 152, 20 + panel_w - 24, H - 152)
 
-    # Architectural Corner Accents (Corner Brackets & Rosettes)
-    corner_size = 28
-    corners = [
-        (36, 36, 1, 1),
-        (width - 36, 36, -1, 1),
-        (36, height - 36, 1, -1),
-        (width - 36, height - 36, -1, -1),
-    ]
-    pdf.setStrokeColor(GOLD_BURNISHED)
-    pdf.setLineWidth(1.6)
-    for cx, cy, dx, dy in corners:
-        pdf.line(cx, cy, cx + dx * corner_size, cy)
-        pdf.line(cx, cy, cx, cy + dy * corner_size)
-        pdf.setFillColor(GOLD_METALLIC)
-        pdf.circle(cx + dx * 9, cy + dy * 9, 2.5, fill=True, stroke=False)
+    def field(label: str, value: str, y: float, font="Courier-Bold", size=10.5):
+        pdf.setFillColor(GOLD_LIGHT)
+        _spaced(pdf, label, 44, y, "Helvetica-Bold", 6.2, 1.6, align="left")
+        pdf.setFillColor(WHITE)
+        pdf.setFont(font, size)
+        pdf.drawString(44, y - 14, value)
 
-    # --- 4. OFFICIAL INSTITUTIONAL CREST & BRANDING ---
-    top_y = height - 66
-    pdf.setFillColor(NAVY_DEEP)
-    pdf.setFont("Helvetica-Bold", 19)
-    pdf.drawCentredString(width / 2, top_y, "CODEXIA ACADEMY")
+    field("CREDENTIAL ID", credential_id, H - 180)
+    field("DATE OF ISSUE", issued, H - 218, font="Helvetica-Bold", size=10)
+    field("VERIFICATION CODE", verification_code or "-", H - 256, size=9.5)
 
-    pdf.setFillColor(GOLD_BURNISHED)
+    # QR tile
+    qr_tile = 132
+    qx, qy = px - qr_tile / 2, 92
+    pdf.setFillColor(WHITE)
+    pdf.roundRect(qx, qy, qr_tile, qr_tile, 6, fill=1, stroke=0)
+    qr_img = ImageReader(io.BytesIO(render_qr_png(verification_url, scale=10, border=2)))
+    pdf.drawImage(qr_img, qx + 6, qy + 6, width=qr_tile - 12, height=qr_tile - 12)
+
+    pdf.setFillColor(WHITE)
     pdf.setFont("Helvetica-Bold", 8)
-    pdf.drawCentredString(width / 2, top_y - 14, "ACCREDITED PLATFORM OF SOFTWARE ARCHITECTURE & ARTIFICIAL INTELLIGENCE")
+    pdf.drawCentredString(px, qy - 16, "Scan to verify authenticity")
+    pdf.setFillColor(PANEL_MUTED)
+    host, _, path = verification_url.split("://", 1)[-1].partition("/")
+    for i, line in enumerate((host, "/" + path)):
+        size = _fit(pdf, line, "Helvetica", 6.2, 4.5, panel_w - 36)
+        pdf.setFont("Helvetica", size)
+        pdf.drawCentredString(px, qy - 29 - i * 8, line)
 
-    pdf.setFillColor(TEXT_LIGHT)
+    # --- Main content ---
+    pdf.setFillColor(GOLD)
+    _spaced(pdf, "CERTIFICATE OF COMPLETION", cx, H - 84, "Helvetica-Bold", 11, 4.2)
+    pdf.setStrokeColor(GOLD)
+    pdf.setLineWidth(0.7)
+    pdf.line(cx - 120, H - 98, cx - 10, H - 98)
+    pdf.line(cx + 10, H - 98, cx + 120, H - 98)
+    d = pdf.beginPath()
+    d.moveTo(cx, H - 94); d.lineTo(cx + 4, H - 98); d.lineTo(cx, H - 102); d.lineTo(cx - 4, H - 98); d.close()
+    pdf.setFillColor(GOLD)
+    pdf.drawPath(d, fill=1, stroke=0)
+
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Times-Italic", 14)
+    pdf.drawCentredString(cx, H - 146, "This is to certify that")
+
+    name_size = _fit(pdf, name, "Times-Bold", 40, 22, main_x1 - main_x0 - 30)
+    pdf.setFillColor(INK)
+    pdf.setFont("Times-Bold", name_size)
+    pdf.drawCentredString(cx, H - 196, name)
+    name_w = min(pdf.stringWidth(name, "Times-Bold", name_size) + 70, main_x1 - main_x0)
+    pdf.setStrokeColor(GOLD)
+    pdf.setLineWidth(0.8)
+    pdf.line(cx - name_w / 2, H - 212, cx + name_w / 2, H - 212)
+
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 10.5)
+    pdf.drawCentredString(cx, H - 240, "has successfully completed all requirements of the course")
+
+    course_size = 20
+    lines = _wrap(pdf, course, "Helvetica-Bold", course_size, main_x1 - main_x0 - 40)
+    while len(lines) > 3 and course_size > 13:
+        course_size -= 1
+        lines = _wrap(pdf, course, "Helvetica-Bold", course_size, main_x1 - main_x0 - 40)
+    lines = lines[:3]
+    pdf.setFillColor(NAVY)
+    y = H - 272
+    for line in lines:
+        pdf.setFont("Helvetica-Bold", course_size)
+        pdf.drawCentredString(cx, y, line)
+        y -= course_size + 5
+
+    meta = ["Online program"]
+    if duration_hours:
+        meta.append(f"{duration_hours:g} learning hours")
+    if total_lectures:
+        meta.append(f"{total_lectures} lectures")
+    meta.append(f"Completed {issued}")
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 9)
+    pdf.drawCentredString(cx, y - 6, "  ·  ".join(meta))
+
+    # --- Signatures and seal ---
+    sig_y = 104
+    left_x, right_x = cx - 168, cx + 168
+
+    pdf.setFillColor(INK)
+    sig_size = _fit(pdf, instructor, "Times-Italic", 19, 11, 170)
+    pdf.setFont("Times-Italic", sig_size)
+    pdf.drawCentredString(left_x, sig_y + 8, instructor)
+    pdf.setStrokeColor(INK)
+    pdf.setLineWidth(0.6)
+    pdf.line(left_x - 88, sig_y, left_x + 88, sig_y)
+    pdf.setFont("Helvetica-Bold", 8.5)
+    pdf.drawCentredString(left_x, sig_y - 13, instructor)
+    pdf.setFillColor(MUTED)
     pdf.setFont("Helvetica", 7.5)
-    pdf.drawCentredString(width / 2, top_y - 25, "OFFICIAL VERIFIED ACADEMIC CREDENTIAL • HTTP://CODEXIA.EDU")
+    pdf.drawCentredString(left_x, sig_y - 24, "Course Instructor")
 
-    # Symmetric Gold & Navy Divider
-    pdf.setStrokeColor(GOLD_METALLIC)
-    pdf.setLineWidth(1)
-    pdf.line(width / 2 - 160, top_y - 33, width / 2 + 160, top_y - 33)
-    pdf.setFillColor(NAVY_DEEP)
-    pdf.circle(width / 2, top_y - 33, 3, fill=True, stroke=False)
-    pdf.setFillColor(GOLD_METALLIC)
-    pdf.circle(width / 2, top_y - 33, 1.5, fill=True, stroke=False)
+    pdf.setFillColor(INK)
+    pdf.setFont("Times-Italic", 17)
+    pdf.drawCentredString(right_x, sig_y + 8, ISSUER)
+    pdf.line(right_x - 88, sig_y, right_x + 88, sig_y)
+    pdf.setFont("Helvetica-Bold", 8.5)
+    pdf.drawCentredString(right_x, sig_y - 13, "Office of Academic Records")
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 7.5)
+    pdf.drawCentredString(right_x, sig_y - 24, "Issuing Authority")
 
-    # --- 5. CERTIFICATE TITLE & DIGNIFIED STATEMENT ---
-    pdf.setFillColor(NAVY_DEEP)
-    pdf.setFont("Helvetica-Bold", 24)
-    pdf.drawCentredString(width / 2, height - 134, "CERTIFICATE OF COMPLETION")
+    _draw_seal(pdf, cx, sig_y - 2, year)
 
-    pdf.setFillColor(TEXT_MUTED)
-    pdf.setFont("Helvetica", 9.5)
-    pdf.drawCentredString(width / 2, height - 152, "THIS IS TO OFFICIALLY CERTIFY THAT")
-
-    # --- 6. RECIPIENT REAL NAME ---
-    clean_name = (user_full_name or "Student Scholar").strip()
-    pdf.setFillColor(NAVY_DEEP)
-    pdf.setFont("Helvetica-Bold", 26)
-    pdf.drawCentredString(width / 2, height - 186, clean_name)
-
-    # Distinguished Underline with Diamond Rosette
-    name_w = pdf.stringWidth(clean_name, "Helvetica-Bold", 26)
-    divider_w = max(name_w + 60, 260)
-    pdf.setStrokeColor(GOLD_METALLIC)
-    pdf.setLineWidth(1.4)
-    pdf.line(width / 2 - divider_w / 2, height - 196, width / 2 + divider_w / 2, height - 196)
-    pdf.setFillColor(GOLD_BURNISHED)
-    pdf.rect(width / 2 - 4, height - 198, 8, 4, fill=True, stroke=False)
-
-    # --- 7. ACHIEVEMENT NARRATIVE ---
-    pdf.setFillColor(TEXT_MUTED)
-    pdf.setFont("Helvetica", 9.5)
+    # --- Footer ---
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 6.8)
     pdf.drawCentredString(
-        width / 2, height - 218,
-        "has successfully demonstrated technical mastery, passed practical assessments, and fulfilled all requirements for"
+        cx, 40,
+        f"Verify this credential at {verification_url}",
     )
 
-    # --- 8. COURSE TITLE WITH PROPER WRAPPING ---
-    lines = _wrap_course_title(course_title or "Advanced Software Engineering Program")
-    if len(lines) == 1:
-        pdf.setFillColor(NAVY_ACCENT)
-        pdf.setFont("Helvetica-Bold", 19)
-        pdf.drawCentredString(width / 2, height - 248, lines[0])
-        sub_desc_y = height - 270
-    else:
-        pdf.setFillColor(NAVY_ACCENT)
-        pdf.setFont("Helvetica-Bold", 17)
-        pdf.drawCentredString(width / 2, height - 244, lines[0])
-        pdf.setFont("Helvetica-Bold", 15)
-        pdf.drawCentredString(width / 2, height - 264, lines[1])
-        sub_desc_y = height - 285
-
-    # Course Accreditation Subtitle
-    pdf.setFillColor(TEXT_LIGHT)
-    pdf.setFont("Helvetica-Oblique", 8.5)
-    pdf.drawCentredString(width / 2, sub_desc_y, "Comprehensive Curriculum • Verified Practical Assessments • Demonstrated Competency")
-
-    # --- 9. THREE-COLUMN SIGNATURE BLOCK & EMBOSSED GOLD SEAL ---
-    sig_y = 120
-
-    # Column 1: Course Instructor (Real Dynamic Instructor from DB)
-    instructor_display = (instructor_name or "Authorized Course Instructor").strip()
-    pdf.setStrokeColor(BORDER_LIGHT)
-    pdf.setLineWidth(1.0)
-    pdf.line(95, sig_y + 25, 275, sig_y + 25)
-
-    pdf.setFillColor(NAVY_DEEP)
-    pdf.setFont("Helvetica-BoldOblique", 13)
-    pdf.drawCentredString(185, sig_y + 35, instructor_display)
-
-    pdf.setFont("Helvetica-Bold", 9.5)
-    pdf.drawCentredString(185, sig_y + 12, instructor_display)
-
-    pdf.setFillColor(TEXT_MUTED)
-    pdf.setFont("Helvetica", 8)
-    pdf.drawCentredString(185, sig_y, "Authorized Course Instructor")
-    pdf.drawCentredString(185, sig_y - 10, "Codexia Academic Faculty")
-
-    # Column 2: Official Embossed Gold & Navy Institutional Seal
-    seal_x = width / 2
-    seal_y = sig_y + 14
-
-    # Twin Academic Ribbon Tails (beneath the medallion)
-    p_left = pdf.beginPath()
-    p_left.moveTo(seal_x - 14, seal_y - 18)
-    p_left.lineTo(seal_x - 24, seal_y - 48)
-    p_left.lineTo(seal_x - 16, seal_y - 42)
-    p_left.lineTo(seal_x - 8, seal_y - 48)
-    p_left.lineTo(seal_x - 4, seal_y - 22)
-    p_left.close()
-    pdf.setFillColor(GOLD_BURNISHED)
-    pdf.setStrokeColor(GOLD_METALLIC)
-    pdf.setLineWidth(0.6)
-    pdf.drawPath(p_left, fill=True, stroke=True)
-
-    p_right = pdf.beginPath()
-    p_right.moveTo(seal_x + 14, seal_y - 18)
-    p_right.lineTo(seal_x + 24, seal_y - 48)
-    p_right.lineTo(seal_x + 16, seal_y - 42)
-    p_right.lineTo(seal_x + 8, seal_y - 48)
-    p_right.lineTo(seal_x + 4, seal_y - 22)
-    p_right.close()
-    pdf.setFillColor(GOLD_BURNISHED)
-    pdf.setStrokeColor(GOLD_METALLIC)
-    pdf.setLineWidth(0.6)
-    pdf.drawPath(p_right, fill=True, stroke=True)
-
-    # Outer Metallic Gold Ring
-    pdf.setStrokeColor(GOLD_METALLIC)
-    pdf.setLineWidth(2.0)
-    pdf.setFillColor(BG_WHITE)
-    pdf.circle(seal_x, seal_y, 35, fill=True, stroke=True)
-
-    # Middle Antique Gold Border
-    pdf.setStrokeColor(GOLD_BURNISHED)
-    pdf.setLineWidth(1.0)
-    pdf.circle(seal_x, seal_y, 31, fill=False, stroke=True)
-
-    # Core Slate-Navy Disc
-    pdf.setFillColor(NAVY_DEEP)
-    pdf.circle(seal_x, seal_y, 28, fill=True, stroke=False)
-
-    # Fine Inner Gold Ring
-    pdf.setStrokeColor(GOLD_METALLIC)
-    pdf.setLineWidth(0.6)
-    pdf.circle(seal_x, seal_y, 25, fill=False, stroke=True)
-
-    # Scaled Typography (Guaranteed Zero Clipping within 50pt Core Diameter)
-    pdf.setFillColor(GOLD_LIGHT)
-    pdf.setFont("Helvetica", 5.5)
-    pdf.drawCentredString(seal_x, seal_y + 13, "★   ★   ★")
-
-    pdf.setFont("Helvetica-Bold", 7.5)
-    pdf.drawCentredString(seal_x, seal_y + 3.5, "CODEXIA")
-
-    pdf.setFillColor(GOLD_METALLIC)
-    pdf.setFont("Helvetica-Bold", 6.5)
-    pdf.drawCentredString(seal_x, seal_y - 4.5, "ACADEMY")
-
-    pdf.setFillColor(BG_WHITE)
-    pdf.setFont("Helvetica-Bold", 5.0)
-    pdf.drawCentredString(seal_x, seal_y - 12.5, "OFFICIAL SEAL")
-
-    pdf.setFillColor(GOLD_LIGHT)
-    pdf.setFont("Helvetica", 4.5)
-    pdf.drawCentredString(seal_x, seal_y - 19.5, "• 2026 •")
-
-    # Column 3: Institutional Directorate (Official, No Fake Names)
-    directorate_display = "Office of Academic Affairs"
-    pdf.setStrokeColor(BORDER_LIGHT)
-    pdf.setLineWidth(1.0)
-    pdf.line(width - 275, sig_y + 25, width - 95, sig_y + 25)
-
-    pdf.setFillColor(NAVY_DEEP)
-    pdf.setFont("Helvetica-BoldOblique", 13)
-    pdf.drawCentredString(width - 185, sig_y + 35, directorate_display)
-
-    pdf.setFont("Helvetica-Bold", 9.5)
-    pdf.drawCentredString(width - 185, sig_y + 12, directorate_display)
-
-    pdf.setFillColor(TEXT_MUTED)
-    pdf.setFont("Helvetica", 8)
-    pdf.drawCentredString(width - 185, sig_y, "Academic Directorate")
-    pdf.drawCentredString(width - 185, sig_y - 10, "Codexia Academy International")
-
-    # --- 10. SECURITY & AUTHENTICATION FOOTER ---
-    footer_y = 56
-    formatted_date = completion_date.strftime("%B %d, %Y") if hasattr(completion_date, "strftime") else str(completion_date)
-    
-    # Resolve deployment-ready verification URL
-    prod_domain = os.getenv("FRONTEND_URL") or "https://codexia-acadamy.vercel.app"
-    if prod_domain.endswith("/"):
-        prod_domain = prod_domain[:-1]
-    verification_url = f"{prod_domain}/verify/{certificate_uid}"
-
-    # Left: Security Identifiers
-    pdf.setFillColor(TEXT_MUTED)
-    pdf.setFont("Courier-Bold", 8)
-    pdf.drawString(65, footer_y + 12, f"CERTIFICATE UID : {certificate_uid}")
-    pdf.setFont("Helvetica", 7.5)
-    pdf.drawString(65, footer_y + 1, f"ISSUED ON       : {formatted_date}")
-    pdf.setFillColor(NAVY_ACCENT)
-    pdf.drawString(65, footer_y - 10, f"REGISTRY LINK   : {verification_url}")
-
-    # Right: High-Resolution Scannable QR Code (Positioned with safe margins)
-    qr = qrcode.QRCode(box_size=4, border=1)
-    qr.add_data(verification_url)
-    qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="black", back_color="white")
-
-    qr_buffer = io.BytesIO()
-    qr_img.save(qr_buffer, format="PNG")
-    qr_buffer.seek(0)
-    qr_reader = ImageReader(qr_buffer)
-
-    qr_size = 48
-    qr_x = width - 118
-    qr_y = 44
-
-    # Gold frame around QR
-    pdf.setStrokeColor(GOLD_METALLIC)
-    pdf.setLineWidth(1)
-    pdf.rect(qr_x - 2, qr_y - 2, qr_size + 4, qr_size + 4, fill=False, stroke=True)
-    pdf.drawImage(qr_reader, qr_x, qr_y, width=qr_size, height=qr_size)
-
-    # Clean label safely inside boundary
-    pdf.setFillColor(NAVY_DEEP)
-    pdf.setFont("Helvetica-Bold", 6)
-    pdf.drawCentredString(qr_x + qr_size / 2, qr_y - 9, "SCAN TO AUTHENTICATE")
-
+    pdf.showPage()
     pdf.save()
-    return filepath
+    return buf.getvalue()

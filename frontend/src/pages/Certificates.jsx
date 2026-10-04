@@ -9,6 +9,8 @@ import {
 import { useAuth } from '../context/AuthContext';
 import LoadingButton from '../components/common/LoadingButton';
 import PageLoader from '../components/common/PageLoader';
+import CertificateDocument from '../components/certificates/CertificateDocument';
+import { certificatePdfUrl } from '../utils/certificates';
 
 export default function Certificates() {
   const { user } = useAuth();
@@ -17,13 +19,6 @@ export default function Certificates() {
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewCert, setPreviewCert] = useState(null);
-
-  const getFullCertUrl = (relativeUrl) => {
-    if (!relativeUrl) return '';
-    if (relativeUrl.startsWith('http')) return relativeUrl;
-    const backendHost = api.defaults.baseURL.replace(/\/api$/, '');
-    return `${backendHost}${relativeUrl}`;
-  };
 
   async function loadData() {
     setIsLoading(true);
@@ -141,7 +136,7 @@ export default function Certificates() {
                   </div>
                   <div style={styles.certInfo}>
                     <h3 style={styles.certCourse}>{cert.course_title}</h3>
-                    <span style={styles.certUid}>ID: {cert.certificate_uid}</span>
+                    <span style={styles.certUid}>ID: {cert.credential_id || cert.certificate_uid}</span>
                     <span style={styles.certDate}>Issued on: {new Date(cert.completion_date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</span>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -152,9 +147,7 @@ export default function Certificates() {
                       <FiEye size={14} /> View
                     </button>
                     <a
-                      href={getFullCertUrl(cert.certificate_url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      href={certificatePdfUrl(cert.certificate_uid, { download: true })}
                       style={styles.downloadLink}
                     >
                       <FiDownload size={14} /> Download PDF
@@ -175,87 +168,7 @@ export default function Certificates() {
               <FiX size={20} />
             </button>
 
-            {/* Prestige Academic Certificate Frame */}
-            <div style={styles.certFrame}>
-              {/* Corner Accents */}
-              <div style={{ ...styles.certCorner, top: '12px', left: '12px', borderTop: '2px solid var(--color-warning)', borderLeft: '2px solid var(--color-warning)' }} />
-              <div style={{ ...styles.certCorner, top: '12px', right: '12px', borderTop: '2px solid var(--color-warning)', borderRight: '2px solid var(--color-warning)' }} />
-              <div style={{ ...styles.certCorner, bottom: '12px', left: '12px', borderBottom: '2px solid var(--color-warning)', borderLeft: '2px solid var(--color-warning)' }} />
-              <div style={{ ...styles.certCorner, bottom: '12px', right: '12px', borderBottom: '2px solid var(--color-warning)', borderRight: '2px solid var(--color-warning)' }} />
-
-              {/* Academy Header */}
-              <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
-                <div style={styles.certAcademyBrand}>CODEXIA ACADEMY</div>
-                <div style={styles.certAcademyTagline}>ACCREDITED PLATFORM OF SOFTWARE ARCHITECTURE & ARTIFICIAL INTELLIGENCE</div>
-                <div style={styles.certAcademyUrl}>OFFICIAL VERIFIED ACADEMIC CREDENTIAL • HTTP://CODEXIA.EDU</div>
-                <div style={styles.certGoldDivider} />
-              </div>
-
-              {/* Certificate Title */}
-              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                <h2 style={styles.certMainTitle}>CERTIFICATE OF COMPLETION</h2>
-                <div style={styles.certSubCertify}>THIS IS TO OFFICIALLY CERTIFY THAT</div>
-                <div style={styles.certRecipientName}>{previewCert.user_full_name || 'Student Scholar'}</div>
-                <div style={styles.certNameDivider} />
-                <p style={styles.certNarrative}>
-                  has successfully demonstrated technical mastery, passed practical assessments, and fulfilled all requirements for
-                </p>
-                <div style={styles.certCourseTitle}>{previewCert.course_title}</div>
-                <div style={styles.certAccreditationText}>Comprehensive Curriculum • Verified Practical Assessments • Demonstrated Competency</div>
-              </div>
-
-              {/* Three Column Signature Block & Official Seal */}
-              <div style={styles.certSignatureRow}>
-                <div style={{ textAlign: 'center', width: '200px' }}>
-                  <div style={styles.certScriptSig}>{previewCert.instructor_name || 'Authorized Instructor'}</div>
-                  <div style={styles.certSigLine} />
-                  <div style={styles.certSigName}>{previewCert.instructor_name || 'Authorized Instructor'}</div>
-                  <div style={styles.certSigRole}>Authorized Course Instructor</div>
-                  <div style={styles.certSigOrg}>Codexia Academic Faculty</div>
-                </div>
-
-                <div style={styles.certSealBadge}>
-                  <div style={styles.certRibbonContainer}>
-                    <div style={styles.certRibbonLeft} />
-                    <div style={styles.certRibbonRight} />
-                    <div style={styles.certSealRing}>
-                      <div style={styles.certSealInner}>
-                        <span style={{ fontSize: '0.45rem', color: '#FEF3C7', letterSpacing: '1px' }}>★ ★ ★</span>
-                        <span style={{ fontSize: '0.625rem', fontWeight: 900, color: '#FEF3C7', letterSpacing: '0.5px', marginTop: '1px' }}>CODEXIA</span>
-                        <span style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--color-warning)' }}>ACADEMY</span>
-                        <span style={{ fontSize: '0.45rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '1px' }}>OFFICIAL SEAL</span>
-                        <span style={{ fontSize: '0.4rem', color: 'var(--text-secondary)' }}>• 2026 •</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ textAlign: 'center', width: '200px' }}>
-                  <div style={styles.certScriptSig}>Office of Academic Affairs</div>
-                  <div style={styles.certSigLine} />
-                  <div style={styles.certSigName}>Office of Academic Affairs</div>
-                  <div style={styles.certSigRole}>Academic Directorate</div>
-                  <div style={styles.certSigOrg}>Codexia Academy International</div>
-                </div>
-              </div>
-
-              {/* Footer Security Identifiers */}
-              <div style={styles.certFooterRow}>
-                <div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.725rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                    CERTIFICATE UID : {previewCert.certificate_uid}
-                  </div>
-                  <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    ISSUED ON : {new Date(previewCert.completion_date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{ fontSize: '0.725rem', color: '#1E3A8A', fontWeight: 600 }}>
-                    REGISTRY: codexia.edu/verify/{previewCert.certificate_uid}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <CertificateDocument certificate={previewCert} />
 
             {/* Modal Actions */}
             <div style={styles.modalActionsBar}>
@@ -267,9 +180,7 @@ export default function Certificates() {
                 <FiExternalLink size={15} /> Open Verification Registry
               </Link>
               <a
-                href={getFullCertUrl(previewCert.certificate_url)}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={certificatePdfUrl(previewCert.certificate_uid, { download: true })}
                 style={styles.modalDownloadBtn}
               >
                 <FiDownload size={15} /> Download Official PDF
@@ -316,15 +227,6 @@ const styles = {
     fontSize: '0.875rem',
     maxWidth: '480px',
     lineHeight: '1.5',
-  },
-  loadingContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '400px',
-  },
-  loadingText: {
-    color: 'var(--text-secondary)',
   },
   header: {
     marginBottom: '2rem',
@@ -544,190 +446,6 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-  },
-  certFrame: {
-    position: 'relative',
-    backgroundColor: '#FCFBF7',
-    border: '3px solid #0F172A',
-    borderRadius: '6px',
-    padding: '2.5rem 2.25rem',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.45), inset 0 0 0 3px #FFFFFF, inset 0 0 0 5px var(--color-warning), inset 0 0 0 7px #0F172A',
-    color: '#0F172A',
-  },
-  certCorner: {
-    position: 'absolute',
-    width: '24px',
-    height: '24px',
-  },
-  certAcademyBrand: {
-    color: '#0F172A',
-    fontWeight: 900,
-    fontSize: '1.35rem',
-    letterSpacing: '1.5px',
-  },
-  certAcademyTagline: {
-    color: '#996515',
-    fontSize: '0.675rem',
-    fontWeight: 700,
-    letterSpacing: '0.8px',
-    marginTop: '3px',
-  },
-  certAcademyUrl: {
-    color: 'var(--text-muted)',
-    fontSize: '0.625rem',
-    letterSpacing: '0.5px',
-    marginTop: '2px',
-  },
-  certGoldDivider: {
-    width: '240px',
-    height: '1px',
-    backgroundColor: 'var(--color-warning)',
-    margin: '10px auto 0',
-  },
-  certMainTitle: {
-    fontSize: '1.65rem',
-    fontWeight: 900,
-    color: '#0F172A',
-    letterSpacing: '1px',
-    margin: 0,
-  },
-  certSubCertify: {
-    fontSize: '0.75rem',
-    color: 'var(--text-muted)',
-    letterSpacing: '1px',
-    marginTop: '6px',
-    fontWeight: 600,
-  },
-  certRecipientName: {
-    fontSize: '1.9rem',
-    fontWeight: 800,
-    color: '#0F172A',
-    marginTop: '8px',
-    letterSpacing: '0.5px',
-  },
-  certNameDivider: {
-    width: '260px',
-    height: '2px',
-    backgroundColor: 'var(--color-warning)',
-    margin: '8px auto 12px',
-  },
-  certNarrative: {
-    fontSize: '0.8rem',
-    color: 'var(--text-muted)',
-    maxWidth: '650px',
-    margin: '0 auto',
-    lineHeight: '1.5',
-  },
-  certCourseTitle: {
-    fontSize: '1.35rem',
-    fontWeight: 800,
-    color: '#1E3A8A',
-    marginTop: '12px',
-    maxWidth: '700px',
-    margin: '12px auto 4px',
-    lineHeight: '1.35',
-  },
-  certAccreditationText: {
-    fontSize: '0.7rem',
-    color: 'var(--text-muted)',
-    fontStyle: 'italic',
-  },
-  certSignatureRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: '2rem',
-    padding: '0 1.5rem',
-  },
-  certScriptSig: {
-    fontStyle: 'italic',
-    color: '#0F172A',
-    fontSize: '1.15rem',
-    fontWeight: 700,
-    marginBottom: '2px',
-  },
-  certSigLine: {
-    width: '180px',
-    height: '1px',
-    backgroundColor: 'var(--text-secondary)',
-    margin: '0 auto 6px',
-  },
-  certSigName: {
-    fontSize: '0.85rem',
-    fontWeight: 700,
-    color: '#0F172A',
-  },
-  certSigRole: {
-    fontSize: '0.7rem',
-    color: 'var(--text-muted)',
-    marginTop: '2px',
-  },
-  certSigOrg: {
-    fontSize: '0.65rem',
-    color: 'var(--text-muted)',
-  },
-  certSealBadge: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  certRibbonContainer: {
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  certRibbonLeft: {
-    position: 'absolute',
-    bottom: '-12px',
-    left: '14px',
-    width: '14px',
-    height: '24px',
-    backgroundColor: '#996515',
-    clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%)',
-    zIndex: 1,
-    transform: 'rotate(-12deg)',
-  },
-  certRibbonRight: {
-    position: 'absolute',
-    bottom: '-12px',
-    right: '14px',
-    width: '14px',
-    height: '24px',
-    backgroundColor: '#996515',
-    clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%)',
-    zIndex: 1,
-    transform: 'rotate(12deg)',
-  },
-  certSealRing: {
-    position: 'relative',
-    zIndex: 2,
-    width: '68px',
-    height: '68px',
-    borderRadius: '50%',
-    border: '2.5px solid var(--color-warning)',
-    outline: '1px solid #996515',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#0F172A',
-    boxShadow: '0 4px 12px rgba(15, 23, 42, 0.25), inset 0 0 0 2px #FFFFFF, inset 0 0 0 3px var(--color-warning)',
-  },
-  certSealInner: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    textAlign: 'center',
-    lineHeight: '1.2',
-  },
-  certFooterRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginTop: '1.75rem',
-    paddingTop: '1rem',
-    borderTop: '1px solid rgba(212, 175, 55, 0.2)',
   },
   modalActionsBar: {
     display: 'flex',

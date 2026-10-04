@@ -1,0 +1,136 @@
+/* Public certificate verification page */
+.verify-page {
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--text);
+}
+
+.verify-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--page-gutter);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.verify-brand { display: inline-flex; align-items: center; gap: 10px; font-weight: var(--fw-semibold); color: var(--text); text-decoration: none; }
+.verify-brand span:last-child { color: var(--text-3); font-weight: var(--fw-medium); }
+.verify-brand-mark { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--primary); color: var(--text-on-primary); }
+.verify-topbar-label { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--text-3); }
+
+.verify-main {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--page-gutter) var(--space-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.verify-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Status banner */
+.verify-status {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.verify-status h1 { font-size: var(--fs-xl); font-weight: var(--fw-semibold); letter-spacing: -0.02em; margin: 0; }
+.verify-status p { margin: 4px 0 0; color: var(--text-2); font-size: var(--fs-sm); line-height: 1.55; max-width: 720px; }
+.verify-checked { display: inline-block; margin-top: 8px; font-size: var(--fs-xs); color: var(--text-3); }
+.verify-status-icon { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; }
+.verify-status.success { border-color: color-mix(in srgb, var(--success) 35%, var(--border)); background: var(--success-subtle); }
+.verify-status.success .verify-status-icon { background: var(--success-solid); color: #fff; }
+.verify-status.danger { border-color: color-mix(in srgb, var(--danger) 35%, var(--border)); background: var(--danger-subtle); }
+.verify-status.danger .verify-status-icon { background: var(--danger-solid); color: #fff; }
+
+/* Certificate + details */
+.verify-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.verify-doc { position: relative; }
+.verify-doc.invalid .cert-doc { filter: grayscale(0.85); opacity: 0.75; }
+.verify-doc-stamp {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-14deg);
+  padding: 6px 22px;
+  border: 3px solid var(--danger-solid);
+  border-radius: 8px;
+  color: var(--danger-solid);
+  font-weight: 800;
+  font-size: clamp(1.2rem, 4vw, 2.4rem);
+  letter-spacing: 0.12em;
+  background: rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+
+.verify-details { padding: var(--space-5); position: sticky; top: var(--space-6); }
+.verify-details h2 { font-size: var(--fs-base); font-weight: var(--fw-semibold); margin: 0 0 var(--space-3); }
+.verify-details dl { margin: 0; display: flex; flex-direction: column; }
+.verify-details dl > div { padding: 10px 0; border-bottom: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 2px; }
+.verify-details dl > div:last-child { border-bottom: none; }
+.verify-details dt { font-size: var(--fs-xs); color: var(--text-3); }
+.verify-details dd { margin: 0; font-size: var(--fs-sm); font-weight: var(--fw-medium); color: var(--text); overflow-wrap: anywhere; display: flex; align-items: center; gap: 6px; }
+.verify-details dd a { color: var(--accent-primary); text-decoration: none; }
+.verify-details dd a:hover { text-decoration: underline; }
+.verify-details dd.mono { font-family: var(--font-mono); }
+.verify-details dd.small { font-size: var(--fs-xs); font-weight: var(--fw-regular); color: var(--text-2); }
+.verify-hint { margin: var(--space-3) 0 var(--space-4); font-size: var(--fs-xs); color: var(--text-3); line-height: 1.5; }
+.verify-actions { display: flex; flex-direction: column; gap: var(--space-2); }
+
+/* Lookup / empty / error */
+.verify-intro {
+  max-width: 560px;
+  width: 100%;
+  margin: var(--space-8) auto 0;
+  padding: var(--space-8);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.verify-intro h1 { font-size: var(--fs-2xl); font-weight: var(--fw-semibold); letter-spacing: -0.025em; margin: var(--space-4) 0 var(--space-2); }
+.verify-intro p { color: var(--text-2); font-size: var(--fs-sm); line-height: 1.6; margin: 0 0 var(--space-6); }
+.verify-intro-icon { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--primary-subtle); color: var(--primary-text); }
+.verify-intro-icon.danger { background: var(--danger-subtle); color: var(--danger); }
+.verify-queried { display: block; max-width: 100%; overflow-wrap: anywhere; font-size: var(--fs-xs); color: var(--text-3); margin: calc(var(--space-3) * -1) 0 var(--space-6); }
+
+.verify-lookup { width: 100%; text-align: left; }
+.verify-lookup-row { display: flex; gap: var(--space-2); margin-top: 6px; }
+.verify-lookup-row .input-with-icon { flex: 1; min-width: 0; }
+.verify-another { padding: var(--space-5); }
+.verify-another .verify-lookup { max-width: 560px; }
+
+.verify-loading { max-width: 480px; margin: var(--space-12) auto 0; padding: var(--space-8); display: flex; flex-direction: column; align-items: center; gap: var(--space-4); color: var(--text-2); font-size: var(--fs-sm); text-align: center; }
+
+@media (max-width: 960px) {
+  .verify-layout { grid-template-columns: 1fr; }
+  .verify-details { position: static; }
+}
+
+@media (max-width: 560px) {
+  .verify-main { padding-top: var(--space-5); gap: var(--space-4); }
+  .verify-topbar-label { display: none; }
+  .verify-status { padding: var(--space-4); gap: var(--space-3); }
+  .verify-status-icon { width: 36px; height: 36px; }
+  .verify-intro { padding: var(--space-6) var(--space-5); margin-top: var(--space-4); }
+  .verify-lookup-row { flex-direction: column; }
+  .verify-lookup-row .btn { width: 100%; }
+}

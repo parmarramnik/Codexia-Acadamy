@@ -1,286 +1,243 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import api from '../services/api';
-import { FiAward, FiCheckCircle, FiAlertTriangle, FiArrowLeft, FiDownload, FiShield } from 'react-icons/fi';
+import {
+  FiCheckCircle, FiAlertTriangle, FiXCircle, FiDownload, FiCopy, FiShare2,
+  FiSearch, FiShield, FiArrowRight, FiCode,
+} from 'react-icons/fi';
+import CertificateDocument from '../components/certificates/CertificateDocument';
+import { certificatePdfUrl, formatCertDate } from '../utils/certificates';
+import '../styles/pages/verify.css';
 
-export default function VerifyCertificate() {
-  const { uid } = useParams();
-  const [certData, setCertData] = useState(null);
-  const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+const STATUS = {
+  VERIFIED: {
+    tone: 'success',
+    icon: FiCheckCircle,
+    title: 'Verified certificate',
+    text: 'This certificate was issued by Codexia Academy and matches our official records.',
+  },
+  REVOKED: {
+    tone: 'danger',
+    icon: FiXCircle,
+    title: 'Certificate revoked',
+    text: 'This certificate was issued by Codexia Academy but has since been revoked and is no longer valid.',
+  },
+  INTEGRITY_FAILED: {
+    tone: 'danger',
+    icon: FiAlertTriangle,
+    title: 'Verification failed',
+    text: 'The details of this record do not match its digital signature. Do not accept this certificate as valid.',
+  },
+};
 
-  const getFullCertUrl = (relativeUrl) => {
-    if (!relativeUrl) return '';
-    if (relativeUrl.startsWith('http')) return relativeUrl;
-    const backendHost = api.defaults.baseURL.replace(/\/api$/, '');
-    return `${backendHost}${relativeUrl}`;
-  };
-
-  useEffect(() => {
-    async function verify() {
-      setIsLoading(true);
-      try {
-        const res = await api.get(`/certificates/${uid}/verify`);
-        setCertData(res.data);
-      } catch (err) {
-        setError(err.response?.data?.detail || 'Invalid or expired certificate ID.');
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    if (uid) verify();
-  }, [uid]);
-
-  if (isLoading) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <div style={styles.spinner}></div>
-          <p style={styles.loadingText}>Verifying credential authenticity against Codexia registry...</p>
-        </div>
-      </div>
-    );
-  }
-
+function VerifyShell({ children }) {
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <Link to="/" style={styles.backBtn}>
-            <FiArrowLeft /> Back to Codexia
-          </Link>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>codexia.edu/verify</span>
-        </div>
-
-        {error ? (
-          <div style={styles.statusBox}>
-            <FiAlertTriangle size={64} style={styles.errorIcon} />
-            <h1 style={styles.errorTitle}>Verification Failed</h1>
-            <p style={styles.errorText}>{error}</p>
-            <div style={styles.divider}></div>
-            <span style={styles.uidText}>UID: {uid}</span>
-          </div>
-        ) : (
-          <div style={styles.statusBox}>
-            {/* Academy Branding */}
-            <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-              <div style={{ fontWeight: 900, color: 'var(--accent-primary)', fontSize: '1.15rem', letterSpacing: '0.5px' }}>
-                &lt; CODEXIA ACADEMY /&gt;
-              </div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.5px', marginTop: '2px' }}>
-                ACCREDITED INSTITUTE OF COMPUTER SCIENCE & ARTIFICIAL INTELLIGENCE
-              </div>
-            </div>
-
-            <div style={styles.badgeWrapper}>
-              <FiAward size={72} style={{ color: '#D4AF37' }} />
-              <FiCheckCircle size={28} style={styles.checkIcon} />
-            </div>
-
-            <h1 style={styles.title}>Officially Verified Credential</h1>
-            <p style={styles.subtitle}>This certificate is authentic, fully accredited, and registered in Codexia records.</p>
-            
-            <div style={styles.detailsGrid}>
-              <div style={styles.detailRow}>
-                <span style={styles.label}>Recipient Scholar</span>
-                <span style={{ ...styles.value, fontWeight: 700 }}>{certData.user_full_name}</span>
-              </div>
-              <div style={styles.detailRow}>
-                <span style={styles.label}>Course Curriculum</span>
-                <span style={{ ...styles.value, color: 'var(--accent-primary)', fontWeight: 600 }}>{certData.course_title}</span>
-              </div>
-              <div style={styles.detailRow}>
-                <span style={styles.label}>Authorized Faculty Instructor</span>
-                <span style={styles.value}>{certData.instructor_name}</span>
-              </div>
-              <div style={styles.detailRow}>
-                <span style={styles.label}>Date of Completion</span>
-                <span style={styles.value}>
-                  {new Date(certData.completion_date).toLocaleDateString(undefined, {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </span>
-              </div>
-              <div style={styles.detailRow}>
-                <span style={styles.label}>Accreditation Status</span>
-                <span style={{ ...styles.value, color: 'var(--color-success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <FiCheckCircle size={14} /> Valid & Active
-                </span>
-              </div>
-            </div>
-
-            <div style={styles.divider}></div>
-            <span style={styles.uidText}>CERTIFICATE ID : {certData.certificate_uid}</span>
-
-            {certData.certificate_url && (
-              <a
-                href={getFullCertUrl(certData.certificate_url)}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  marginTop: '1.25rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: 'var(--primary)',
-                  color: '#FFF',
-                  borderRadius: 'var(--radius-md)',
-                  textDecoration: 'none',
-                  fontWeight: 700,
-                  fontSize: '0.875rem',
-                  boxShadow: '0 4px 15px rgba(99, 102, 241, 0.35)',
-                }}
-              >
-                <FiDownload /> Download Official PDF Certificate
-              </a>
-            )}
-          </div>
-        )}
-      </div>
+    <div className="verify-page">
+      <header className="verify-topbar">
+        <Link to="/" className="verify-brand" aria-label="Codexia Academy home">
+          <span className="verify-brand-mark" aria-hidden="true"><FiCode size={15} strokeWidth={2.5} /></span>
+          Codexia <span>Academy</span>
+        </Link>
+        <span className="verify-topbar-label"><FiShield size={14} /> Credential verification</span>
+      </header>
+      <main className="verify-main">{children}</main>
     </div>
   );
 }
 
-const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    background: 'radial-gradient(circle at top, var(--bg-secondary) 0%, var(--bg-primary) 100%)',
-    padding: '1.5rem',
-    color: 'var(--text-primary)',
-  },
-  card: {
-    backgroundColor: 'var(--bg-card)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-lg)',
-    boxShadow: 'var(--shadow-lg)',
-    padding: '2.5rem',
-    width: '100%',
-    maxWidth: '520px',
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'relative',
-    backdropFilter: 'blur(10px)',
-  },
-  backBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    color: 'var(--text-secondary)',
-    textDecoration: 'none',
-    fontSize: '0.875rem',
-    fontWeight: 'var(--fw-medium)',
-    marginBottom: '2rem',
-    alignSelf: 'flex-start',
-    transition: 'color 0.2s',
-    ':hover': {
-      color: 'var(--accent-primary)',
-    },
-  },
-  spinner: {
-    width: '40px',
-    height: '40px',
-    border: '3px solid var(--border-primary)',
-    borderTopColor: 'var(--accent-primary)',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
-    alignSelf: 'center',
-    marginBottom: '1rem',
-  },
-  loadingText: {
-    color: 'var(--text-secondary)',
-    fontSize: '0.875rem',
-    textAlign: 'center',
-  },
-  statusBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    textAlign: 'center',
-  },
-  badgeWrapper: {
-    position: 'relative',
-    marginBottom: '1.5rem',
-  },
-  awardIcon: {
-    color: 'var(--accent-primary)',
-  },
-  checkIcon: {
-    position: 'absolute',
-    bottom: '-5px',
-    right: '-5px',
-    color: 'var(--color-success)',
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '50%',
-  },
-  title: {
-    fontSize: '1.75rem',
-    fontWeight: 'var(--fw-semibold)',
-    marginBottom: '0.5rem',
-  },
-  subtitle: {
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)',
-    marginBottom: '2rem',
-    maxWidth: '380px',
-    lineHeight: '1.5',
-  },
-  detailsGrid: {
-    width: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-primary)',
-    borderRadius: 'var(--radius-md)',
-    padding: '1.25rem',
-    marginBottom: '1.5rem',
-    textAlign: 'left',
-  },
-  detailRow: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.25rem',
-  },
-  label: {
-    fontSize: '0.75rem',
-    color: 'var(--text-muted)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-  },
-  value: {
-    fontSize: '0.95rem',
-    fontWeight: 'var(--fw-medium)',
-  },
-  divider: {
-    width: '100%',
-    height: '1px',
-    backgroundColor: 'var(--border-primary)',
-    marginBottom: '1rem',
-  },
-  uidText: {
-    fontSize: '0.75rem',
-    color: 'var(--text-muted)',
-    fontFamily: 'var(--font-mono)',
-  },
-  errorIcon: {
-    color: 'var(--color-error)',
-    marginBottom: '1.5rem',
-  },
-  errorTitle: {
-    fontSize: '1.5rem',
-    fontWeight: 'var(--fw-semibold)',
-    marginBottom: '0.5rem',
-  },
-  errorText: {
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)',
-    marginBottom: '2rem',
-    lineHeight: '1.5',
-  },
-};
+function LookupForm({ initial = '', compact = false }) {
+  const navigate = useNavigate();
+  const [value, setValue] = useState(initial);
+  const submit = (e) => {
+    e.preventDefault();
+    const id = value.trim();
+    if (id) navigate(`/verify/${encodeURIComponent(id)}`);
+  };
+  return (
+    <form onSubmit={submit} className={`verify-lookup ${compact ? 'compact' : ''}`} role="search">
+      <label htmlFor="verify-id" className="form-label">Certificate ID or credential number</label>
+      <div className="verify-lookup-row">
+        <div className="input-with-icon">
+          <span className="input-icon"><FiSearch size={16} /></span>
+          <input
+            id="verify-id"
+            className="form-input"
+            placeholder="e.g. CDX-2026-7KQ2-M9XA"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            autoComplete="off"
+            spellCheck="false"
+          />
+        </div>
+        <button type="submit" className="btn btn-primary" disabled={!value.trim()}>
+          Verify <FiArrowRight size={15} />
+        </button>
+      </div>
+    </form>
+  );
+}
+
+export default function VerifyCertificate() {
+  const { uid } = useParams();
+  const [cert, setCert] = useState(null);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(Boolean(uid));
+
+  useEffect(() => {
+    if (!uid) return;
+    let active = true;
+    setIsLoading(true);
+    setError(null);
+    setCert(null);
+    api.get(`/certificates/${encodeURIComponent(uid)}/verify`)
+      .then((res) => { if (active) setCert(res.data); })
+      .catch((err) => {
+        if (!active) return;
+        const status = err.response?.status;
+        setError(status === 404
+          ? 'No certificate matches this ID. Check that it was typed exactly as printed on the certificate.'
+          : 'We could not reach the verification service. Please try again in a moment.');
+      })
+      .finally(() => { if (active) setIsLoading(false); });
+    return () => { active = false; };
+  }, [uid]);
+
+  useEffect(() => {
+    document.title = cert
+      ? `${cert.user_full_name} · ${cert.course_title} | Codexia Certificate Verification`
+      : 'Certificate Verification | Codexia Academy';
+  }, [cert]);
+
+  if (!uid) {
+    return (
+      <VerifyShell>
+        <section className="verify-card verify-intro">
+          <span className="verify-intro-icon"><FiShield size={22} /></span>
+          <h1>Verify a certificate</h1>
+          <p>Enter the credential number or certificate ID printed on a Codexia Academy certificate, or scan its QR code.</p>
+          <LookupForm />
+        </section>
+      </VerifyShell>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <VerifyShell>
+        <section className="verify-card verify-loading" aria-busy="true">
+          <span className="loader" aria-hidden="true" />
+          <p>Checking this certificate against Codexia Academy records…</p>
+        </section>
+      </VerifyShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <VerifyShell>
+        <section className="verify-card verify-intro">
+          <span className="verify-intro-icon danger"><FiAlertTriangle size={22} /></span>
+          <h1>Certificate not found</h1>
+          <p>{error}</p>
+          <code className="verify-queried">{uid}</code>
+          <LookupForm compact />
+        </section>
+      </VerifyShell>
+    );
+  }
+
+  const meta = STATUS[cert.status] || STATUS.INTEGRITY_FAILED;
+  const StatusIcon = meta.icon;
+  const isValid = cert.status === 'VERIFIED';
+  const shareUrl = `${window.location.origin}/verify/${cert.certificate_uid}`;
+
+  const copy = async (text, label) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copied`);
+    } catch {
+      toast.error('Copy failed');
+    }
+  };
+
+  const share = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `${cert.user_full_name} — ${cert.course_title}`, url: shareUrl });
+      } catch { /* dismissed */ }
+    } else {
+      copy(shareUrl, 'Verification link');
+    }
+  };
+
+  return (
+    <VerifyShell>
+      <section className={`verify-status ${meta.tone}`} role="status">
+        <span className="verify-status-icon"><StatusIcon size={22} /></span>
+        <div>
+          <h1>{meta.title}</h1>
+          <p>{meta.text}</p>
+          {cert.checked_at && (
+            <span className="verify-checked">
+              Checked {new Date(cert.checked_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+            </span>
+          )}
+        </div>
+      </section>
+
+      <div className="verify-layout">
+        <div className={`verify-doc ${isValid ? '' : 'invalid'}`}>
+          <CertificateDocument certificate={cert} />
+          {!isValid && <div className="verify-doc-stamp" aria-hidden="true">NOT VALID</div>}
+        </div>
+
+        <aside className="verify-card verify-details">
+          <h2>Certificate details</h2>
+          <dl>
+            <div><dt>Recipient</dt><dd>{cert.user_full_name}</dd></div>
+            <div>
+              <dt>Course</dt>
+              <dd>
+                {cert.course_slug
+                  ? <Link to={`/courses/${cert.course_slug}`}>{cert.course_title}</Link>
+                  : cert.course_title}
+              </dd>
+            </div>
+            <div><dt>Instructor</dt><dd>{cert.instructor_name}</dd></div>
+            <div><dt>Issued by</dt><dd>{cert.issuer}</dd></div>
+            <div><dt>Date of issue</dt><dd>{formatCertDate(cert.completion_date)}</dd></div>
+            <div>
+              <dt>Credential ID</dt>
+              <dd className="mono">
+                {cert.credential_id}
+                <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => copy(cert.credential_id, 'Credential ID')} aria-label="Copy credential ID"><FiCopy size={13} /></button>
+              </dd>
+            </div>
+            <div><dt>Verification code</dt><dd className="mono">{cert.verification_code}</dd></div>
+            <div><dt>Certificate ID</dt><dd className="mono small">{cert.certificate_uid}</dd></div>
+          </dl>
+
+          <p className="verify-hint">
+            The credential ID and verification code above must match the ones printed on the certificate you were given.
+          </p>
+
+          <div className="verify-actions">
+            {isValid && (
+              <a className="btn btn-primary btn-block" href={certificatePdfUrl(cert.certificate_uid, { download: true })}>
+                <FiDownload size={15} /> Download PDF
+              </a>
+            )}
+            <button type="button" className="btn btn-secondary btn-block" onClick={share}>
+              <FiShare2 size={15} /> Share verification link
+            </button>
+          </div>
+        </aside>
+      </div>
+
+      <section className="verify-card verify-another">
+        <LookupForm compact />
+      </section>
+    </VerifyShell>
+  );
+}

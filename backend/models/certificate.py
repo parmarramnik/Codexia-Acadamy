@@ -24,6 +24,10 @@ class Certificate(Base):
         default=lambda: str(uuid.uuid4()),
         index=True,
     )
+    # Human-readable public credential number, e.g. CDX-2026-7KQ2-M9XA
+    credential_id = Column(String(32), unique=True, nullable=True, index=True)
+    # HMAC-SHA256 over the issued certificate data (detects tampered records)
+    signature = Column(String(64), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
     user_full_name = Column(String(200), nullable=False)
@@ -38,6 +42,11 @@ class Certificate(Base):
     # Relationships
     user = relationship("User", back_populates="certificates")
     course = relationship("Course", back_populates="certificates")
+
+    @property
+    def verification_code(self) -> str:
+        from utils.certificate_security import verification_code
+        return verification_code(self.signature)
 
     def __repr__(self):
         return f"<Certificate(uid='{self.certificate_uid}', user_id={self.user_id})>"
