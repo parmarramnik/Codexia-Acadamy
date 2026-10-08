@@ -79,6 +79,10 @@ def create_order(amount: int, currency: str, receipt: str, notes: Optional[dict]
     })
 
 
+def fetch_order(order_id: str) -> dict:
+    return _request("GET", f"/orders/{order_id}")
+
+
 def fetch_payment(payment_id: str) -> dict:
     return _request("GET", f"/payments/{payment_id}")
 

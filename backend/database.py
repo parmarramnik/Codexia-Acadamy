@@ -255,6 +255,20 @@ def create_tables():
             except Exception as idx_err:
                 print(f"[Migration Notice] credential_id index: {idx_err}")
 
+        # 9. payments table migrations (key that created each order)
+        if "payments" in existing_tables:
+            payment_cols = {col["name"] for col in inspector.get_columns("payments")}
+            for col_name, col_type in [
+                ("razorpay_key_id", "VARCHAR(64)"),
+            ]:
+                if col_name not in payment_cols:
+                    try:
+                        with engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE payments ADD COLUMN {col_name} {col_type}"))
+                        print(f"[Migration] Added missing column '{col_name}' to 'payments'")
+                    except Exception as col_err:
+                        print(f"[Migration Warning] Could not add '{col_name}' to 'payments': {col_err}")
+
     except Exception as e:
         print(f"[Migration Warning] Dynamic schema migration failed: {str(e)}")
 

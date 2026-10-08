@@ -59,6 +59,9 @@ class Payment(Base):
 
     razorpay_order_id = Column(String(64), unique=True, nullable=False, index=True)
     razorpay_payment_id = Column(String(64), unique=True, nullable=True, index=True)
+    # Public key ID the order was created with. Checkout rejects an order opened with a key
+    # from another account or mode (test vs live), so orders are only reused under the same key.
+    razorpay_key_id = Column(String(64), nullable=True)
 
     amount = Column(Integer, nullable=False)  # Smallest currency unit (paise)
     currency = Column(String(3), nullable=False, default="INR")

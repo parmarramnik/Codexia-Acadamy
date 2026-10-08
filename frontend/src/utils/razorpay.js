@@ -25,24 +25,46 @@ export function loadRazorpayCheckout() {
   return loadPromise;
 }
 
+const OVERLAY_CHECK_MS = 1000;
+const OVERLAY_GONE_CHECKS = 3;
+
+function checkoutOverlayVisible() {
+  const el = document.querySelector('.razorpay-container');
+  return !!el && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+}
+
 /**
  * Open Checkout for a server-created order. Resolves with one of:
  *   { type: 'success', response }  — handler fired (response must still be verified by the backend)
  *   { type: 'dismissed', failure } — modal closed; `failure` holds the last payment.failed error, if any
+ *
+ * Aborting `signal` closes Checkout and resolves as dismissed.
  */
-export async function openRazorpayCheckout({ order, name, description, themeColor }) {
+export async function openRazorpayCheckout({ order, name, description, themeColor, signal }) {
   const Razorpay = await loadRazorpayCheckout();
+  if (signal?.aborted) return { type: 'dismissed', failure: null };
   return new Promise((resolve) => {
     let lastFailure = null;
     let settled = false;
+    let rzp = null;
+    let watchdog = null;
     const settle = (result) => {
       if (!settled) {
         settled = true;
+        clearInterval(watchdog);
+        signal?.removeEventListener('abort', onAbort);
         resolve(result);
       }
     };
+    const onAbort = () => {
+      try {
+        rzp?.close();
+      } catch { /* already closed */ }
+      settle({ type: 'dismissed', failure: lastFailure });
+    };
+    signal?.addEventListener('abort', onAbort);
 
-    const rzp = new Razorpay({
+    rzp = new Razorpay({
       key: order.key_id,
       order_id: order.order_id,
       amount: order.amount,
@@ -75,5 +97,20 @@ export async function openRazorpayCheckout({ order, name, description, themeColo
       lastFailure = resp?.error || { description: 'Payment failed' };
     });
     rzp.open();
+
+    // Razorpay's own error screen ("Oops! Something went wrong") can close without calling
+    // ondismiss, which left the purchase stuck. Once the overlay has been seen, its staying
+    // gone for a few seconds counts as a dismissal. If Razorpay renames the overlay, it is
+    // never "seen" and this does nothing.
+    let seen = false;
+    let goneChecks = 0;
+    watchdog = setInterval(() => {
+      if (checkoutOverlayVisible()) {
+        seen = true;
+        goneChecks = 0;
+      } else if (seen && ++goneChecks >= OVERLAY_GONE_CHECKS) {
+        settle({ type: 'dismissed', failure: lastFailure });
+      }
+    }, OVERLAY_CHECK_MS);
   });
 }

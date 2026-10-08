@@ -46,6 +46,7 @@ export default function useCoursePurchase({ course, onEnrolled }) {
   const [orderId, setOrderId] = useState(null);
   const busyRef = useRef(false);
   const pollRef = useRef(null);
+  const checkoutAbortRef = useRef(null);
   const mountedRef = useRef(true);
   const onEnrolledRef = useRef(onEnrolled);
   onEnrolledRef.current = onEnrolled;
@@ -55,6 +56,7 @@ export default function useCoursePurchase({ course, onEnrolled }) {
     return () => {
       mountedRef.current = false;
       clearTimeout(pollRef.current);
+      checkoutAbortRef.current?.abort();
     };
   }, []);
 
@@ -118,11 +120,13 @@ export default function useCoursePurchase({ course, onEnrolled }) {
       setPhase('checkout');
 
       const themeColor = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+      checkoutAbortRef.current = new AbortController();
       const result = await openRazorpayCheckout({
         order,
         name: 'Codexia Academy',
         description: course.title,
         themeColor: /^#[0-9a-f]{6}$/i.test(themeColor) ? themeColor : undefined,
+        signal: checkoutAbortRef.current.signal,
       });
       if (!mountedRef.current) return;
 
@@ -174,6 +178,7 @@ export default function useCoursePurchase({ course, onEnrolled }) {
         ? 'Could not load the payment window. Check your connection or disable ad/script blockers and try again.'
         : paymentErrorMessage(err, 'Could not start the payment. Please try again.'));
     } finally {
+      checkoutAbortRef.current = null;
       busyRef.current = false;
     }
   }, [course, applyStatus, pollStatus]);
@@ -191,5 +196,13 @@ export default function useCoursePurchase({ course, onEnrolled }) {
     setMessage('');
   }, []);
 
-  return { phase, message, orderId, buy, resume, reset, isBusy: ['creating', 'checkout', 'verifying'].includes(phase) };
+  /** Escape hatch when the Razorpay window closed without reporting back. The backend still decides the outcome. */
+  const cancelCheckout = useCallback(() => {
+    checkoutAbortRef.current?.abort();
+  }, []);
+
+  return {
+    phase, message, orderId, buy, resume, reset, cancelCheckout,
+    isBusy: ['creating', 'checkout', 'verifying'].includes(phase),
+  };
 }

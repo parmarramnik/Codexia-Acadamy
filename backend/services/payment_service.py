@@ -162,13 +162,26 @@ def create_order(db: Session, user: User, course_id: int) -> tuple[Payment, Cour
                         "A payment for this course is already being processed. Please wait a moment and refresh.",
                         409, "PAYMENT_IN_PROGRESS")
             elif (recent.amount == amount and recent.currency == currency
+                  and recent.razorpay_key_id == settings.RAZORPAY_KEY_ID
                   and _now() - _as_utc(recent.created_at) < ORDER_REUSE_WINDOW):
-                # Same price, still fresh: reuse the order (Razorpay allows retries on one order).
-                if recent.status == PaymentStatus.FAILED.value:
-                    recent.status = PaymentStatus.CREATED.value
-                    db.commit()
-                    db.refresh(recent)
-                return recent, course
+                gateway_status = _gateway_order_status(recent)
+                if gateway_status == "paid":
+                    # Paid at Razorpay but not recorded here yet: settle it, never sell the course twice.
+                    recent = reconcile_payment(db, recent, force=True)
+                    if recent.status == PaymentStatus.SUCCESS.value:
+                        raise PaymentFlowError("Your payment was successful — you are already enrolled.", 409,
+                                               "ALREADY_ENROLLED")
+                    raise PaymentFlowError(
+                        "A payment for this course is already being processed. Please wait a moment and refresh.",
+                        409, "PAYMENT_IN_PROGRESS")
+                if gateway_status in ("created", "attempted"):
+                    # Same price, still fresh: reuse the order (Razorpay allows retries on one order).
+                    if recent.status == PaymentStatus.FAILED.value:
+                        recent.status = PaymentStatus.CREATED.value
+                        db.commit()
+                        db.refresh(recent)
+                    return recent, course
+                # Otherwise Razorpay no longer recognises the order: fall through to a fresh one.
 
         if not settings.payments_configured:
             raise PaymentFlowError("Online payments are temporarily unavailable.", 503, "NOT_CONFIGURED")
@@ -191,6 +204,7 @@ def create_order(db: Session, user: User, course_id: int) -> tuple[Payment, Cour
             course_id=course.id,
             course_title=course.title,
             razorpay_order_id=order_id,
+            razorpay_key_id=settings.RAZORPAY_KEY_ID,
             amount=amount,
             currency=currency,
             status=PaymentStatus.CREATED.value,
@@ -201,6 +215,23 @@ def create_order(db: Session, user: User, course_id: int) -> tuple[Payment, Cour
         logger.info("Created Razorpay order %s (payment #%s) for user %s course %s",
                     order_id, payment.id, user.id, course.id)
         return payment, course
+
+
+def _gateway_order_status(payment: Payment) -> Optional[str]:
+    """
+    Razorpay's status for a stored order, checked before the order is handed out again. Reuse
+    skips order creation, so without this a revoked or wrong key would only fail inside Checkout.
+    Returns None when Razorpay does not recognise the order (or it no longer matches).
+    """
+    try:
+        order = rzp.fetch_order(payment.razorpay_order_id)
+    except rzp.RazorpayError as exc:
+        if exc.status_code == 400:
+            return None
+        raise PaymentFlowError(exc.message, exc.status_code, exc.code or "GATEWAY_ERROR")
+    if order.get("amount") != payment.amount or str(order.get("currency", "")).upper() != payment.currency:
+        return None
+    return order.get("status")
 
 
 # --------------------------------------------------------------------------- idempotency keys
@@ -219,7 +250,8 @@ def create_order_idempotent(db: Session, user: User, course_id: int, key: str) -
 
     if record.payment_id:
         payment = db.query(Payment).filter(Payment.id == record.payment_id).first()
-        if payment and payment.status in (PaymentStatus.CREATED.value, PaymentStatus.FAILED.value):
+        if (payment and payment.status in (PaymentStatus.CREATED.value, PaymentStatus.FAILED.value)
+                and payment.razorpay_key_id == settings.RAZORPAY_KEY_ID):
             course = db.query(Course).filter(Course.id == payment.course_id).first()
             if course:
                 logger.info("Idempotent replay of order %s for user %s", payment.razorpay_order_id, user.id)

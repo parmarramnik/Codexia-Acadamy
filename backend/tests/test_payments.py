@@ -45,11 +45,17 @@ class FakeRazorpay:
         self.capture_calls = 0
         self.fail_fetch = False
         self.fail_refund_response = False
+        self.keys_revoked = False  # Razorpay answers 401, mapped by the client to a 503 RazorpayError
 
     def _id(self, prefix):
         return f"{prefix}_{next(self.seq):014d}"
 
+    def _check_auth(self):
+        if self.keys_revoked:
+            raise razorpay_client.RazorpayError("Online payments are temporarily unavailable.", status_code=503)
+
     def create_order(self, amount, currency, receipt, notes=None):
+        self._check_auth()
         self.order_calls += 1
         oid = self._id("order")
         self.orders[oid] = {"id": oid, "amount": amount, "currency": currency, "receipt": receipt, "status": "created"}
@@ -62,6 +68,14 @@ class FakeRazorpay:
                               "amount": order["amount"] if amount is None else amount,
                               "currency": order["currency"], "method": method, "error_description": error}
         return pid
+
+    def fetch_order(self, oid):
+        self._check_auth()
+        if oid not in self.orders:
+            raise razorpay_client.RazorpayError(status_code=400, code="BAD_REQUEST_ERROR")
+        statuses = [p["status"] for p in self.payments.values() if p["order_id"] == oid]
+        status = "paid" if "captured" in statuses else "attempted" if statuses else "created"
+        return {**self.orders[oid], "status": status}
 
     def fetch_payment(self, pid):
         if self.fail_fetch:
@@ -120,7 +134,7 @@ def webhook_headers(body, event_id, secret=WEBHOOK_SECRET):
 @pytest.fixture
 def gateway(monkeypatch):
     fake = FakeRazorpay()
-    for name in ("create_order", "fetch_payment", "fetch_order_payments", "capture_payment",
+    for name in ("create_order", "fetch_order", "fetch_payment", "fetch_order_payments", "capture_payment",
                  "create_refund", "fetch_refund", "fetch_payment_refunds"):
         monkeypatch.setattr(razorpay_client, name, getattr(fake, name))
     monkeypatch.setattr(settings, "RAZORPAY_KEY_ID", KEY_ID)
@@ -229,6 +243,82 @@ def test_double_click_reuses_the_same_order(client, gateway, world):
     assert a["order_id"] == b["order_id"] and gateway.order_calls == 1
 
 
+def test_order_is_not_reused_after_the_api_key_changes(client, gateway, world, db_session, monkeypatch):
+    # e.g. switching from test to live keys: Checkout rejects an order opened with the other key.
+    old = _buy(client, gateway, world["student"], world["paid"])
+    monkeypatch.setattr(settings, "RAZORPAY_KEY_ID", "rzp_live_NEWKEY1234567")
+    new = _buy(client, gateway, world["student"], world["paid"])
+    assert new["order_id"] != old["order_id"] and new["key_id"] == "rzp_live_NEWKEY1234567"
+    assert gateway.order_calls == 2
+    payment = db_session.query(Payment).filter(Payment.razorpay_order_id == new["order_id"]).one()
+    assert payment.razorpay_key_id == "rzp_live_NEWKEY1234567"
+    # Under the new key, the new order is reused as usual.
+    assert _buy(client, gateway, world["student"], world["paid"])["order_id"] == new["order_id"]
+
+
+def test_revoked_keys_fail_clearly_instead_of_reusing_an_order(client, gateway, world):
+    # Without the gateway check, the stored order would be handed to Checkout, which then shows
+    # Razorpay's "Something went wrong" page instead of a message from this app.
+    _buy(client, gateway, world["student"], world["paid"])
+    gateway.keys_revoked = True
+    res = client.post("/api/payments/razorpay/order", json={"course_id": world["paid"].id},
+                      headers=_auth(world["student"]))
+    assert res.status_code == 503 and res.json()["detail"]["message"] == "Online payments are temporarily unavailable."
+    assert gateway.order_calls == 1
+
+
+def test_order_unknown_to_razorpay_is_replaced(client, gateway, world):
+    old = _buy(client, gateway, world["student"], world["paid"])
+    del gateway.orders[old["order_id"]]
+    new = _buy(client, gateway, world["student"], world["paid"])
+    assert new["order_id"] != old["order_id"] and gateway.order_calls == 2
+
+
+def test_order_paid_at_razorpay_is_settled_not_resold(client, gateway, world, db_session):
+    # Paid, but the verify call and webhook never reached the backend.
+    old = _buy(client, gateway, world["student"], world["paid"])
+    gateway.pay(old["order_id"])
+    res = client.post("/api/payments/razorpay/order", json={"course_id": world["paid"].id},
+                      headers=_auth(world["student"]))
+    assert res.status_code == 409 and res.json()["detail"]["code"] == "ALREADY_ENROLLED"
+    assert gateway.order_calls == 1
+    assert len(_enrollments(db_session, world["student"], world["paid"])) == 1
+
+
+@pytest.mark.parametrize("raw,clean", [
+    ("  rzp_live_ABCDEF12345678  ", "rzp_live_ABCDEF12345678"),
+    ('"rzp_live_ABCDEF12345678"', "rzp_live_ABCDEF12345678"),
+    ("rzp_live_ABCDEF12345678\n", "rzp_live_ABCDEF12345678"),
+    ("   ", None),
+])
+def test_razorpay_settings_are_cleaned(monkeypatch, raw, clean):
+    from config import Settings
+    monkeypatch.setenv("RAZORPAY_KEY_ID", raw)
+    assert Settings().RAZORPAY_KEY_ID == clean
+
+
+@pytest.mark.parametrize("key_id", ["rzp_test_ABCDEF12345678", "rzp_live_ABCDEF12345678"])
+def test_wellformed_key_ids_count_as_configured(monkeypatch, key_id):
+    monkeypatch.setattr(settings, "RAZORPAY_KEY_ID", key_id)
+    monkeypatch.setattr(settings, "RAZORPAY_KEY_SECRET", "secret")
+    assert settings.payments_configured
+
+
+@pytest.mark.parametrize("key_id", ["my-key", "rzp_prod_ABCDEF12345678", "rzp_live_", "rzp_live_ABC DEF12345678"])
+def test_malformed_key_id_is_reported_as_unconfigured(client, gateway, world, monkeypatch, key_id):
+    monkeypatch.setattr(settings, "RAZORPAY_KEY_ID", key_id)
+    res = client.post("/api/payments/razorpay/order", json={"course_id": world["paid"].id},
+                      headers=_auth(world["student"]))
+    assert res.status_code == 503 and gateway.order_calls == 0
+
+
+def test_orders_without_a_recorded_key_are_not_reused(client, gateway, world, db_session):
+    old = _buy(client, gateway, world["student"], world["paid"])
+    db_session.query(Payment).update({Payment.razorpay_key_id: None})  # rows from before the column existed
+    db_session.commit()
+    assert _buy(client, gateway, world["student"], world["paid"])["order_id"] != old["order_id"]
+
+
 # --------------------------------------------------------------------------- idempotency keys
 
 IDEM_KEY = "3f6c1d2e-8b4a-4c1e-9f0a-123456789abc"
@@ -254,6 +344,13 @@ def test_same_idempotency_key_replays_the_original_order(client, gateway, world,
     # A new purchase attempt (new key) sees the new price.
     fresh = _order_with_key(client, student, course, key="a" * 32)
     assert fresh.json()["order_id"] != first.json()["order_id"] and fresh.json()["amount"] == 149900
+
+
+def test_idempotency_replay_skips_an_order_from_another_api_key(client, gateway, world, monkeypatch):
+    first = _order_with_key(client, world["student"], world["paid"]).json()
+    monkeypatch.setattr(settings, "RAZORPAY_KEY_ID", "rzp_live_NEWKEY1234567")
+    retry = _order_with_key(client, world["student"], world["paid"]).json()
+    assert retry["order_id"] != first["order_id"] and retry["key_id"] == "rzp_live_NEWKEY1234567"
 
 
 def test_idempotency_key_reused_for_a_different_course_is_rejected(client, gateway, world):

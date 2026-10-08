@@ -13,7 +13,9 @@ const LOADING_TEXT = {
  * Buy area for a paid course the learner does not own yet. All states come from
  * useCoursePurchase; success is rendered by the enrolled view once the backend confirms.
  */
-export default function PurchasePanel({ course, phase, message, orderId, onBuy, canPurchase, blockedReason }) {
+export default function PurchasePanel({
+  course, phase, message, orderId, onBuy, onCancelCheckout, canPurchase, blockedReason,
+}) {
   const price = formatMinor(course.price_amount, course.currency);
   const busy = phase in LOADING_TEXT;
 
@@ -82,6 +84,12 @@ export default function PurchasePanel({ course, phase, message, orderId, onBuy, 
           ? <><FiRefreshCw size={16} /> Try Again</>
           : <><FiShoppingCart size={16} /> Buy Now · {price}</>}
       </LoadingButton>
+      {phase === 'checkout' && onCancelCheckout && (
+        // Only reachable once the Razorpay window is gone (its overlay covers the page while open).
+        <button type="button" className="btn btn-ghost btn-sm" style={styles.cancelLink} onClick={onCancelCheckout}>
+          Payment window closed? Cancel and try again
+        </button>
+      )}
       <p style={styles.secureNote}>
         <FiLock size={12} /> Secure payment via Razorpay · UPI, cards, netbanking & wallets
       </p>
@@ -93,6 +101,7 @@ const styles = {
   stack: { display: 'flex', flexDirection: 'column', gap: '0.65rem' },
   alertTitle: { display: 'block', fontWeight: 'var(--fw-semibold)', marginBottom: 2 },
   spinner: { width: 14, height: 14, borderWidth: 2, marginTop: 3, flexShrink: 0 },
+  cancelLink: { alignSelf: 'center', fontSize: '0.78rem' },
   secureNote: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
     fontSize: '0.72rem', color: 'var(--text-muted)', margin: 0, textAlign: 'center',

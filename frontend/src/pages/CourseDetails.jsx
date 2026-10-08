@@ -540,6 +540,7 @@ export default function CourseDetails() {
                       message={purchase.message}
                       orderId={purchase.orderId}
                       onBuy={purchase.buy}
+                      onCancelCheckout={purchase.cancelCheckout}
                       canPurchase={canPurchase}
                       blockedReason="Staff accounts have full access through Course Studio. Purchasing is available to student accounts."
                     />

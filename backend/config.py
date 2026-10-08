@@ -3,6 +3,9 @@ Application configuration using pydantic-settings.
 Loads from .env file with sensible defaults for development.
 """
 
+import re
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from typing import Optional
 
@@ -74,9 +77,21 @@ class Settings(BaseSettings):
     RAZORPAY_API_BASE: str = "https://api.razorpay.com/v1"
     RAZORPAY_TIMEOUT_SECONDS: float = 15.0
 
+    @field_validator("RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET", mode="before")
+    @classmethod
+    def _clean_razorpay_value(cls, value):
+        # Values pasted into a hosting dashboard often carry stray spaces or quotes, which
+        # Razorpay rejects as "Authentication failed".
+        if isinstance(value, str):
+            value = value.strip().strip("\"'").strip()
+            return value or None
+        return value
+
     @property
     def payments_configured(self) -> bool:
-        return bool(self.RAZORPAY_KEY_ID and self.RAZORPAY_KEY_SECRET)
+        # A malformed key ID would only fail inside Razorpay Checkout; treat it as unconfigured instead.
+        return bool(self.RAZORPAY_KEY_SECRET and re.fullmatch(r"rzp_(test|live)_[A-Za-z0-9]{8,}",
+                                                               self.RAZORPAY_KEY_ID or ""))
 
     @property
     def cors_origins_list(self) -> list[str]:
