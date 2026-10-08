@@ -1,352 +1,361 @@
-# 🚀 Codexia Academy — Enterprise AI-Powered Learning Management System (ALMS)
+# Codexia Academy — AI-Powered Learning Management System
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![React 18](https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
-[![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Docker Compose](https://img.shields.io/badge/Docker_Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![PostgreSQL 15](https://img.shields.io/badge/PostgreSQL_15-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Redis 7](https://img.shields.io/badge/Redis_7-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
-[![Elasticsearch](https://img.shields.io/badge/Elasticsearch_8-005571?style=for-the-badge&logo=elasticsearch&logoColor=white)](https://www.elastic.co/)
-[![Google Gemini](https://img.shields.io/badge/Google_Gemini_AI-8E75B2?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
-[![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)](https://www.langchain.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+A full-stack learning platform that combines video courses, an AI tutor, a multi-language coding practice environment, Git-style versioned notes, verifiable certificates, and paid courses — built with **FastAPI**, **React**, **PostgreSQL**, and the **Google Gemini API**.
 
----
+**[Live Demo](https://codexia-acadamy.vercel.app)** · **[API Docs](https://codexia-backend-wrvr.onrender.com/api/docs)** · **[Report an Issue](https://github.com/parmarramnik/Codexia-Acadamy/issues)**
 
-## 📌 Overview
+[![Python](https://img.shields.io/badge/Python_3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
+[![Elasticsearch](https://img.shields.io/badge/Elasticsearch-005571?style=for-the-badge&logo=elasticsearch&logoColor=white)](https://www.elastic.co/)
+[![Gemini](https://img.shields.io/badge/Google_Gemini-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white)](https://ai.google.dev/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Razorpay](https://img.shields.io/badge/Razorpay-0C2451?style=for-the-badge&logo=razorpay&logoColor=white)](https://razorpay.com/)
 
-**Codexia Academy** is an enterprise-grade, microservice-architected **AI-Powered Learning Management System (ALMS)** engineered for modern computer science education. It bridges the gap between passive video learning and real-world software engineering by delivering:
-
-- **Conversational AI Tutoring & RAG** powered by Google Gemini and LangChain vector search.
-- **In-Browser Code Execution & LeetCode-style Problem Hub** using the Monaco Editor.
-- **Git-Inspired Version Control for Notes** with branching, commits, diffs, 3-way merge conflict resolution, and AI commit summaries.
-- **Tamper-Proof PDF Certificates** with embedded cryptographically verifiable QR codes and public verification endpoints.
-- **Real-Time Analytics & Skill Radars** utilizing Redis caching and Recharts visualizations.
-- **Multi-Role Governance** supporting granular, database-level RBAC for Students, Instructors, Admins, and Super Admins.
+> The backend runs on Render's free tier, so the first request after a period of inactivity may take a little while to respond.
 
 ---
 
-## 🏗️ System Architecture
+## Table of Contents
 
-Codexia Academy utilizes an asynchronous **Microservices Architecture** orchestrated behind a **FastAPI Reverse-Proxy API Gateway**, backed by PostgreSQL 15, Redis 7 caching, and Elasticsearch.
+- [Overview](#overview)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Payments Setup (Razorpay)](#payments-setup-razorpay)
+- [Deployment](#deployment)
+- [Testing](#testing)
+- [Security](#security)
+- [License](#license)
+
+---
+
+## Overview
+
+Most learning platforms stop at video playback. Codexia Academy also gives students somewhere to practise and get help:
+
+- An **AI tutor** answers questions using the content of the course being studied.
+- A **coding environment** runs solutions against test cases in six languages.
+- **Lecture notes with Git-style version control** support branches, diffs, and merges.
+- **Tamper-evident certificates** can be verified publicly by anyone.
+
+There are separate experiences for **students**, **instructors**, **admins**, and **super admins**, with 33 pages in the React frontend.
+
+---
+
+## Features
+
+### AI learning assistant (Google Gemini 2.5 Flash)
+
+- **Course-aware AI tutor** — multi-turn chat that keeps the last 10 messages as context. It grounds answers in course material through a retrieval-augmented generation (RAG) step: content is chunked, embedded with Sentence-Transformers, and searched with a FAISS index.
+- **Content generation** — AI-generated notes, flashcards, and quizzes from course material.
+- **AI code review** — time and space complexity (Big-O), likely bugs, and improvement suggestions for submitted code.
+- **Study planner** — personalised weekly study plans, plus course recommendations.
+- **AI commit messages** — summaries generated from note diffs.
+
+### Coding practice
+
+- **Monaco Editor** (the editor behind VS Code) with syntax highlighting.
+- **Six languages** — Python, JavaScript, C, C++, Java, and Go.
+- **Test runner** — runs code against sample and hidden test cases or custom input, with compile/run time limits, and reports pass/fail and runtime.
+- **Problem hub** — LeetCode-style problems filterable by difficulty and topic, instructor-authored problems, daily challenges, and leaderboards.
+
+### Git-style version control for notes
+
+- Commits, branches, checkout, tags, cherry-pick, and restore-to-commit for Markdown lecture notes.
+- **3-way merge** that finds the merge base with a lowest-common-ancestor (LCA) search over the commit graph and merges line by line, with conflict detection and resolution strategies (`keep_target`, `keep_source`, `merge_both`, `custom`).
+- Side-by-side and word-level diffs, a visual commit timeline, and export to PDF, Markdown, or JSON.
+
+### Courses, quizzes and certificates
+
+- Course catalogue with modules, lectures, enrollments, and progress tracking; instructors build courses in a course builder.
+- Quizzes with automatic grading.
+- **PDF certificates** generated with ReportLab, each with a QR code and an unguessable credential ID (e.g. `CDX-2026-7KQ2-M9XA`).
+- Certificates are signed with **HMAC-SHA256**, so an edited record fails verification on the public `/verify` page. No login is needed to verify.
+
+### Paid courses (Razorpay)
+
+- Courses are free or paid. Prices are stored in paise and set by admins; instructors submit price requests for approval.
+- **Server-verified checkout** — the backend takes the price from the database, creates the Razorpay order, verifies the payment signature, confirms capture, and grants enrollment exactly once.
+- **Signed, idempotent webhooks** and automatic reconciliation handle closed tabs, lost callbacks, and out-of-order events.
+- Paid lecture videos stream only through short-lived signed URLs that re-check access on each request.
+- Admin payments ledger with filters, search, refunds, and one-click reconciliation.
+
+### Analytics, community and administration
+
+- Study heatmaps, streaks, skill radar charts (Recharts), and leaderboards.
+- Discussion forum with threaded replies, direct messages, and notifications.
+- Admin portal with system health (CPU, memory, disk via `psutil`), audit logs, user and course management, and CSV report exports.
+
+### Authentication and access control
+
+- JWT access tokens (15 minutes) and refresh tokens, with a session list and remote sign-out.
+- bcrypt password hashing, email OTP verification, and password reset.
+- **Role-based access control (RBAC)** with four roles and database-stored role permissions.
+
+---
+
+## Architecture
+
+The backend is a single FastAPI codebase that can run in two ways:
+
+| Mode | Entry point | Used for |
+| :--- | :--- | :--- |
+| **Monolith** | `backend/main.py` — one FastAPI app serving every route | Production on Render, and local development |
+| **Microservices** | `docker-compose.yml` — an API gateway plus six services | Running and scaling services separately |
 
 ```mermaid
-flowchart TB
-    subgraph Client["Client Tier"]
-        UI["React 18 + Vite SPA\n(TanStack Query, Monaco Editor, Recharts)"]
-    end
+flowchart LR
+    UI["React 18 SPA<br/>(Vite, TanStack Query, Monaco)"] -->|REST /api| GW["API Gateway :8000<br/>(HTTPX reverse proxy)"]
 
-    subgraph Gateway["API Gateway (Port 8000)"]
-        GW["FastAPI Reverse Proxy & Router\nRate Limiting (SlowAPI) • JWT Verification"]
-    end
+    GW --> AUTH["Auth & Users :8001"]
+    GW --> COURSE["Courses, Notes,<br/>Planner :8002"]
+    GW --> QUIZ["Quizzes &<br/>Certificates :8003"]
+    GW --> CODE["Coding & Git :8004"]
+    GW --> AI["AI Tutor :8005"]
+    GW --> ANA["Analytics, Admin,<br/>Search, Forum :8006"]
 
-    subgraph Services["Microservices Tier"]
-        AUTH["Auth Service (:8001)\nOAuth2, JWT, Dynamic RBAC, OTP"]
-        COURSE["Course Service (:8002)\nCourses, Modules, Lessons, Enrollments"]
-        QUIZ["Quiz & Cert Service (:8003)\nAssessments, Auto-Grading, PDF/QR Engine"]
-        CODING["Coding Engine (:8004)\nMonaco Sandbox, Test Runner, Daily Challenges"]
-        AI_SVC["AI & RAG Service (:8005)\nGemini LLM, FAISS Vector Search, Study Planner"]
-        ANALYTICS["Analytics Service (:8006)\nHeatmaps, Streaks, Leaderboards, System KPIs"]
-    end
-
-    subgraph Data["Persistence & Caching Tier"]
-        PG[("PostgreSQL 15\n(Primary Relational Store)")]
-        RD[("Redis 7\n(Session & Query Cache)")]
-        ES[("Elasticsearch 8\n(Full-Text & Problem Search)")]
-    end
-
-    subgraph External["External AI Provider"]
-        GEMINI["Google Gemini Generative AI API"]
-    end
-
-    UI -->|HTTP / REST| GW
-    GW --> AUTH
-    GW --> COURSE
-    GW --> QUIZ
-    GW --> CODING
-    GW --> AI_SVC
-    GW --> ANALYTICS
-
-    AUTH --> PG
-    AUTH --> RD
-    COURSE --> PG
-    COURSE --> RD
-    QUIZ --> PG
-    CODING --> PG
-    CODING --> RD
-    AI_SVC --> PG
-    AI_SVC --> GEMINI
-    ANALYTICS --> PG
-    ANALYTICS --> RD
-    ANALYTICS --> ES
+    AUTH & COURSE & QUIZ & CODE & AI & ANA --> PG[("PostgreSQL")]
+    AUTH & COURSE & CODE & ANA --> RD[("Redis")]
+    ANA --> ES[("Elasticsearch")]
+    AI --> GEM["Google Gemini API"]
 ```
 
----
+In microservices mode, the gateway routes each request by its path prefix (for example `/api/auth` → Auth service). All services share one database and the same models.
 
-## ⚡ Microservices Breakdown & Port Mapping
+> **Note:** Payments and pricing (`/api/payments`, `/api/pricing`) are mounted only in the monolith. Use monolith mode to test checkout.
 
-| Service Name | Port | Description | Core Tech |
-| :--- | :---: | :--- | :--- |
-| **API Gateway** | `8000` | Unified reverse-proxy entry point, request routing, rate limiting | FastAPI, HTTPX, SlowAPI |
-| **Auth Service** | `8001` | Authentication, token rotation, dynamic database RBAC, email OTP | FastAPI, Jose JWT, Passlib/Bcrypt |
-| **Course Service** | `8002` | Course catalog, lesson streaming, curriculum authoring, enrollments | FastAPI, SQLAlchemy 2.0 |
-| **Quiz Service** | `8003` | Quizzes, auto-grading, PDF certificate generation & QR verification | FastAPI, ReportLab, PyQRCode |
-| **Coding Service** | `8004` | In-browser code runner, custom I/O test cases, daily coding challenges | FastAPI, Monaco, Subprocess/Sandboxing |
-| **AI Service** | `8005` | Gemini AI Tutor, RAG study planner, static AI code review, flashcards | FastAPI, LangChain, Google Gemini |
-| **Analytics Service** | `8006` | Heatmaps, skill radar metrics, gamified streaks, leaderboards | FastAPI, Redis, Elasticsearch |
-| **Frontend Web App**| `3000` / `5173` | Responsive SPA with 30+ pages, dark/light theme, code splitting | React 18, Vite, TanStack Query |
-| **PostgreSQL DB** | `5432` | Relational data store (`codexia_lms`) | PostgreSQL 15 Alpine |
-| **Redis Cache** | `6379` | High-speed cache for queries, rate limiting, and session state | Redis 7 Alpine |
-| **Elasticsearch** | `9200` | High-performance search index for courses, notes, and challenges | Elasticsearch 8.11 |
+**Graceful fallbacks.** The app keeps working when optional infrastructure is missing:
+
+| If this is unavailable… | …the app falls back to |
+| :--- | :--- |
+| Redis | An in-memory TTL cache |
+| Elasticsearch | PostgreSQL `ILIKE` search |
+| Sentence-Transformers / FAISS | The first chunks of course content as AI tutor context |
+| `GEMINI_API_KEY` | AI features return a clear "not configured" message |
+| PostgreSQL (local dev) | SQLite (`DATABASE_URL` defaults to `sqlite:///./ai_lms.db`) |
 
 ---
 
-## ✨ Key Feature Highlights
+## Tech Stack
 
-### 🧠 1. Enterprise AI & RAG Ecosystem
-- **Context-Aware AI Tutor**: Conversational assistant retaining multi-turn session memory to assist students through course concepts.
-- **RAG Curriculum Integration**: Powered by LangChain and FAISS vector embeddings to deliver accurate, source-backed answers directly from course materials.
-- **AI Code Reviewer**: Instant static analysis evaluating code submissions for **Big-O time and space complexity**, potential edge-case bugs, and concrete optimization recommendations.
-- **Automated Study Planner & Flashcards**: Generates personalized weekly study schedules based on student availability and auto-synthesizes flashcard decks for spaced repetition.
-
-### 💻 2. Interactive Coding Sandbox & Problem Hub
-- **Monaco Code Editor**: Full syntax highlighting, auto-completion, and multi-language support (Python, JavaScript, C++, Java, Go).
-- **LeetCode-Style Problem Hub**: Filter by difficulty, domain tags (Dynamic Programming, Trees, Graphs, Hash Tables), acceptance rates, and completion state.
-- **Custom Test Runner**: Run against sample test cases or custom standard input with execution time and memory profiling.
-- **Daily Challenges**: Instructor-assigned daily challenges incentivizing consistent coding habits.
-
-### 🌿 3. Git-Inspired Version Control for Notes
-- **Full VCS Engine for Rich Notes**: Take Markdown notes during lectures with complete version control capabilities.
-- **Commits & Snapshots**: Create manual or checkpoint commits with cryptographic IDs and snapshot history.
-- **Branching & Merging**: Create branches, switch contexts (`checkout`), and perform 3-way merges with configurable conflict resolution strategies (`keep_target`, `keep_source`, `merge_both`, `custom`).
-- **Visual Diff & Timeline**: Side-by-side diff viewer and interactive SVG commit graph.
-- **AI Commit Summaries**: Diff-aware Gemini integration that auto-generates conventional commit messages.
-- **Export Options**: One-click export of complete note history to PDF, Markdown, or JSON.
-
-### 📜 4. Tamper-Proof PDF Certificates & Public Verification
-- **Dynamic Certificate Generation**: High-resolution, printable PDF certificates generated on-the-fly using ReportLab upon course completion.
-- **Cryptographic QR Codes**: Unique QR codes linking to public verification portals (`/verify/:uid` and `/verify-public/:uid`), enabling employers and institutions to verify authenticity instantly without logging in.
-
-### 📊 5. Deep Learning Analytics & Gamification
-- **GitHub-Style Heatmaps**: Visual tracking of daily study sessions and problem-solving activity.
-- **Multi-Dimensional Skill Radar**: Real-time evaluation of competency across Algorithms, Data Structures, System Design, Databases, and Web Development.
-- **Gamification Suite**: Streak counters, achievement badges, and global peer leaderboards.
-- **Community Discussion Forums**: Threaded discussions, Q&A on lecture topics, and upvoting mechanisms.
-
-### 🛡️ 6. Enterprise Administration & Dynamic RBAC
-- **4-Tier Access Control**: Discrete portals tailored for **Students**, **Instructors**, **Admins**, and **Super Admins**.
-- **Dynamic Database-Driven Permissions**: Assign, revoke, or toggle granular permissions across roles without redeploying code.
-- **Hardware & System Health**: Live monitoring of CPU, RAM, disk utilization (via `psutil`), and active user session counts.
-- **Audit Logging & CSV Exports**: Comprehensive user login history audits and one-click CSV export of student performance and course enrollment metrics.
-
-### 💳 7. Paid Courses & Razorpay Payments
-- **Admin-Controlled Pricing**: Courses are Free or Paid; prices are stored in paise and only admins set live prices. Instructors submit price requests that go live only after admin approval.
-- **Server-Verified Checkout**: The backend reads the official price, creates the Razorpay order, verifies the checkout signature, confirms capture with Razorpay, and only then grants enrollment — exactly once.
-- **Signed Webhooks & Reconciliation**: Idempotent, signature-verified webhooks plus automatic reconciliation cover closed tabs, lost callbacks, and out-of-order events.
-- **Protected Paid Content**: Paid lecture videos are served only through short-lived signed stream URLs that re-check access on every request.
-- **Admin Payments Ledger**: Status filters, search, Razorpay-confirmed refunds (idempotent), and one-click reconciliation.
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | React 18, Vite, React Router 6, TanStack Query, Axios, Monaco Editor, Recharts, React Markdown |
+| **Backend** | Python 3.11, FastAPI, Uvicorn, SQLAlchemy 2.0, Pydantic v2, HTTPX, SlowAPI |
+| **AI** | Google Gemini API (`gemini-2.5-flash`), Sentence-Transformers, FAISS |
+| **Data** | PostgreSQL 15 (SQLite for local dev), Redis 7, Elasticsearch 8 |
+| **Auth & security** | JWT (python-jose), bcrypt (passlib), RBAC, HMAC-SHA256 signing |
+| **Payments** | Razorpay Orders API, checkout and webhooks |
+| **Documents & email** | ReportLab (PDF), qrcode, Brevo HTTP API or SMTP |
+| **DevOps** | Docker, Docker Compose, Nginx, GitHub Actions, Render, Vercel |
+| **Testing** | Pytest |
 
 ---
 
-## 🛠️ Technology Stack
+## Project Structure
 
 ```text
-Frontend:       React 18 • Vite • TanStack React Query • React Router v6 • Monaco Editor • Recharts
-Backend:        Python 3.10+ • FastAPI • Uvicorn • SQLAlchemy 2.0 • Alembic • Pydantic v2
-AI & Search:    Google Gemini API • LangChain • FAISS • Sentence-Transformers • Elasticsearch 8
-Data & Caching: PostgreSQL 15 • Redis 7 • ReportLab (PDF) • PyQRCode
-DevOps:         Docker • Docker Compose • Nginx / FastAPI Gateway • Pytest
-```
-
----
-
-## 📁 Repository Structure
-
-```text
-AI Learning Management System/
+.
 ├── backend/
-│   ├── microservices/
-│   │   ├── gateway/            # API Gateway (:8000) - Routing & Reverse Proxy
-│   │   ├── auth_service/       # Auth & Identity (:8001) - JWT, RBAC, Profiles, OTP
-│   │   ├── course_service/     # Course Catalog (:8002) - Lessons, Curriculum, Enrollments
-│   │   ├── quiz_service/       # Quiz & Certs (:8003) - Assessments & QR PDF Engine
-│   │   ├── coding_service/     # Coding Engine (:8004) - Sandbox Runner & Problem Hub
-│   │   ├── ai_service/         # AI & RAG (:8005) - Gemini AI Tutor, Planner & Reviewer
-│   │   ├── analytics_service/  # Analytics (:8006) - Heatmaps, Radar, Leaderboards
-│   │   └── shared/             # Shared DB Models, Schemas, & Cross-Service Utilities
-│   ├── routes/                 # FastAPI Route Handlers (v1 - v4 Enterprise Routes)
-│   ├── models/                 # SQLAlchemy 2.0 Database ORM Models
-│   ├── schemas/                # Pydantic Request/Response Validation Schemas
-│   ├── services/               # Business Logic & Integration Layer
-│   ├── seed_db.py              # Comprehensive Database Seeder (Courses, Users, Quizzes)
-│   ├── seed_coding_problems.py # Coding Problem Seeder (LeetCode-style challenges)
-│   └── requirements.txt        # Python Dependencies
+│   ├── main.py                 # Monolith entry point (all routers)
+│   ├── config.py               # Settings loaded from .env
+│   ├── database.py             # SQLAlchemy engine, sessions, table creation
+│   ├── ai/                     # Gemini tutor, content generators, code helper, embeddings/FAISS
+│   ├── auth/                   # JWT handling, password hashing, OAuth2, RBAC permissions
+│   ├── middleware/             # CORS, rate limiting, security headers, error handlers
+│   ├── microservices/          # API gateway + auth, course, quiz, coding, ai, analytics services
+│   ├── models/                 # SQLAlchemy models
+│   ├── prompts/                # LLM prompt templates
+│   ├── routes/                 # FastAPI routers
+│   ├── schemas/                # Pydantic request/response schemas
+│   ├── services/               # Business logic (payments, git, coding, search, …)
+│   ├── utils/                  # Cache, Elasticsearch client, PDF, email, signed media links
+│   ├── tests/                  # Pytest suite
+│   ├── seed_db.py              # Seeds users, courses, quizzes
+│   └── seed_coding_problems.py # Seeds coding problems
 ├── frontend/
-│   ├── public/                 # Static Assets & Icons
 │   ├── src/
-│   │   ├── components/         # Reusable UI Components (Layouts, Modals, Loaders)
-│   │   ├── context/            # AuthContext, ThemeContext, NotificationContext
-│   │   ├── pages/              # 32 Application Pages (Dashboard, AI Tutor, Code Editor, etc.)
-│   │   ├── services/           # Axios HTTP API Clients & Gateway Endpoints
-│   │   └── styles/             # Modular CSS Design System (Light/Dark themes)
-│   ├── package.json            # Node Dependencies
-│   └── vite.config.js          # Vite Build & Proxy Configuration
-├── docker-compose.yml          # Multi-Container Development Orchestration
-├── docker-compose.prod.yml     # Production Multi-Container Orchestration
-├── .env.example                # Template Environment Variables
-└── README.md                   # Project Documentation
+│   │   ├── components/         # Layout, common UI, admin, payments, coding, certificates
+│   │   ├── context/            # Auth and theme providers
+│   │   ├── hooks/              # Shared hooks (e.g. course purchase flow)
+│   │   ├── pages/              # 33 route-level pages
+│   │   ├── services/           # Axios API clients
+│   │   └── utils/              # Money formatting, Razorpay checkout loader
+│   ├── nginx.conf              # Production static server + API proxy (Docker)
+│   └── vite.config.js          # Dev server on :3000, proxies /api to :8000
+├── .github/workflows/ci.yml    # GitHub Actions CI
+├── docker-compose.yml          # Microservices stack (dev)
+├── docker-compose.prod.yml     # Microservices stack (production)
+├── Dockerfile                  # Monolith backend image
+└── .env.example                # Environment variable template
 ```
 
 ---
 
-## 🚀 Quickstart & Setup Guide
+## Getting Started
 
 ### Prerequisites
-- **Docker Desktop** (v20+) & **Docker Compose**
-- **Node.js** (v18+) & **npm** *(for local frontend development)*
-- **Python** (v3.10+) *(for local backend development)*
-- **Google Gemini API Key** ([Get one here](https://aistudio.google.com/))
 
----
+- **Python 3.10+** and **Node.js 18+**
+- A **Google Gemini API key** from [Google AI Studio](https://aistudio.google.com/) (optional — only the AI features need it)
+- **Docker Desktop** (only for Option B)
 
-### Method 1: Running with Docker Compose (Recommended)
+### Option A — Run locally (recommended for development)
 
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/parmarramnik/Codexia-Acadamy.git
-   cd "AI Learning Management System"
-   ```
+This uses SQLite, so you don't need PostgreSQL, Redis, or Elasticsearch.
 
-2. **Configure Environment Variables**:
-   Copy the example environment file:
-   ```bash
-   cp .env.example .env
-   ```
-   Open `.env` and set your secrets:
-   ```env
-   GEMINI_API_KEY=your_gemini_api_key_here
-   JWT_SECRET_KEY=generate_a_secure_random_key_here
-   POSTGRES_PASSWORD=admin_secure_pwd
-   ```
-
-3. **Build & Start All Containers**:
-   ```bash
-   docker-compose up --build
-   ```
-
-4. **Access the Platform**:
-   - **Frontend Application**: `http://localhost:3000`
-   - **API Gateway**: `http://localhost:8000`
-   - **Interactive Swagger API Docs**: `http://localhost:8000/docs`
-
----
-
-### Method 2: Local Non-Docker Development
-
-#### Backend Setup
-1. Create and activate a Python virtual environment:
-   ```bash
-   cd backend
-   python -m venv venv
-   # Windows:
-   .\venv\Scripts\activate
-   # Linux/macOS:
-   source venv/bin/activate
-   ```
-
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Seed database with initial data (Users, Courses, Coding Problems):
-   ```bash
-   python seed_db.py
-   python seed_coding_problems.py
-   ```
-
-4. Launch the application:
-   ```bash
-   uvicorn main:app --reload --port 8000
-   ```
-
-#### Frontend Setup
-1. Open a new terminal and navigate to `frontend`:
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-2. Launch Vite dev server:
-   ```bash
-   npm run dev
-   ```
-3. Open `http://localhost:5173` in your browser.
-
----
-
-## 🔑 Environment Variables Reference
-
-| Variable | Description | Default / Example |
-| :--- | :--- | :--- |
-| `GEMINI_API_KEY` | Google Gemini API Key for AI features | `AIzaSy...` |
-| `JWT_SECRET_KEY` | Secret key used for signing JWT tokens | `32+ character string` |
-| `JWT_ALGORITHM` | Algorithm used for JWT encoding | `HS256` |
-| `DATABASE_URL` | PostgreSQL connection URI | `postgresql://user:pass@localhost:5432/codexia_lms` |
-| `REDIS_URL` | Redis connection URI | `redis://localhost:6379/0` |
-| `ELASTICSEARCH_URL`| Elasticsearch connection URI | `http://localhost:9200` |
-| `SMTP_HOST` / `PORT`| SMTP Mail server for email verification & OTP | `smtp.gmail.com:587` |
-| `RAZORPAY_KEY_ID` | Razorpay API key ID (the only Razorpay value ever sent to the browser) | `rzp_test_...` / `rzp_live_...` |
-| `RAZORPAY_KEY_SECRET` | Razorpay API key secret — **backend only** | from Razorpay Dashboard → API Keys |
-| `RAZORPAY_WEBHOOK_SECRET` | Secret you set on the Razorpay webhook — **backend only** | any long random string |
-
----
-
-## 💳 Payments (Razorpay) — Production Setup
-
-**Frontend → Vercel, Backend → Render.** Razorpay secrets live only on Render.
-
-1. **Render (backend) environment variables**
-   - `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`
-   - `FRONTEND_URL=https://<your-app>.vercel.app` and include that origin in `CORS_ORIGINS`
-   - `DEBUG=False` and a strong `JWT_SECRET_KEY` (it also signs lecture stream links)
-2. **Vercel (frontend) environment variables**
-   - `VITE_API_URL=https://<your-render-service>.onrender.com/api`
-   - Never add any `RAZORPAY_*` secret to Vercel — the browser receives the key ID from the backend per order.
-3. **Razorpay webhook** (Dashboard → Settings → Webhooks)
-   - URL: `https://<your-render-service>.onrender.com/api/payments/razorpay/webhook`
-   - Secret: the same value as `RAZORPAY_WEBHOOK_SECRET`
-   - Events: `payment.authorized`, `payment.captured`, `payment.failed`, `order.paid`, `refund.created`, `refund.processed`, `refund.failed`
-4. **Database**: new tables and course pricing columns are created automatically on startup. Existing courses start as **Free**; set prices in **Admin Panel → Course Pricing**.
-
-**Test Mode checklist (use `rzp_test_*` keys — no real money):** successful payment, failed payment, cancelled checkout,
-refresh during payment, duplicate webhook (Dashboard → resend), free course enrollment, already-enrolled user,
-admin refund. Confirm in **Admin Panel → Payments** that each successful payment shows exactly one granted access.
-Switch to `rzp_live_*` keys (and a live-mode webhook) only after the checklist passes.
-
-**Security notes**
-- The amount always comes from the database; the client only sends a course ID.
-- Uploaded lecture videos are not served from `/static/videos`; they stream via signed, expiring, access-checked links.
-  Videos hosted on external platforms (YouTube, Drive, Vimeo…) are only as private as their own sharing settings —
-  use private/unlisted hosting for paid content.
-
----
-
-## 🧪 Testing
-
-Run automated smoke tests across all endpoints and database models:
+#### 1. Clone and configure
 
 ```bash
-# Run backend tests
-cd backend
-pytest tests/
-
-# Run fast smoke test
-python run_smoke.py
+git clone https://github.com/parmarramnik/Codexia-Acadamy.git
+cd Codexia-Acadamy
+cp .env.example .env
 ```
+
+In `.env`, set at least:
+
+```env
+JWT_SECRET_KEY=<a long random string>
+GEMINI_API_KEY=<your Gemini API key>
+```
+
+To use SQLite, remove or comment out the `DATABASE_URL` line.
+
+#### 2. Start the backend
+
+```bash
+cd backend
+python -m venv venv
+# Windows
+venv\Scripts\activate
+# macOS / Linux
+source venv/bin/activate
+
+pip install -r requirements.txt
+python seed_db.py
+python seed_coding_problems.py
+uvicorn main:app --reload --port 8000
+```
+
+API docs: <http://localhost:8000/api/docs>
+
+> **Optional — semantic search for the AI tutor:** `pip install sentence-transformers faiss-cpu`. Without these, the tutor uses the first chunks of course content as context.
+
+#### 3. Start the frontend (in a new terminal)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open <http://localhost:3000>. The Vite dev server proxies `/api` to the backend on port 8000.
+
+### Option B — Docker Compose (microservices)
+
+```bash
+cp .env.example .env      # set JWT_SECRET_KEY, POSTGRES_PASSWORD, GEMINI_API_KEY
+docker compose up --build
+```
+
+This starts PostgreSQL, Redis, Elasticsearch, the six services, the API gateway, and the frontend.
+
+| Service | URL |
+| :--- | :--- |
+| Frontend | <http://localhost:3000> |
+| API gateway + docs | <http://localhost:8000/api/docs> |
+| Services | `localhost:8001` – `localhost:8006` |
 
 ---
 
-## 📄 License
+## Environment Variables
 
-This project is open-source and distributed under the **[MIT License](LICENSE)**.
+Copy `.env.example` to `.env`. The backend reads `.env` from the project root or from `backend/`.
+
+| Variable | Required | Description |
+| :--- | :---: | :--- |
+| `JWT_SECRET_KEY` | ✅ | Signs JWTs and lecture stream links. Use a long random string. |
+| `DATABASE_URL` | | Database connection string. Defaults to SQLite; use `postgresql://…` in production. |
+| `DEBUG` | | `False` in production |
+| `FRONTEND_URL` | Prod | Public frontend URL, used in email links and certificate QR codes |
+| `CORS_ORIGINS` | Prod | Comma-separated list of allowed frontend origins |
+| `GEMINI_API_KEY` | AI | Google Gemini API key |
+| `GEMINI_MODEL` | | Defaults to `gemini-2.5-flash` |
+| `REDIS_URL` | | Redis connection string (falls back to an in-memory cache) |
+| `ELASTICSEARCH_URL` | | Elasticsearch URL (falls back to database search) |
+| `BREVO_API_KEY` | Email | Brevo HTTP API key for production email (recommended on Render) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | Email | SMTP alternative for local development |
+| `CERTIFICATE_SIGNING_KEY` | | Signs certificates (falls back to `JWT_SECRET_KEY`). Keep it stable — changing it invalidates existing certificates. |
+| `RAZORPAY_KEY_ID` | Payments | Razorpay key ID — the only Razorpay value sent to the browser |
+| `RAZORPAY_KEY_SECRET` | Payments | Razorpay key secret — **backend only** |
+| `RAZORPAY_WEBHOOK_SECRET` | Payments | The secret you set on the Razorpay webhook — **backend only** |
+
+Frontend (`frontend/.env`): `VITE_API_URL` — the backend API URL, for example `https://<your-backend>.onrender.com/api`. Every `VITE_*` value is public in the browser bundle, so never put secrets here.
+
+---
+
+## Payments Setup (Razorpay)
+
+Start with **Test Mode** keys (`rzp_test_…`); no real money moves.
+
+1. **Get API keys** — Razorpay Dashboard → Account & Settings → API Keys. Put `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` in your backend environment.
+2. **Create a webhook** — Razorpay Dashboard → Settings → Webhooks → Add New Webhook:
+   - **URL:** `https://<your-backend>.onrender.com/api/payments/razorpay/webhook`
+   - **Secret:** a long random string, also set as `RAZORPAY_WEBHOOK_SECRET`
+   - **Events:** `payment.authorized`, `payment.captured`, `payment.failed`, `order.paid`, `refund.created`, `refund.processed`, `refund.failed`
+3. **Set prices** — Admin Panel → Course Pricing. Every course starts as free. The tables and pricing columns are created automatically on startup.
+4. **Test** — run through: a successful payment, a failed payment, a cancelled checkout, a page refresh during payment, a duplicate webhook (Dashboard → Resend), an already-enrolled user, and an admin refund. In **Admin Panel → Payments**, check that each successful payment granted access exactly once.
+
+Webhook deliveries in the Razorpay Dashboard should return **200**. A **401** means the webhook secret doesn't match; a **503** means `RAZORPAY_WEBHOOK_SECRET` isn't set on the server.
+
+Switch to Live keys (`rzp_live_…`) and a Live Mode webhook only after the test checklist passes.
+
+---
+
+## Deployment
+
+| Part | Platform | Notes |
+| :--- | :--- | :--- |
+| **Frontend** | Vercel | Root directory `frontend`, build `npm run build`, output `dist`. Set `VITE_API_URL`. `vercel.json` rewrites all routes to the SPA. |
+| **Backend** | Render | Runs the monolith (`uvicorn main:app`) from the root `Dockerfile`. Set the variables above, with `DEBUG=False`, `FRONTEND_URL`, and your Vercel URL in `CORS_ORIGINS`. |
+| **Database** | Any PostgreSQL host | Set `DATABASE_URL`. Tables are created on startup. |
+
+---
+
+## Testing
+
+```bash
+cd backend
+pytest tests/
+```
+
+The suite covers authentication, courses, certificates, Git-style notes, admin routes, and payments. Payment tests include signature checks, webhook idempotency, refunds, and reconciliation.
+
+GitHub Actions (`.github/workflows/ci.yml`) installs the dependencies and checks that the backend compiles on every push and pull request to `main`.
+
+---
+
+## Security
+
+- **Payment amounts always come from the database.** The client sends only a course ID.
+- **Razorpay signatures** are verified on checkout and on every webhook, using the raw request body.
+- **Secrets stay on the server.** Only the Razorpay key ID reaches the browser.
+- **Rate limiting** (SlowAPI), security headers, and input sanitisation run on every request.
+- **Uploaded videos** aren't served publicly; they stream through signed, expiring, access-checked links. Externally hosted videos (YouTube, Drive, Vimeo) are only as private as their own sharing settings.
+- **Code execution** runs each submission in a separate subprocess with time limits. For public, untrusted traffic, run the coding service in an isolated container or sandbox.
+
+---
+
+## License
+
+Distributed under the MIT License. See [LICENSE](LICENSE) for details.
+
+---
+
+Built by [Ramnik Parmar](https://github.com/parmarramnik). If you find this project useful, consider giving it a ⭐.

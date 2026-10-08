@@ -52,6 +52,17 @@ export async function openRazorpayCheckout({ order, name, description, themeColo
       prefill: order.prefill || {},
       notes: { course_id: String(order.course?.id ?? '') },
       theme: { color: themeColor || '#4F46E5' },
+      // Pin UPI to the top; cards, netbanking and wallets still follow as default blocks.
+      // Checkout only renders methods enabled on the Razorpay account, so UPI must be active there too.
+      config: {
+        display: {
+          blocks: {
+            upi: { name: 'Pay using UPI', instruments: [{ method: 'upi' }] },
+          },
+          sequence: ['block.upi'],
+          preferences: { show_default_blocks: true },
+        },
+      },
       retry: { enabled: true },
       handler: (response) => settle({ type: 'success', response }),
       modal: {

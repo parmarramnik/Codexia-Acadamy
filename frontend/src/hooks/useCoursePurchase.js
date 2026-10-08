@@ -4,6 +4,32 @@ import { openRazorpayCheckout } from '../utils/razorpay';
 
 const POLL_INTERVAL_MS = 3000;
 const POLL_MAX_ATTEMPTS = 20; // ~1 minute, then we hand off to the status page / webhook
+const CREATE_ORDER_RETRIES = 2;
+
+/** One key per purchase attempt (each Buy / Try Again click). */
+function newIdempotencyKey() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  // randomUUID needs a secure context (https or localhost); e.g. a LAN dev URL falls back here.
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Retries reuse the same Idempotency-Key, so if the first request created the order but its
+ * response was lost, the backend hands back that same order instead of creating a second one.
+ */
+async function createOrderWithRetry(courseId, idempotencyKey) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await paymentService.createOrder(courseId, idempotencyKey);
+    } catch (err) {
+      const status = err?.response?.status;
+      const retryable = !err?.response || status === 500 || status === 502 || status === 504
+        || paymentErrorCode(err) === 'REQUEST_IN_PROGRESS';
+      if (!retryable || attempt >= CREATE_ORDER_RETRIES) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+    }
+  }
+}
 
 /**
  * Paid-course purchase state machine.
@@ -86,7 +112,7 @@ export default function useCoursePurchase({ course, onEnrolled }) {
     setPhase('creating');
     setMessage('');
     try {
-      const { data: order } = await paymentService.createOrder(course.id);
+      const { data: order } = await createOrderWithRetry(course.id, newIdempotencyKey());
       if (!mountedRef.current) return;
       setOrderId(order.order_id);
       setPhase('checkout');

@@ -9,6 +9,7 @@ import hashlib
 import hmac
 import json
 import itertools
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,8 +25,8 @@ from middleware.rate_limiter import limiter
 from models.user import User, UserRole
 from models.course import Course, Enrollment, CourseCategory, Module, Lecture
 from models.content import Video
-from models.payment import Payment, PaymentEvent, CoursePriceRequest
-from services import razorpay_client
+from models.payment import Payment, PaymentEvent, PaymentIdempotencyKey, CoursePriceRequest
+from services import payment_service, razorpay_client
 from utils.cache import cache_invalidate_prefix
 
 KEY_ID, KEY_SECRET, WEBHOOK_SECRET = "rzp_test_ABCDEF123456", "test_key_secret_value", "test_webhook_secret"
@@ -226,6 +227,119 @@ def test_double_click_reuses_the_same_order(client, gateway, world):
     a = _buy(client, gateway, world["student"], world["paid"])
     b = _buy(client, gateway, world["student"], world["paid"])
     assert a["order_id"] == b["order_id"] and gateway.order_calls == 1
+
+
+# --------------------------------------------------------------------------- idempotency keys
+
+IDEM_KEY = "3f6c1d2e-8b4a-4c1e-9f0a-123456789abc"
+
+
+def _order_with_key(client, student, course, key=IDEM_KEY):
+    return client.post("/api/payments/razorpay/order", json={"course_id": course.id},
+                       headers={**_auth(student), "Idempotency-Key": key})
+
+
+def test_same_idempotency_key_replays_the_original_order(client, gateway, world, db_session):
+    student, course = world["student"], world["paid"]
+    first = _order_with_key(client, student, course)
+    assert first.status_code == 200, first.text
+    # Even after a price change (which would normally create a fresh order), a retry of the
+    # same request gets back exactly what the first attempt created.
+    course.price_amount = 149900
+    db_session.commit()
+    replay = _order_with_key(client, student, course)
+    assert replay.status_code == 200
+    assert replay.json()["order_id"] == first.json()["order_id"] and replay.json()["amount"] == 99900
+    assert gateway.order_calls == 1
+    # A new purchase attempt (new key) sees the new price.
+    fresh = _order_with_key(client, student, course, key="a" * 32)
+    assert fresh.json()["order_id"] != first.json()["order_id"] and fresh.json()["amount"] == 149900
+
+
+def test_idempotency_key_reused_for_a_different_course_is_rejected(client, gateway, world):
+    assert _order_with_key(client, world["student"], world["paid"]).status_code == 200
+    res = _order_with_key(client, world["student"], world["free"])
+    assert res.status_code == 422 and res.json()["detail"]["code"] == "IDEMPOTENCY_KEY_REUSED"
+
+
+def test_idempotency_keys_are_scoped_per_user(client, gateway, world):
+    a = _order_with_key(client, world["student"], world["paid"]).json()
+    b = _order_with_key(client, world["other"], world["paid"]).json()
+    assert a["order_id"] != b["order_id"] and gateway.order_calls == 2
+
+
+@pytest.mark.parametrize("key", ["short", "x" * 65, "has spaces in the key!!", "'; DROP TABLE payments;--"])
+def test_malformed_idempotency_key_is_rejected(client, gateway, world, key):
+    res = _order_with_key(client, world["student"], world["paid"], key=key)
+    assert res.status_code == 400 and res.json()["detail"]["code"] == "INVALID_IDEMPOTENCY_KEY"
+    assert gateway.order_calls == 0
+
+
+def test_key_held_by_a_running_request_returns_409(client, gateway, world, db_session):
+    student, course = world["student"], world["paid"]
+    db_session.add(PaymentIdempotencyKey(user_id=student.id, key=IDEM_KEY,
+                                         request_hash=payment_service.order_request_hash(course.id)))
+    db_session.commit()
+    res = _order_with_key(client, student, course)
+    assert res.status_code == 409 and res.json()["detail"]["code"] == "REQUEST_IN_PROGRESS"
+    assert gateway.order_calls == 0
+
+
+def test_key_abandoned_mid_request_is_taken_over(client, gateway, world, db_session):
+    student, course = world["student"], world["paid"]
+    stale = datetime.now(timezone.utc) - payment_service.IDEMPOTENCY_IN_FLIGHT_TIMEOUT - timedelta(seconds=5)
+    db_session.add(PaymentIdempotencyKey(user_id=student.id, key=IDEM_KEY, created_at=stale,
+                                         request_hash=payment_service.order_request_hash(course.id)))
+    db_session.commit()
+    res = _order_with_key(client, student, course)
+    assert res.status_code == 200 and gateway.order_calls == 1
+    record = db_session.query(PaymentIdempotencyKey).filter_by(user_id=student.id, key=IDEM_KEY).one()
+    assert record.payment_id == db_session.query(Payment).one().id
+
+
+def test_failed_request_frees_its_key_for_a_retry(client, gateway, world, db_session, monkeypatch):
+    calls = {"n": 0}
+
+    def flaky_create_order(*args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise razorpay_client.RazorpayError()
+        return gateway.create_order(*args, **kwargs)
+
+    monkeypatch.setattr(razorpay_client, "create_order", flaky_create_order)
+    first = _order_with_key(client, world["student"], world["paid"])
+    assert first.status_code == 502
+    assert db_session.query(PaymentIdempotencyKey).count() == 0
+    retry = _order_with_key(client, world["student"], world["paid"])
+    assert retry.status_code == 200 and gateway.order_calls == 1
+
+
+def test_replaying_a_key_after_payment_never_hands_out_the_order_again(client, gateway, world, db_session):
+    student, course = world["student"], world["paid"]
+    order = _order_with_key(client, student, course).json()
+    pid = gateway.pay(order["order_id"])
+    res = client.post("/api/payments/razorpay/verify", headers=_auth(student), json={
+        "razorpay_order_id": order["order_id"], "razorpay_payment_id": pid,
+        "razorpay_signature": checkout_signature(order["order_id"], pid)})
+    assert res.json()["status"] == "SUCCESS"
+    replay = _order_with_key(client, student, course)
+    assert replay.status_code == 409 and replay.json()["detail"]["code"] == "ALREADY_ENROLLED"
+    assert gateway.order_calls == 1 and len(_enrollments(db_session, student, course)) == 1
+
+
+def test_expired_keys_are_pruned_and_can_be_reused(client, gateway, world, db_session):
+    student = world["student"]
+    old = datetime.now(timezone.utc) - payment_service.IDEMPOTENCY_KEY_TTL - timedelta(minutes=1)
+    db_session.add_all([
+        PaymentIdempotencyKey(user_id=student.id, key=IDEM_KEY, created_at=old,
+                              request_hash=payment_service.order_request_hash(world["free"].id)),
+        PaymentIdempotencyKey(user_id=student.id, key="b" * 32, created_at=old,
+                              request_hash=payment_service.order_request_hash(world["paid"].id)),
+    ])
+    db_session.commit()
+    # The expired key was for another course; after 24h it no longer binds the client.
+    assert _order_with_key(client, student, world["paid"]).status_code == 200
+    assert [r.key for r in db_session.query(PaymentIdempotencyKey).all()] == [IDEM_KEY]
 
 
 @pytest.mark.parametrize("mutate,code", [

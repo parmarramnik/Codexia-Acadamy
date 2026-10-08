@@ -10,7 +10,7 @@ import hashlib
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from slowapi.util import get_remote_address
@@ -53,12 +53,21 @@ def _flow_error(exc: PaymentFlowError) -> HTTPException:
 def create_razorpay_order(
     request: Request,
     data: CreateOrderRequest,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
     current_user: User = Depends(require_role(UserRole.STUDENT)),
     db: Session = Depends(get_db),
 ):
-    """Create (or reuse) a Razorpay order. The amount is read from the database, never the client."""
+    """
+    Create (or reuse) a Razorpay order. The amount is read from the database, never the client.
+    With an Idempotency-Key header, retrying the same request returns the same order.
+    """
     try:
-        payment, course = payment_service.create_order(db, current_user, data.course_id)
+        if idempotency_key is None:
+            payment, course = payment_service.create_order(db, current_user, data.course_id)
+        else:
+            payment, course = payment_service.create_order_idempotent(
+                db, current_user, data.course_id, idempotency_key,
+            )
     except PaymentFlowError as exc:
         raise _flow_error(exc)
     return {

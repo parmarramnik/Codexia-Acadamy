@@ -6,7 +6,10 @@ import api from './api';
  */
 const paymentService = {
   // Student
-  createOrder: (courseId) => api.post('/payments/razorpay/order', { course_id: courseId }),
+  createOrder: (courseId, idempotencyKey) =>
+    api.post('/payments/razorpay/order', { course_id: courseId }, {
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+    }),
   verify: ({ razorpay_order_id, razorpay_payment_id, razorpay_signature }) =>
     api.post('/payments/razorpay/verify', { razorpay_order_id, razorpay_payment_id, razorpay_signature }),
   getOrderStatus: (orderId) => api.get(`/payments/orders/${encodeURIComponent(orderId)}/status`),

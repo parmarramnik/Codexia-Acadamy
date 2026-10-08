@@ -9,7 +9,7 @@ whether a learner has paid and been granted access.
 import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Index
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -113,6 +113,29 @@ class PaymentEvent(Base):
     error = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=_utcnow, nullable=False)
     processed_at = Column(DateTime, nullable=True)
+
+
+class PaymentIdempotencyKey(Base):
+    """
+    Client-supplied Idempotency-Key for order creation. The unique (user_id, key) pair means a
+    retried request gets the order its first attempt created instead of a second order, even
+    when the retry lands on a different server process.
+    """
+    __tablename__ = "payment_idempotency_keys"
+    __table_args__ = (
+        UniqueConstraint("user_id", "key", name="uq_payment_idempotency_user_key"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    key = Column(String(64), nullable=False)
+    # SHA-256 of the request; reusing a key for a different request is rejected.
+    request_hash = Column(String(64), nullable=False)
+    # NULL while the first request is still running; set once its order exists.
+    payment_id = Column(Integer, ForeignKey("payments.id", ondelete="SET NULL"), nullable=True)
+    # When the key was claimed. Also restarted when a request takes over a key whose
+    # holder died mid-request.
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
 
 
 class CoursePriceRequest(Base):

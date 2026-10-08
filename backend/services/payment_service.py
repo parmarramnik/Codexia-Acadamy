@@ -32,7 +32,7 @@ from sqlalchemy.orm import Session
 
 from config import settings
 from models.course import Course, Enrollment
-from models.payment import Payment, PaymentEvent, PaymentStatus, RefundStatus
+from models.payment import Payment, PaymentEvent, PaymentIdempotencyKey, PaymentStatus, RefundStatus
 from models.user import User
 from services import razorpay_client as rzp
 from utils.cache import cache_invalidate_prefix, invalidate_learner_cache
@@ -43,10 +43,14 @@ logger = logging.getLogger("codexia.payments")
 ORDER_ID_RE = re.compile(r"^order_[A-Za-z0-9]{6,40}$")
 PAYMENT_ID_RE = re.compile(r"^pay_[A-Za-z0-9]{6,40}$")
 SIGNATURE_RE = re.compile(r"^[a-f0-9]{64}$")
+IDEMPOTENCY_KEY_RE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 
 ORDER_REUSE_WINDOW = timedelta(hours=6)
 PENDING_BLOCK_WINDOW = timedelta(minutes=15)
 RECONCILE_MIN_INTERVAL_SECONDS = 10
+IDEMPOTENCY_KEY_TTL = timedelta(hours=24)
+# Longer than a worst-case create_order (reconcile fetch + order create, 15s Razorpay timeout each).
+IDEMPOTENCY_IN_FLIGHT_TIMEOUT = timedelta(seconds=60)
 
 OPEN_STATUSES = (PaymentStatus.CREATED.value, PaymentStatus.PENDING.value, PaymentStatus.FAILED.value)
 
@@ -197,6 +201,107 @@ def create_order(db: Session, user: User, course_id: int) -> tuple[Payment, Cour
         logger.info("Created Razorpay order %s (payment #%s) for user %s course %s",
                     order_id, payment.id, user.id, course.id)
         return payment, course
+
+
+# --------------------------------------------------------------------------- idempotency keys
+
+def create_order_idempotent(db: Session, user: User, course_id: int, key: str) -> tuple[Payment, Course]:
+    """
+    create_order keyed by the client's Idempotency-Key. A retry with the same key gets the
+    order the first attempt created, even if that attempt's response was lost. Once that order
+    is paid (or in flight), the key falls back to create_order's checks, so it can never hand
+    out an order for a second payment.
+    """
+    if not IDEMPOTENCY_KEY_RE.match(key or ""):
+        raise PaymentFlowError("Invalid Idempotency-Key header", 400, "INVALID_IDEMPOTENCY_KEY")
+    record = _claim_idempotency_key(db, user.id, key, order_request_hash(course_id))
+    record_pk = record.id
+
+    if record.payment_id:
+        payment = db.query(Payment).filter(Payment.id == record.payment_id).first()
+        if payment and payment.status in (PaymentStatus.CREATED.value, PaymentStatus.FAILED.value):
+            course = db.query(Course).filter(Course.id == payment.course_id).first()
+            if course:
+                logger.info("Idempotent replay of order %s for user %s", payment.razorpay_order_id, user.id)
+                return payment, course
+
+    try:
+        payment, course = create_order(db, user, course_id)
+    except Exception:
+        db.rollback()
+        _release_idempotency_key(db, record_pk)
+        raise
+
+    record = db.query(PaymentIdempotencyKey).filter(PaymentIdempotencyKey.id == record_pk).one()
+    record.payment_id = payment.id
+    db.commit()
+    return payment, course
+
+
+def order_request_hash(course_id: int) -> str:
+    return hashlib.sha256(f"create_order:{course_id}".encode("utf-8")).hexdigest()
+
+
+def _claim_idempotency_key(db: Session, user_id: int, key: str, request_hash: str) -> PaymentIdempotencyKey:
+    """Insert the key's row, or return it if an earlier request with this key already finished."""
+    in_progress = PaymentFlowError("Your checkout is still being set up. Please try again in a moment.",
+                                   409, "REQUEST_IN_PROGRESS")
+    for _ in range(3):
+        record = (db.query(PaymentIdempotencyKey)
+                  .filter(PaymentIdempotencyKey.user_id == user_id, PaymentIdempotencyKey.key == key)
+                  .first())
+        if record is None:
+            # The user's expired keys are pruned here so the table stays small without a cron job.
+            cutoff = (_now() - IDEMPOTENCY_KEY_TTL).replace(tzinfo=None)
+            (db.query(PaymentIdempotencyKey)
+             .filter(PaymentIdempotencyKey.user_id == user_id, PaymentIdempotencyKey.created_at < cutoff)
+             .delete(synchronize_session=False))
+            record = PaymentIdempotencyKey(user_id=user_id, key=key, request_hash=request_hash)
+            db.add(record)
+            try:
+                db.commit()
+                return record
+            except IntegrityError:
+                db.rollback()  # A concurrent request with the same key inserted first
+                continue
+
+        age = _now() - _as_utc(record.created_at)
+        if age > IDEMPOTENCY_KEY_TTL:
+            db.query(PaymentIdempotencyKey).filter(PaymentIdempotencyKey.id == record.id).delete(
+                synchronize_session=False)
+            db.commit()
+            continue
+        if record.request_hash != request_hash:
+            raise PaymentFlowError("This Idempotency-Key was already used for a different request.",
+                                   422, "IDEMPOTENCY_KEY_REUSED")
+        if record.payment_id is not None:
+            return record
+        if age < IDEMPOTENCY_IN_FLIGHT_TIMEOUT:
+            raise in_progress
+
+        # The request holding this key died mid-way. Take it over; comparing created_at
+        # makes sure only one of several concurrent retries wins.
+        taken = (db.query(PaymentIdempotencyKey)
+                 .filter(PaymentIdempotencyKey.id == record.id,
+                         PaymentIdempotencyKey.created_at == record.created_at,
+                         PaymentIdempotencyKey.payment_id == None)
+                 .update({PaymentIdempotencyKey.created_at: _now()}, synchronize_session=False))
+        db.commit()
+        if taken:
+            db.refresh(record)
+            return record
+    raise in_progress
+
+
+def _release_idempotency_key(db: Session, record_pk: int) -> None:
+    """The keyed request failed before creating an order: free the key so a retry runs again."""
+    try:
+        (db.query(PaymentIdempotencyKey)
+         .filter(PaymentIdempotencyKey.id == record_pk, PaymentIdempotencyKey.payment_id == None)
+         .delete(synchronize_session=False))
+        db.commit()
+    except Exception:
+        db.rollback()  # Left in flight, the key is taken over after IDEMPOTENCY_IN_FLIGHT_TIMEOUT
 
 
 # --------------------------------------------------------------------------- fulfillment
