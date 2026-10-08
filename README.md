@@ -139,6 +139,13 @@ flowchart TB
 - **Hardware & System Health**: Live monitoring of CPU, RAM, disk utilization (via `psutil`), and active user session counts.
 - **Audit Logging & CSV Exports**: Comprehensive user login history audits and one-click CSV export of student performance and course enrollment metrics.
 
+### 💳 7. Paid Courses & Razorpay Payments
+- **Admin-Controlled Pricing**: Courses are Free or Paid; prices are stored in paise and only admins set live prices. Instructors submit price requests that go live only after admin approval.
+- **Server-Verified Checkout**: The backend reads the official price, creates the Razorpay order, verifies the checkout signature, confirms capture with Razorpay, and only then grants enrollment — exactly once.
+- **Signed Webhooks & Reconciliation**: Idempotent, signature-verified webhooks plus automatic reconciliation cover closed tabs, lost callbacks, and out-of-order events.
+- **Protected Paid Content**: Paid lecture videos are served only through short-lived signed stream URLs that re-check access on every request.
+- **Admin Payments Ledger**: Status filters, search, Razorpay-confirmed refunds (idempotent), and one-click reconciliation.
+
 ---
 
 ## 🛠️ Technology Stack
@@ -289,6 +296,39 @@ AI Learning Management System/
 | `REDIS_URL` | Redis connection URI | `redis://localhost:6379/0` |
 | `ELASTICSEARCH_URL`| Elasticsearch connection URI | `http://localhost:9200` |
 | `SMTP_HOST` / `PORT`| SMTP Mail server for email verification & OTP | `smtp.gmail.com:587` |
+| `RAZORPAY_KEY_ID` | Razorpay API key ID (the only Razorpay value ever sent to the browser) | `rzp_test_...` / `rzp_live_...` |
+| `RAZORPAY_KEY_SECRET` | Razorpay API key secret — **backend only** | from Razorpay Dashboard → API Keys |
+| `RAZORPAY_WEBHOOK_SECRET` | Secret you set on the Razorpay webhook — **backend only** | any long random string |
+
+---
+
+## 💳 Payments (Razorpay) — Production Setup
+
+**Frontend → Vercel, Backend → Render.** Razorpay secrets live only on Render.
+
+1. **Render (backend) environment variables**
+   - `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`
+   - `FRONTEND_URL=https://<your-app>.vercel.app` and include that origin in `CORS_ORIGINS`
+   - `DEBUG=False` and a strong `JWT_SECRET_KEY` (it also signs lecture stream links)
+2. **Vercel (frontend) environment variables**
+   - `VITE_API_URL=https://<your-render-service>.onrender.com/api`
+   - Never add any `RAZORPAY_*` secret to Vercel — the browser receives the key ID from the backend per order.
+3. **Razorpay webhook** (Dashboard → Settings → Webhooks)
+   - URL: `https://<your-render-service>.onrender.com/api/payments/razorpay/webhook`
+   - Secret: the same value as `RAZORPAY_WEBHOOK_SECRET`
+   - Events: `payment.authorized`, `payment.captured`, `payment.failed`, `order.paid`, `refund.created`, `refund.processed`, `refund.failed`
+4. **Database**: new tables and course pricing columns are created automatically on startup. Existing courses start as **Free**; set prices in **Admin Panel → Course Pricing**.
+
+**Test Mode checklist (use `rzp_test_*` keys — no real money):** successful payment, failed payment, cancelled checkout,
+refresh during payment, duplicate webhook (Dashboard → resend), free course enrollment, already-enrolled user,
+admin refund. Confirm in **Admin Panel → Payments** that each successful payment shows exactly one granted access.
+Switch to `rzp_live_*` keys (and a live-mode webhook) only after the checklist passes.
+
+**Security notes**
+- The amount always comes from the database; the client only sends a course ID.
+- Uploaded lecture videos are not served from `/static/videos`; they stream via signed, expiring, access-checked links.
+  Videos hosted on external platforms (YouTube, Drive, Vimeo…) are only as private as their own sharing settings —
+  use private/unlisted hosting for paid content.
 
 ---
 

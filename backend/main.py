@@ -4,7 +4,6 @@ Registers all middleware, routes, and startup events.
 """
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 import os
 
 from config import settings
@@ -13,6 +12,7 @@ from middleware.cors import setup_cors
 from middleware.rate_limiter import setup_rate_limiter
 from middleware.error_handler import setup_error_handlers
 from utils.helpers import ensure_directory
+from utils.media_access import PublicStaticFiles
 
 
 def create_app() -> FastAPI:
@@ -41,7 +41,9 @@ def create_app() -> FastAPI:
     ensure_directory(os.path.join(static_dir, "thumbnails"))
     ensure_directory(os.path.join(static_dir, "certificates"))
     ensure_directory(os.path.join(static_dir, "avatars"))
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    # Uploaded lecture videos are excluded: they are only served through the signed,
+    # access-checked /api/lectures/{id}/stream route so paid content cannot be fetched directly.
+    app.mount("/static", PublicStaticFiles(directory=static_dir), name="static")
 
     # Register routes
     register_routes(app)
@@ -112,6 +114,11 @@ def register_routes(app: FastAPI) -> None:
     # Include Version 4.0 Routers
     from routes import v4_admin
     app.include_router(v4_admin.router, prefix=prefix)
+
+    # Payments (Razorpay) & course pricing
+    from routes import payments, pricing
+    app.include_router(payments.router, prefix=f"{prefix}/payments", tags=["Payments"])
+    app.include_router(pricing.router, prefix=f"{prefix}/pricing", tags=["Pricing"])
 
 
 app = create_app()

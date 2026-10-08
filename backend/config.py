@@ -66,6 +66,18 @@ class Settings(BaseSettings):
     # Keep it stable: changing it makes previously issued certificates fail the integrity check.
     CERTIFICATE_SIGNING_KEY: Optional[str] = None
 
+    # Razorpay (server-side only). Only RAZORPAY_KEY_ID is ever sent to the browser.
+    # Use rzp_test_* keys until the full test checklist passes, then switch to rzp_live_* keys.
+    RAZORPAY_KEY_ID: Optional[str] = None
+    RAZORPAY_KEY_SECRET: Optional[str] = None
+    RAZORPAY_WEBHOOK_SECRET: Optional[str] = None
+    RAZORPAY_API_BASE: str = "https://api.razorpay.com/v1"
+    RAZORPAY_TIMEOUT_SECONDS: float = 15.0
+
+    @property
+    def payments_configured(self) -> bool:
+        return bool(self.RAZORPAY_KEY_ID and self.RAZORPAY_KEY_SECRET)
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]

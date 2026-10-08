@@ -8,6 +8,15 @@ if (!API_URL || API_URL.includes('example.com') || API_URL.includes('wvrv')) {
   API_URL = API_URL.endsWith('/') ? `${API_URL}api` : `${API_URL}/api`;
 }
 
+/* Backend origin (Render in production) for media the browser loads directly, e.g. <video src>. */
+const API_ORIGIN = API_URL.replace(/\/api\/?$/, '');
+
+/** Resolve a backend-relative path ("/api/...") against the backend origin, never the frontend's. */
+export function resolveApiUrl(url) {
+  if (!url || /^[a-z][a-z0-9+.-]*:/i.test(url)) return url;
+  return url.startsWith('/api/') ? `${API_ORIGIN}${url}` : url;
+}
+
 const api = axios.create({
   baseURL: API_URL,
   headers: {

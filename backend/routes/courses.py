@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 import os
 
 from database import get_db
-from auth.oauth2 import get_current_user
+from auth.oauth2 import get_current_user, get_current_user_optional, oauth2_scheme_optional
 from auth.permissions import require_role, is_owner_or_admin
 from models.user import User, UserRole
 from schemas.course import (
@@ -22,6 +22,7 @@ from services.audit_service import log_audit_event
 from config import settings
 from utils.helpers import generate_unique_filename, ensure_directory
 from utils.cache import cache_get, cache_set, cache_invalidate_prefix, invalidate_learner_cache
+from utils import media_access
 
 router = APIRouter()
 
@@ -85,7 +86,7 @@ def list_my_enrollments(
                 "difficulty": c.difficulty,
                 "duration_hours": c.duration_hours,
                 "total_lectures": c.total_lectures,
-                "price": c.price,
+                "price": c.price if c.is_paid else 0.0,
             }
         })
     return result
@@ -252,6 +253,9 @@ def enroll_in_course(
         raise HTTPException(status_code=404, detail="Course not found")
     if not course.is_published or not course.is_approved:
         raise HTTPException(status_code=400, detail="Course is not available for enrollment")
+    if course.is_paid:
+        # Paid access is only ever granted by the verified payment flow (/api/payments).
+        raise HTTPException(status_code=402, detail="This is a paid course. Please purchase it to enroll.")
     enrollment = course_service.enroll_student(db, current_user.id, course_id)
     invalidate_learner_cache(current_user.id)
     try:
@@ -305,10 +309,35 @@ def get_course_progress(
 @router.get("/{course_id}/modules", response_model=list[ModuleResponse])
 def get_course_modules(
     course_id: int,
+    token: Optional[str] = Depends(oauth2_scheme_optional),
     db: Session = Depends(get_db),
 ):
-    """Get all modules and lectures for a course."""
+    """Get all modules and lectures for a course.
+
+    For PAID courses, video URLs of non-preview lectures are only returned to enrolled
+    learners, the course owner and admins. Uploaded video files are always returned as
+    short-lived signed stream URLs (the raw /static/videos path is not publicly served).
+    """
     modules = course_service.get_course_modules(db, course_id)
+    course = course_service.get_course_by_id(db, course_id) if modules else None
+    if not course:
+        return []
+    current_user = get_current_user_optional(token, db) if token else None
+    is_paid = course.is_paid
+    if is_paid and token and current_user is None:
+        # Expired/invalid token: 401 lets the client refresh and retry instead of showing a locked course.
+        raise HTTPException(status_code=401, detail="Could not validate credentials",
+                            headers={"WWW-Authenticate": "Bearer"})
+    can_view_paid = not is_paid or media_access.can_access_paid_content(db, course, current_user)
+    is_editor = bool(current_user) and is_owner_or_admin(course.instructor_id, current_user)
+
+    def playable_url(lecture):
+        if not lecture.video or not (can_view_paid or lecture.is_preview):
+            return None
+        if media_access.is_uploaded_video(lecture.video.file_url):
+            return media_access.signed_stream_path(lecture.id, current_user.id if current_user else None)
+        return lecture.video.file_url
+
     result = []
     for module in modules:
         module_dict = ModuleResponse.model_validate(module).model_dump()
@@ -316,7 +345,10 @@ def get_course_modules(
             {
                 **LectureResponse.model_validate(l).model_dump(),
                 "has_video": l.video is not None,
-                "video_url": l.video.file_url if l.video else None,
+                "video_url": playable_url(l),
+                # Raw stored source, for the course editors' "edit video" forms only.
+                "source_url": l.video.file_url if (l.video and is_editor) else None,
+                "locked": not (can_view_paid or l.is_preview),
             }
             for l in module.lectures
         ]

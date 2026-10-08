@@ -5,9 +5,13 @@ import { toast } from 'react-hot-toast';
 import { 
   FiBookOpen, FiPlus, FiFolder, FiPlay, FiPlusCircle, FiUpload, 
   FiCheckCircle, FiEdit2, FiTrash2, FiLink, FiShield, FiUser, 
-  FiArrowLeft, FiX, FiVideo, FiClock, FiCheck, FiLayers
+  FiArrowLeft, FiX, FiVideo, FiClock, FiCheck, FiLayers, FiTag
 } from 'react-icons/fi';
+import { Link } from 'react-router-dom';
 import PageLoader from '../components/common/PageLoader';
+import PriceRequestModal from '../components/payments/PriceRequestModal';
+import paymentService from '../services/paymentService';
+import { formatMinor, isPaidCourse } from '../utils/money';
 
 const ProblemMakerModal = lazy(() => import('../components/coding/ProblemMakerModal'));
 
@@ -30,7 +34,6 @@ export default function InstructorDashboard() {
     thumbnail_url: '',
     category: 'programming',
     difficulty: 'beginner',
-    price: 0,
     prerequisites: '',
     learning_objectives: ''
   });
@@ -44,11 +47,14 @@ export default function InstructorDashboard() {
     thumbnail_url: '',
     category: 'programming',
     difficulty: 'beginner',
-    price: 0,
     prerequisites: '',
     learning_objectives: '',
     is_published: true
   });
+
+  // Pricing: instructors suggest a price; admins approve it (live prices are admin-only)
+  const [pricingCourse, setPricingCourse] = useState(null);
+  const [myPriceRequests, setMyPriceRequests] = useState([]);
 
   // Module state
   const [moduleForm, setModuleForm] = useState({ title: '', description: '', order_index: 0 });
@@ -104,6 +110,11 @@ export default function InstructorDashboard() {
     try {
       const res = await api.get('/courses/instructor/me');
       setCourses(res.data.items || []);
+      if (!isAdmin) {
+        paymentService.myPriceRequests()
+          .then((r) => setMyPriceRequests(r.data || []))
+          .catch(() => {});
+      }
     } catch (err) {
       toast.error('Failed to load courses');
     } finally {
@@ -141,10 +152,7 @@ export default function InstructorDashboard() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const res = await api.post('/courses', {
-        ...courseForm,
-        price: 0 // 100% Free guarantee
-      });
+      const res = await api.post('/courses', courseForm);
       toast.success('Course created successfully!');
       setShowCreateForm(false);
       setCourseForm({
@@ -154,7 +162,6 @@ export default function InstructorDashboard() {
         thumbnail_url: '',
         category: 'programming',
         difficulty: 'beginner',
-        price: 0,
         prerequisites: '',
         learning_objectives: ''
       });
@@ -177,7 +184,6 @@ export default function InstructorDashboard() {
       thumbnail_url: course.thumbnail_url || '',
       category: course.category || 'programming',
       difficulty: course.difficulty || 'beginner',
-      price: course.price || 0,
       prerequisites: course.prerequisites || '',
       learning_objectives: course.learning_objectives || '',
       is_published: course.is_published ?? true
@@ -383,7 +389,7 @@ export default function InstructorDashboard() {
       description: lecture.description || '',
       duration_seconds: lecture.duration_seconds || 600,
       order_index: lecture.order_index || 0,
-      video_url: lecture.video_url || ''
+      video_url: lecture.source_url || lecture.video_url || ''
     });
   };
 
@@ -570,9 +576,13 @@ export default function InstructorDashboard() {
                   <input
                     type="text"
                     disabled
-                    value="Free ($0.00)"
+                    value="Free at launch"
                     style={{ ...styles.input, opacity: 0.7, cursor: 'not-allowed' }}
                   />
+                  <span style={styles.helperText}>
+                    {isAdmin ? 'Set the live price in Admin Panel → Course Pricing after creating the course.'
+                      : 'After creating the course, use Pricing on its card to request a price for admin approval.'}
+                  </span>
                 </div>
                 <div style={{ ...styles.formGroup, gridColumn: '1 / -1' }}>
                   <label style={styles.label}>Short Summary *</label>
@@ -659,7 +669,11 @@ export default function InstructorDashboard() {
                         <div style={styles.courseCategoryTag}>
                           {course.category?.replace('_', ' ').toUpperCase()}
                         </div>
-                        <div style={styles.freeBadge}>FREE</div>
+                        {isPaidCourse(course) ? (
+                          <div style={styles.paidBadge}>{formatMinor(course.price_amount, course.currency)}</div>
+                        ) : (
+                          <div style={styles.freeBadge}>FREE</div>
+                        )}
                       </div>
 
                       <h3 style={styles.cardTitle}>{course.title}</h3>
@@ -702,6 +716,19 @@ export default function InstructorDashboard() {
                         >
                           <FiEdit2 size={15} /> Edit
                         </button>
+                        {isAdmin ? (
+                          <Link to="/admin?tab=pricing" style={styles.editActionBtn} title="Set the live price">
+                            <FiTag size={15} /> Price
+                          </Link>
+                        ) : (
+                          <button
+                            onClick={() => setPricingCourse(course)}
+                            style={styles.editActionBtn}
+                            title="Request a price change (admin approval required)"
+                          >
+                            <FiTag size={15} /> Pricing
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDeleteCourse(course.id, course.title)}
                           style={styles.deleteActionBtn}
@@ -1084,6 +1111,15 @@ export default function InstructorDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {pricingCourse && (
+        <PriceRequestModal
+          course={pricingCourse}
+          requests={myPriceRequests.filter((r) => r.course_id === pricingCourse.id)}
+          onClose={() => setPricingCourse(null)}
+          onSubmitted={() => { setPricingCourse(null); loadData(); }}
+        />
       )}
 
       {/* ---------------- EDIT COURSE MODAL ---------------- */}
@@ -1666,6 +1702,14 @@ const styles = {
   freeBadge: {
     backgroundColor: 'var(--color-success-bg)',
     color: 'var(--color-success)',
+    padding: '0.2rem 0.5rem',
+    borderRadius: '4px',
+    fontSize: '0.7rem',
+    fontWeight: 'var(--fw-bold)',
+  },
+  paidBadge: {
+    backgroundColor: 'var(--primary-subtle)',
+    color: 'var(--primary-text)',
     padding: '0.2rem 0.5rem',
     borderRadius: '4px',
     fontSize: '0.7rem',

@@ -7,7 +7,7 @@ import enum
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Column, Integer, String, Boolean, DateTime, Enum, ForeignKey, Text, Float
+    Column, Integer, String, Boolean, DateTime, Enum, ForeignKey, Text, Float, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 
@@ -49,7 +49,14 @@ class Course(Base):
     is_published = Column(Boolean, default=False, nullable=False)
     is_approved = Column(Boolean, default=False, nullable=False)
     is_featured = Column(Boolean, default=False, nullable=False)
+    # Display-only mirror of price_amount in major units (rupees). Never used for charging.
     price = Column(Float, default=0.0)
+    # Authoritative pricing — set by admins only. Amount is stored in the currency's
+    # smallest unit (paise for INR) so no floating-point arithmetic touches money.
+    pricing_type = Column(String(10), default="FREE", nullable=False, server_default="FREE")
+    price_amount = Column(Integer, default=0, nullable=False, server_default="0")
+    currency = Column(String(3), default="INR", nullable=False, server_default="INR")
+    is_purchasable = Column(Boolean, default=True, nullable=False, server_default="1")
     tags = Column(String(500), nullable=True)
     prerequisites = Column(Text, nullable=True)
     learning_objectives = Column(Text, nullable=True)
@@ -69,6 +76,11 @@ class Course(Base):
     coding_problems = relationship("CodingProblem", back_populates="course", cascade="all, delete-orphan")
     flashcards = relationship("Flashcard", back_populates="course", cascade="all, delete-orphan")
     certificates = relationship("Certificate", back_populates="course", cascade="all, delete-orphan")
+
+    @property
+    def is_paid(self) -> bool:
+        """True when access requires a verified purchase (pricing is admin-controlled)."""
+        return (self.pricing_type or "FREE").upper() == "PAID"
 
     def __repr__(self):
         return f"<Course(id={self.id}, title='{self.title}', category='{self.category}')>"
@@ -117,6 +129,9 @@ class Lecture(Base):
 
 class Enrollment(Base):
     __tablename__ = "enrollments"
+    __table_args__ = (
+        UniqueConstraint("user_id", "course_id", name="uq_enrollments_user_course"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)

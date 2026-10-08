@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import { FiUsers, FiBookOpen, FiAlertCircle, FiSettings, FiCheck, FiTrash2, FiToggleLeft, FiToggleRight, FiVolume2, FiSearch } from 'react-icons/fi';
+import AdminPaymentsPanel from '../components/admin/AdminPaymentsPanel';
+import AdminPricingPanel from '../components/admin/AdminPricingPanel';
+
+const TABS = ['overview', 'users', 'courses', 'pricing', 'payments', 'announcements'];
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -26,7 +31,11 @@ export default function AdminDashboard() {
   const [announcements, setAnnouncements] = useState([]);
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '', priority: 0 });
 
-  const [activeTab, setActiveTab] = useState('overview');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => {
+    const requested = searchParams.get('tab');
+    return TABS.includes(requested) ? requested : 'overview';
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isActioning, setIsActioning] = useState(false);
 
@@ -157,7 +166,7 @@ export default function AdminDashboard() {
     <div style={styles.container}>
       <div style={styles.header}>
         <h1 style={styles.title}>Admin Panel</h1>
-        <p style={styles.subtitle}>Manage users, review course publications, and dispatch site announcements.</p>
+        <p style={styles.subtitle}>Manage users, review course publications, set course pricing, track payments, and dispatch site announcements.</p>
       </div>
 
       {/* Tabs */}
@@ -179,6 +188,18 @@ export default function AdminDashboard() {
           style={activeTab === 'courses' ? { ...styles.tabBtn, ...styles.activeTab } : styles.tabBtn}
         >
           Pending Reviews ({pendingCourses.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('pricing')}
+          style={activeTab === 'pricing' ? { ...styles.tabBtn, ...styles.activeTab } : styles.tabBtn}
+        >
+          Course Pricing
+        </button>
+        <button
+          onClick={() => setActiveTab('payments')}
+          style={activeTab === 'payments' ? { ...styles.tabBtn, ...styles.activeTab } : styles.tabBtn}
+        >
+          Payments
         </button>
         <button
           onClick={() => setActiveTab('announcements')}
@@ -389,6 +410,20 @@ export default function AdminDashboard() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Course Pricing Tab (live prices + instructor price requests) */}
+      {activeTab === 'pricing' && (
+        <div style={styles.tabContent}>
+          <AdminPricingPanel />
+        </div>
+      )}
+
+      {/* Payments Tab */}
+      {activeTab === 'payments' && (
+        <div style={styles.tabContent}>
+          <AdminPaymentsPanel />
         </div>
       )}
 

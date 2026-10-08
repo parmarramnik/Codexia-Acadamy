@@ -46,6 +46,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const Settings = lazy(() => import('./pages/Settings'));
 const DiscussionForum = lazy(() => import('./pages/DiscussionForum'));
 const EnterpriseAI = lazy(() => import('./pages/EnterpriseAI'));
+const PaymentStatus = lazy(() => import('./pages/PaymentStatus'));
 
 /* Lazy Loaded Role-Specific Portals */
 const InstructorDashboard = lazy(() => import('./pages/InstructorDashboard'));
@@ -122,6 +123,7 @@ function AppContent() {
               <Route path="/settings" element={<Settings />} />
               <Route path="/discussion" element={<DiscussionForum />} />
               <Route path="/ai-workspace" element={<EnterpriseAI />} />
+              <Route path="/payments/:orderId" element={<PaymentStatus />} />
             </Route>
           </Route>
 

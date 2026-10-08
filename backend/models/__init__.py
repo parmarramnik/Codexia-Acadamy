@@ -13,6 +13,7 @@ from models.audit import AuditLog, SecurityLog
 from models.session import Session, LoginHistory
 from models.schedule import Reminder, StudyPlan
 from models.git import GitBranch, GitCommit, GitTag, GitMergeHistory
+from models.payment import Payment, PaymentEvent, CoursePriceRequest
 import models.v3_models
 import models.v4_models
 
@@ -26,5 +27,6 @@ __all__ = [
     "Certificate", "AuditLog", "SecurityLog",
     "Session", "LoginHistory", "Reminder", "StudyPlan",
     "GitBranch", "GitCommit", "GitTag", "GitMergeHistory",
+    "Payment", "PaymentEvent", "CoursePriceRequest",
 ]
 

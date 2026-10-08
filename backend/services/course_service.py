@@ -11,6 +11,7 @@ from models.content import Video
 from models.user import User
 from schemas.course import CourseCreate, CourseUpdate, ModuleCreate, ModuleUpdate, LectureCreate, LectureUpdate
 from utils.helpers import generate_slug, paginate_query, PaginatedResponse
+from utils.media_access import is_stream_url
 
 
 def create_course(db: Session, data: CourseCreate, instructor: User) -> Course:
@@ -28,7 +29,11 @@ def create_course(db: Session, data: CourseCreate, instructor: User) -> Course:
         tags=data.tags,
         prerequisites=data.prerequisites,
         learning_objectives=data.learning_objectives,
-        price=data.price,
+        # Courses always start FREE; only admins set live pricing (see services/pricing_service.py).
+        price=0.0,
+        pricing_type="FREE",
+        price_amount=0,
+        currency="INR",
         is_published=False,
         is_approved=False,
     )
@@ -125,8 +130,9 @@ def list_courses(
 
 
 def update_course(db: Session, course: Course, data: CourseUpdate) -> Course:
-    """Update course fields."""
+    """Update course fields. Pricing is never changed here — it is admin-controlled via /api/pricing."""
     update_dict = data.model_dump(exclude_unset=True)
+    update_dict.pop("price", None)
     for field, value in update_dict.items():
         setattr(course, field, value)
     db.commit()
@@ -294,6 +300,8 @@ def update_lecture(db: Session, lecture: Lecture, data: LectureUpdate) -> Lectur
     """Update lecture details and associated video URL."""
     update_dict = data.model_dump(exclude_unset=True)
     video_url = update_dict.pop("video_url", None)
+    if is_stream_url(video_url):
+        video_url = None  # A signed playback link echoed back by an edit form: keep the stored source
 
     for field, value in update_dict.items():
         setattr(lecture, field, value)

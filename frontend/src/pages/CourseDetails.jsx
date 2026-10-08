@@ -6,12 +6,16 @@ import { toast } from 'react-hot-toast';
 import { 
   FiBookOpen, FiClock, FiCheck, FiFolder, FiPlay, FiCheckCircle, 
   FiAward, FiUser, FiChevronDown, FiChevronUp, 
-  FiShield, FiLayers, FiChevronRight, FiArrowLeft
+  FiShield, FiLayers, FiChevronRight, FiArrowLeft, FiLock
 } from 'react-icons/fi';
 import LoadingButton from '../components/common/LoadingButton';
 import PageLoader from '../components/common/PageLoader';
 import EmptyState from '../components/common/EmptyState';
 import CourseCover from '../components/common/CourseCover';
+import PurchasePanel from '../components/payments/PurchasePanel';
+import useCoursePurchase from '../hooks/useCoursePurchase';
+import paymentService from '../services/paymentService';
+import { formatMinor, isPaidCourse } from '../utils/money';
 import '../styles/pages/course-details.css';
 
 export default function CourseDetails() {
@@ -34,6 +38,23 @@ export default function CourseDetails() {
   const [activeTab, setActiveTab] = useState('curriculum');
 
   const isAdminOrInstructor = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'instructor';
+  // Mirrors the backend: purchases/enrollments are for student accounts (super_admin passes every role check).
+  const canPurchase = user?.role === 'student' || user?.role === 'super_admin';
+
+  async function refreshModules(courseId) {
+    try {
+      const res = await api.get(`/courses/${courseId}/modules`);
+      setModules(res.data || []);
+    } catch { /* keep current list */ }
+  }
+
+  const purchase = useCoursePurchase({
+    course,
+    onEnrolled: () => {
+      setIsEnrolled(true);
+      if (course) refreshModules(course.id); // paid lecture videos unlock after purchase
+    },
+  });
 
   useEffect(() => {
     async function fetchCourseDetails() {
@@ -78,6 +99,19 @@ export default function CourseDetails() {
 
             if (progressRes.data && Array.isArray(progressRes.data)) {
               setCompletedLectures(progressRes.data);
+            }
+
+            // Paid course not owned yet: let the backend reconcile any payment that completed
+            // while the learner was away (closed tab, lost callback, late webhook).
+            if (!myEnroll && isPaidCourse(courseRes.data)) {
+              const { data: state } = await paymentService.getCourseState(courseRes.data.id);
+              if (state?.enrolled) {
+                setIsEnrolled(true);
+                refreshModules(courseRes.data.id);
+              } else if (state?.latest_payment && (state.latest_payment.status === 'PENDING'
+                  || (state.latest_payment.status === 'SUCCESS' && state.latest_payment.access_pending))) {
+                purchase.resume(state.latest_payment);
+              }
             }
           } catch (e) {
             console.error('Error fetching user status:', e);
@@ -330,6 +364,9 @@ export default function CourseDetails() {
 
                                       <div style={styles.lectureRowRight}>
                                         <span style={styles.lectureDurationText}>{lectureMin} min</span>
+                                        {!isEnrolled && lecture.locked ? (
+                                          <FiLock size={13} style={{ color: 'var(--text-muted)' }} aria-label="Unlocks after purchase" />
+                                        ) : null}
                                         {isEnrolled ? (
                                           <Link to={`/courses/${course.slug}/learn/${lecture.id}`} className="btn btn-secondary btn-sm">
                                             Start <FiChevronRight size={13} />
@@ -426,17 +463,38 @@ export default function CourseDetails() {
             </div>
 
             <div style={styles.enrollmentCardBody}>
-              <div style={styles.pricingBanner}>
-                <div>
-                  <span style={styles.pricingLabel}>Access Level</span>
-                  <div style={styles.freePriceTag}>Free Enrollment</div>
+              {isPaidCourse(course) ? (
+                <div style={styles.pricingBanner}>
+                  <div>
+                    <span style={styles.pricingLabel}>{isEnrolled ? 'Purchased' : 'One-time payment'}</span>
+                    <div style={styles.freePriceTag}>{formatMinor(course.price_amount, course.currency)}</div>
+                  </div>
+                  {isEnrolled
+                    ? <span className="badge badge-success">✓ Enrolled</span>
+                    : <span className="badge badge-primary">Lifetime access</span>}
                 </div>
-                <span className="badge badge-success">100% Free</span>
-              </div>
+              ) : (
+                <div style={styles.pricingBanner}>
+                  <div>
+                    <span style={styles.pricingLabel}>Access Level</span>
+                    <div style={styles.freePriceTag}>Free Enrollment</div>
+                  </div>
+                  <span className="badge badge-success">100% Free</span>
+                </div>
+              )}
 
               {/* Action Buttons */}
               {isEnrolled ? (
                 <div style={styles.enrolledActionArea}>
+                  {purchase.phase === 'success' && (
+                    <div className="alert alert-success" role="status" aria-live="polite">
+                      <FiCheckCircle size={15} />
+                      <div>
+                        <strong style={{ display: 'block' }}>Payment successful</strong>
+                        <span>You are now enrolled.</span>
+                      </div>
+                    </div>
+                  )}
                   <div style={styles.progressContainer}>
                     <div style={styles.progressHeaderRow}>
                       <span style={styles.progressLabel}>Course Progress</span>
@@ -475,14 +533,26 @@ export default function CourseDetails() {
                 </div>
               ) : (
                 <div style={styles.unEnrolledActionArea}>
-                  <LoadingButton
-                    onClick={handleEnroll}
-                    loading={isEnrolling}
-                    loadingText="Enrolling..."
-                    className="btn btn-primary btn-lg btn-block"
-                  >
-                    Enroll in Course for Free
-                  </LoadingButton>
+                  {isPaidCourse(course) ? (
+                    <PurchasePanel
+                      course={course}
+                      phase={purchase.phase}
+                      message={purchase.message}
+                      orderId={purchase.orderId}
+                      onBuy={purchase.buy}
+                      canPurchase={canPurchase}
+                      blockedReason="Staff accounts have full access through Course Studio. Purchasing is available to student accounts."
+                    />
+                  ) : (
+                    <LoadingButton
+                      onClick={handleEnroll}
+                      loading={isEnrolling}
+                      loadingText="Enrolling..."
+                      className="btn btn-primary btn-lg btn-block"
+                    >
+                      Enroll in Course for Free
+                    </LoadingButton>
+                  )}
                 </div>
               )}
 

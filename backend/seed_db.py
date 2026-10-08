@@ -465,7 +465,7 @@ def seed_database():
                 course.total_lectures = total_lectures
                 course.is_published = True
                 course.is_approved = True
-                course.price = 0.0
+                # Pricing is owned by admins (Course Pricing panel) — never reset it on reseed.
                 course.learning_objectives = c_data["learning_objectives"]
                 course.prerequisites = c_data["prerequisites"]
                 course.thumbnail_url = c_data["thumbnail_url"]

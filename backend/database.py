@@ -166,7 +166,12 @@ def create_tables():
         # 6. courses table migrations
         if "courses" in existing_tables:
             course_cols = {col["name"] for col in inspector.get_columns("courses")}
+            pricing_added = "pricing_type" not in course_cols
             for col_name, col_type in [
+                ("pricing_type", "VARCHAR(10) DEFAULT 'FREE' NOT NULL"),
+                ("price_amount", "INTEGER DEFAULT 0 NOT NULL"),
+                ("currency", "VARCHAR(3) DEFAULT 'INR' NOT NULL"),
+                ("is_purchasable", "BOOLEAN DEFAULT TRUE NOT NULL"),
                 ("short_description", "VARCHAR(500)"),
                 ("thumbnail_url", "VARCHAR(500)"),
                 ("duration_hours", "FLOAT DEFAULT 0.0"),
@@ -186,6 +191,34 @@ def create_tables():
                         print(f"[Migration] Added missing column '{col_name}' to 'courses'")
                     except Exception as col_err:
                         print(f"[Migration Warning] Could not add '{col_name}' to 'courses': {col_err}")
+            if pricing_added:
+                # Existing courses start FREE (the previous business rule). Legacy `price` values are
+                # kept untouched; courses that carried one are reported so an admin can set real
+                # pricing deliberately instead of the migration silently turning them into paid courses.
+                try:
+                    with engine.connect() as conn:
+                        legacy = conn.execute(text(
+                            "SELECT id, title, price FROM courses WHERE price > 0 AND pricing_type = 'FREE'"
+                        )).fetchall()
+                    for row in legacy:
+                        print(f"[Migration Notice] Course #{row[0]} '{row[1]}' has legacy price {row[2]} but is "
+                              "FREE; set its pricing in Admin Panel -> Course Pricing if it should be paid")
+                except Exception as sync_err:
+                    print(f"[Migration Warning] Could not inspect legacy course prices: {sync_err}")
+
+        # 6b. One enrollment per learner per course (protects paid access from duplicates)
+        if "enrollments" in existing_tables:
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS uq_enrollments_user_course "
+                        "ON enrollments (user_id, course_id)"
+                    ))
+            except Exception as idx_err:
+                print(
+                    "[Migration Warning] Could not add unique (user_id, course_id) index to 'enrollments' — "
+                    f"duplicate enrollment rows probably exist and should be merged manually: {idx_err}"
+                )
 
         # 7. lectures table migrations
         if "lectures" in existing_tables:

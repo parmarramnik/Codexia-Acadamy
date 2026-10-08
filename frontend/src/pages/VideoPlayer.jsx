@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import api from '../services/api';
+import api, { resolveApiUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { 
   FiChevronLeft, FiChevronRight, FiCheckCircle, FiBookOpen, FiCpu, 
-  FiLink, FiTrash2, FiEdit2, FiShield, FiX, FiCheck, FiVideo, FiPlay 
+  FiLink, FiTrash2, FiEdit2, FiShield, FiX, FiCheck, FiVideo, FiPlay, FiLock
 } from 'react-icons/fi';
 import PageLoader from '../components/common/PageLoader';
 
@@ -54,7 +54,8 @@ export default function VideoPlayer() {
         }
         setCurrentLecture(found);
         if (found) {
-          setNewVideoUrl(found.video_url || '');
+          // Editors get the stored source; video_url may be a short-lived signed playback link.
+          setNewVideoUrl(found.source_url || found.video_url || '');
         }
       } catch (err) {
         toast.error('Failed to load lecture information');
@@ -113,7 +114,7 @@ export default function VideoPlayer() {
         video_url: cleanUrl
       });
       toast.success('Lecture video updated successfully!');
-      setCurrentLecture(prev => ({ ...prev, video_url: cleanUrl, has_video: Boolean(cleanUrl) }));
+      setCurrentLecture(prev => ({ ...prev, video_url: cleanUrl, source_url: cleanUrl, has_video: Boolean(cleanUrl) }));
       setShowVideoModal(false);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to update video link');
@@ -130,7 +131,7 @@ export default function VideoPlayer() {
     try {
       await api.delete(`/lectures/${currentLecture.id}/video`);
       toast.success('Video removed from lecture');
-      setCurrentLecture(prev => ({ ...prev, video_url: null, has_video: false }));
+      setCurrentLecture(prev => ({ ...prev, video_url: null, source_url: null, has_video: false }));
       setNewVideoUrl('');
       setShowVideoModal(false);
     } catch (err) {
@@ -163,8 +164,8 @@ export default function VideoPlayer() {
   const completedCount = completedLectures.length;
   const progressPercent = totalLecturesCount > 0 ? Math.round((completedCount / totalLecturesCount) * 100) : 0;
 
-  // Resolve video stream type and embed link
-  const rawVideo = currentLecture.video_url || '';
+  // Resolve video stream type and embed link (uploaded files arrive as signed backend stream paths)
+  const rawVideo = resolveApiUrl(currentLecture.video_url || '');
   
   const resolveVideoProvider = (url) => {
     if (!url || !url.trim()) return { type: 'none', provider: 'None', embedUrl: '' };
@@ -280,7 +281,13 @@ export default function VideoPlayer() {
       <div className="r-stack" style={styles.playerLayout}>
         {/* Left Video Area */}
         <div style={styles.videoArea}>
-          {videoMeta.type === 'iframe' ? (
+          {currentLecture.locked ? (
+            <div style={styles.videoPlaceholder}>
+              <FiLock size={44} style={styles.placeholderIcon} />
+              <p style={styles.placeholderText}>This lecture unlocks after you purchase the course.</p>
+              <Link to={`/courses/${slug}`} className="btn btn-primary btn-sm">View purchase options</Link>
+            </div>
+          ) : videoMeta.type === 'iframe' ? (
             <div style={styles.iframeContainer}>
               <iframe
                 src={videoMeta.embedUrl}

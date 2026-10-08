@@ -2,9 +2,12 @@
 Lecture routes — video upload, progress tracking.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Request
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from sqlalchemy.orm import Session
+import mimetypes
 import os
+import re
 
 from database import get_db
 from auth.oauth2 import get_current_user
@@ -12,6 +15,7 @@ from auth.permissions import is_owner_or_admin
 from models.user import User
 from models.course import Lecture, Module
 from models.content import Video
+from utils import media_access
 from pydantic import BaseModel
 from schemas.course import LectureCreate, LectureUpdate, LectureResponse, ProgressUpdate
 from schemas.user import MessageResponse
@@ -110,6 +114,9 @@ def attach_video_url(
         raise HTTPException(status_code=403, detail="Not authorized")
 
     url = data.video_url.strip()
+    if media_access.is_stream_url(url):
+        # A signed playback link echoed back from the player: the stored source is unchanged.
+        return {"message": "Video URL unchanged"}
     existing_video = db.query(Video).filter(Video.lecture_id == lecture_id).first()
     if existing_video:
         existing_video.file_url = url
@@ -151,7 +158,7 @@ def remove_lecture_video(
     return {"message": "Video removed from lecture successfully"}
 
 
-@router.post("/{lecture_id}/video", response_model=MessageResponse)
+@router.post("/{lecture_id}/video")
 async def upload_video(
     lecture_id: int,
     file: UploadFile = File(...),
@@ -205,7 +212,78 @@ async def upload_video(
         db.add(video)
 
     db.commit()
-    return {"message": "Video uploaded successfully"}
+    # The stored source path is returned to the course editor (owner/admin only) so the edit form
+    # keeps it; learners only ever receive signed stream URLs.
+    return {"message": "Video uploaded successfully", "file_url": f"/static/videos/{filename}"}
+
+
+_RANGE_RE = re.compile(r"^bytes=(\d*)-(\d*)$")
+_STREAM_CHUNK = 1024 * 1024
+
+
+def _iter_file_range(path: str, start: int, length: int):
+    with open(path, "rb") as f:
+        f.seek(start)
+        remaining = length
+        while remaining > 0:
+            chunk = f.read(min(_STREAM_CHUNK, remaining))
+            if not chunk:
+                break
+            remaining -= len(chunk)
+            yield chunk
+
+
+@router.get("/{lecture_id}/stream", include_in_schema=False)
+def stream_lecture_video(
+    lecture_id: int,
+    request: Request,
+    uid: int = Query(..., ge=0),
+    exp: int = Query(...),
+    sig: str = Query(..., min_length=64, max_length=64),
+    db: Session = Depends(get_db),
+):
+    """Serve an uploaded lecture video via a signed, expiring URL; course access is re-checked every time."""
+    if not media_access.verify_stream_signature(lecture_id, uid, exp, sig):
+        raise HTTPException(status_code=403, detail="This video link is invalid or has expired. Reload the lecture.")
+    lecture = db.query(Lecture).filter(Lecture.id == lecture_id).first()
+    video = db.query(Video).filter(Video.lecture_id == lecture_id).first() if lecture else None
+    if not video or not media_access.is_uploaded_video(video.file_url):
+        raise HTTPException(status_code=404, detail="Video not found")
+    module = db.query(Module).filter(Module.id == lecture.module_id).first()
+    course = course_service.get_course_by_id(db, module.course_id) if module else None
+    if not course:
+        raise HTTPException(status_code=404, detail="Video not found")
+    viewer = db.query(User).filter(User.id == uid, User.is_active == True).first() if uid else None
+    if not media_access.can_watch_lecture(db, course, lecture, viewer):
+        raise HTTPException(status_code=403, detail="Purchase this course to watch this lecture.")
+
+    videos_dir = os.path.realpath(os.path.join(os.path.dirname(os.path.dirname(__file__)), settings.UPLOAD_DIR, "videos"))
+    path = os.path.realpath(os.path.join(videos_dir, os.path.basename(video.file_url)))
+    if os.path.dirname(path) != videos_dir or not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    media_type = video.mime_type or mimetypes.guess_type(path)[0] or "video/mp4"
+    size = os.path.getsize(path)
+    headers = {"Accept-Ranges": "bytes", "Cache-Control": "private, no-store"}
+    range_header = request.headers.get("range")
+    if not range_header:
+        return FileResponse(path, media_type=media_type, headers=headers)
+
+    match = _RANGE_RE.match(range_header.strip())
+    if not match or match.group(1) == match.group(2) == "":
+        return Response(status_code=416, headers={"Content-Range": f"bytes */{size}"})
+    if match.group(1) == "":
+        start, end = max(0, size - int(match.group(2))), size - 1  # suffix range: last N bytes
+    else:
+        start = int(match.group(1))
+        end = min(int(match.group(2)), size - 1) if match.group(2) else size - 1
+    if start >= size or start > end:
+        return Response(status_code=416, headers={"Content-Range": f"bytes */{size}"})
+    length = end - start + 1
+    return StreamingResponse(
+        _iter_file_range(path, start, length), status_code=206, media_type=media_type,
+        headers={**headers, "Content-Range": f"bytes {start}-{end}/{size}", "Content-Length": str(length)},
+    )
 
 
 @router.patch("/{lecture_id}/progress", response_model=MessageResponse)

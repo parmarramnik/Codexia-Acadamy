@@ -61,7 +61,7 @@ def sync_all_to_elasticsearch(db: Session) -> Dict[str, Any]:
                 "short_description": c.short_description or "",
                 "description": c.description or "",
                 "tags": c.tags or "",
-                "price": float(c.price or 0.0),
+                "price": float(c.price or 0.0) if c.is_paid else 0.0,
                 "instructor_name": c.instructor.full_name if c.instructor else "",
                 "is_published": c.is_published,
                 "is_approved": c.is_approved,
@@ -299,7 +299,7 @@ def search_courses(
             "category": c.category,
             "difficulty": c.difficulty,
             "short_description": c.short_description,
-            "price": c.price,
+            "price": c.price if c.is_paid else 0.0,
             "instructor_name": c.instructor.full_name if c.instructor else "",
             "type": "course"
         }

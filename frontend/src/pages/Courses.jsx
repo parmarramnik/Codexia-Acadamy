@@ -6,6 +6,7 @@ import PageHeader from '../components/common/PageHeader';
 import EmptyState from '../components/common/EmptyState';
 import CourseCover from '../components/common/CourseCover';
 import { SkeletonGrid } from '../components/common/Skeleton';
+import { formatMinor, isPaidCourse } from '../utils/money';
 
 export default function Courses() {
   const [search, setSearch] = useState('');
@@ -113,6 +114,9 @@ export default function Courses() {
                   <div className="course-card-tags">
                     <span className="badge badge-primary">{(course.category || '').replace('_', ' ')}</span>
                     <span className="badge badge-neutral">{course.difficulty}</span>
+                    {isPaidCourse(course)
+                      ? <span className="badge badge-warning">{formatMinor(course.price_amount, course.currency)}</span>
+                      : <span className="badge badge-success">Free</span>}
                   </div>
                   <h3 className="course-card-title">{course.title}</h3>
                   <p className="course-card-desc">{course.short_description || 'Master modern skills with curated video lectures and exercises.'}</p>
