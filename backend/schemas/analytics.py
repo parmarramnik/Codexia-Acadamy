@@ -206,14 +206,18 @@ class AnnouncementResponse(BaseModel):
 
 class ChatMessage(BaseModel):
     message: str = Field(..., min_length=1, max_length=5000)
-    course_id: Optional[int] = None
-    session_id: Optional[str] = None
+    course_id: Optional[int] = Field(None, ge=1)
+    session_id: Optional[str] = Field(None, max_length=100)
 
 
 class ChatResponse(BaseModel):
     response: str
     session_id: str
     tokens_used: int = 0
+    truncated: bool = False
+    # True only when the answer was built from retrieved course material.
+    grounded: bool = False
+    sources: List[dict] = []
 
 
 class AIGenerateRequest(BaseModel):
@@ -224,9 +228,9 @@ class AIGenerateRequest(BaseModel):
 
 
 class AIDebugRequest(BaseModel):
-    code: str = Field(..., min_length=1)
-    language: str
-    error_message: Optional[str] = None
+    code: str = Field(..., min_length=1, max_length=50000)
+    language: str = Field(..., max_length=30)
+    error_message: Optional[str] = Field(None, max_length=10000)
 
 
 class AIDebugResponse(BaseModel):

@@ -14,6 +14,7 @@ from models.session import Session, LoginHistory
 from models.schedule import Reminder, StudyPlan
 from models.git import GitBranch, GitCommit, GitTag, GitMergeHistory
 from models.payment import Payment, PaymentEvent, PaymentIdempotencyKey, CoursePriceRequest
+from models.rag import CourseDocument, DocumentChunk
 import models.v3_models
 import models.v4_models
 
@@ -28,5 +29,6 @@ __all__ = [
     "Session", "LoginHistory", "Reminder", "StudyPlan",
     "GitBranch", "GitCommit", "GitTag", "GitMergeHistory",
     "Payment", "PaymentEvent", "PaymentIdempotencyKey", "CoursePriceRequest",
+    "CourseDocument", "DocumentChunk",
 ]
 

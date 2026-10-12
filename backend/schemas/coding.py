@@ -122,13 +122,13 @@ class CodingProblemListResponse(BaseModel):
 
 
 class CodeRunRequest(BaseModel):
-    language: str
-    code: str = Field(..., min_length=1)
+    language: str = Field(..., max_length=20)
+    code: str = Field(..., min_length=1, max_length=65536)
 
 
 class CodeSubmitRequest(BaseModel):
-    language: str
-    code: str = Field(..., min_length=1)
+    language: str = Field(..., max_length=20)
+    code: str = Field(..., min_length=1, max_length=65536)
 
 
 class SubmissionResponse(BaseModel):

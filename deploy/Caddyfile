@@ -1,0 +1,14 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+	request_body {
+		max_size 520MB
+	}
+	# Caddy sets X-Forwarded-For/-Proto itself and discards values sent by clients.
+	reverse_proxy frontend:80 {
+		flush_interval -1
+	}
+}

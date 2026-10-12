@@ -12,7 +12,19 @@ from fastapi.responses import JSONResponse
 
 from config import settings
 
-limiter = Limiter(key_func=get_remote_address)
+_storage_options = (
+    {"socket_timeout": settings.REDIS_SOCKET_TIMEOUT, "socket_connect_timeout": settings.REDIS_SOCKET_TIMEOUT,
+     "max_connections": settings.REDIS_MAX_CONNECTIONS}
+    if settings.RATE_LIMIT_STORAGE_URI.startswith(("redis://", "rediss://")) else {}
+)
+
+# If Redis is unreachable at runtime the limiter degrades to per-process counters instead of failing requests.
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=settings.RATE_LIMIT_STORAGE_URI,
+    storage_options=_storage_options,
+    in_memory_fallback_enabled=True,
+)
 
 
 def setup_rate_limiter(app: FastAPI) -> None:

@@ -19,6 +19,9 @@ import time
 # Lazy redis client instance & in-memory cache fallback
 _redis_client = None
 _redis_available = None
+_redis_error: Optional[str] = None
+_redis_retry_at = 0.0
+_REDIS_RETRY_SECONDS = 30.0
 _mem_cache: dict[str, tuple[Any, float]] = {}
 
 
@@ -34,16 +37,30 @@ class JSONCustomEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
+def _safe_target(url: str) -> str:
+    """host:port only — the URL itself carries the password and must never be logged."""
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        return f"{parsed.scheme}://{parsed.hostname}:{parsed.port or ''}".rstrip(":")
+    except Exception:
+        return "redis"
+
+
 def get_redis_client():
-    """Initializes and returns the Redis client or None if unavailable."""
-    global _redis_client, _redis_available
-    if _redis_available is False:
-        return None
+    """
+    Return a connected Redis client, or None when Redis is disabled/unreachable.
+    A failed connection is retried every 30 seconds (not remembered forever), so a Redis that
+    comes up after the API does is picked up without a restart. Accepts redis:// and rediss:// (TLS).
+    """
+    global _redis_client, _redis_available, _redis_error, _redis_retry_at
     if _redis_client is not None:
         return _redis_client
-
     if not getattr(settings, "CACHE_ENABLED", True):
         _redis_available = False
+        _redis_error = "disabled"
+        return None
+    if _redis_available is False and time.time() < _redis_retry_at:
         return None
 
     try:
@@ -51,18 +68,44 @@ def get_redis_client():
         client = redis.from_url(
             settings.REDIS_URL,
             decode_responses=True,
-            socket_timeout=1.0,
-            socket_connect_timeout=1.0,
+            socket_timeout=settings.REDIS_SOCKET_TIMEOUT,
+            socket_connect_timeout=settings.REDIS_SOCKET_TIMEOUT,
+            socket_keepalive=True,
+            retry_on_timeout=True,
+            health_check_interval=30,
+            max_connections=settings.REDIS_MAX_CONNECTIONS,
+            client_name="codexia",
         )
         client.ping()
         _redis_client = client
         _redis_available = True
-        logger.info(f"Connected to Redis cache at {settings.REDIS_URL}")
+        _redis_error = None
+        logger.info("Connected to Redis cache at %s", _safe_target(settings.REDIS_URL))
         return _redis_client
-    except Exception:
+    except Exception as exc:
         _redis_available = False
-        logger.info("External Redis not configured/offline. Operating with high-performance in-memory caching.")
+        _redis_error = type(exc).__name__
+        _redis_retry_at = time.time() + _REDIS_RETRY_SECONDS
+        logger.warning("Redis unavailable at %s (%s); using the per-process in-memory cache until it recovers",
+                       _safe_target(settings.REDIS_URL), _redis_error)
         return None
+
+
+def cache_status() -> dict:
+    """Operational status of the cache backend (no credentials)."""
+    client = get_redis_client()
+    if client is not None:
+        try:
+            client.ping()
+            return {"status": "healthy", "backend": "redis"}
+        except Exception as exc:
+            return {"status": "unhealthy", "backend": "redis", "detail": type(exc).__name__}
+    if not getattr(settings, "CACHE_ENABLED", True):
+        return {"status": "disabled", "backend": "memory"}
+    # Redis was expected (REDIS_URL set) but is not reachable: the app still works, with a
+    # per-process cache, which is why this is "degraded" and "unhealthy" only when Redis is required.
+    return {"status": "unhealthy" if settings.REDIS_REQUIRED else "degraded", "backend": "memory",
+            "detail": _redis_error or "not connected"}
 
 
 def cache_get(key: str) -> Optional[Any]:
@@ -74,7 +117,7 @@ def cache_get(key: str) -> Optional[Any]:
             if data:
                 return json.loads(data)
         except Exception as e:
-            logger.debug(f"Cache get error for key '{key}': {e}")
+            logger.warning("Cache get error: %s", type(e).__name__)
         return None
 
     # In-memory cache fallback

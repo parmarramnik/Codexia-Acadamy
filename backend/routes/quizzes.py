@@ -212,8 +212,8 @@ def create_quiz_ai(
         difficulty=data.difficulty
     )
 
-    if not generated_q_list or "error" in generated_q_list[0]:
-        raise HTTPException(status_code=500, detail="AI quiz generation failed. Please try again.")
+    if not generated_q_list:
+        raise HTTPException(status_code=502, detail="AI quiz generation failed. Please try again.")
 
     target_course_id = data.course_id
     if not target_course_id:
@@ -248,11 +248,12 @@ def create_quiz_ai(
         db.add(q_obj)
         db.flush()
 
-        options = g_q.get("options", ["Option A", "Option B", "Option C", "Option D"])
-        correct_ans = g_q.get("correct_answer", options[0])
+        # generate_quiz_questions() already validated that exactly one option is the correct answer.
+        options = g_q["options"]
+        correct_ans = g_q["correct_answer"]
 
         for a_idx, opt_text in enumerate(options, start=1):
-            is_corr = str(opt_text).strip().lower() == str(correct_ans).strip().lower() or a_idx == 1
+            is_corr = str(opt_text).strip().lower() == str(correct_ans).strip().lower()
             answer = Answer(
                 question_id=q_obj.id,
                 content=opt_text,

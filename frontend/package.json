@@ -6,21 +6,26 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node scripts/markdown.test.mjs && node scripts/render-check.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
     "@tanstack/react-query": "^5.102.8",
     "@tanstack/react-query-devtools": "^5.102.8",
     "axios": "^1.7.4",
+    "katex": "^0.19.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.4.1",
     "react-icons": "^5.3.0",
     "react-markdown": "^9.0.1",
     "react-router-dom": "^6.26.0",
-    "react-syntax-highlighter": "^15.5.0",
-    "recharts": "^2.12.7"
+    "react-syntax-highlighter": "^16.1.2",
+    "recharts": "^2.12.7",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",

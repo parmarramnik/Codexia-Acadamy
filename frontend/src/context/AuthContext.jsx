@@ -33,8 +33,8 @@ export function AuthProvider({ children }) {
     loadUser();
   }, [loadUser]);
 
-  const login = async (email, password, rememberMe = false) => {
-    const response = await api.post('/auth/login', { email, password, remember_me: rememberMe });
+  const login = async (email, password) => {
+    const response = await api.post('/auth/login', { email, password });
     const { access_token, refresh_token, user: userData } = response.data;
 
     localStorage.setItem('access_token', access_token);

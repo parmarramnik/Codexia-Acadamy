@@ -5,6 +5,10 @@ import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import LoadingButton from '../components/common/LoadingButton';
 import PageLoader from '../components/common/PageLoader';
+import ErrorState from '../components/common/ErrorState';
+import CodeReviewResult from '../components/ai/CodeReviewResult';
+import { describeApiError } from '../hooks/useTutorChat';
+import '../styles/ai-workspace.css';
 import { useTheme } from '../context/ThemeContext';
 import { 
   FiCode, 
@@ -88,6 +92,7 @@ export default function CodingPractice() {
   const [isFav, setIsFav] = useState(false);
   const [isProblemSolved, setIsProblemSolved] = useState(false);
   const [aiReview, setAiReview] = useState(null);
+  const [aiReviewError, setAiReviewError] = useState(null);
   const [isReviewing, setIsReviewing] = useState(false);
   
   // Loading states
@@ -306,7 +311,7 @@ export default function CodingPractice() {
       const res = await api.post(`/coding/problems/${selectedProblem.id}/run`, {
         language,
         code
-      });
+      }, EXEC_REQUEST);
       setResults({
         status: res.data.passed === res.data.total ? 'Accepted' : 'Wrong Answer',
         passed: res.data.passed,
@@ -346,7 +351,7 @@ export default function CodingPractice() {
         code,
         language,
         custom_input: customInput
-      });
+      }, EXEC_REQUEST);
       setCustomResult(res.data);
       if (res.data.status === 'completed') {
         toast.success('Custom test executed successfully!');
@@ -380,7 +385,7 @@ export default function CodingPractice() {
       const res = await api.post(`/coding/problems/${selectedProblem.id}/submit`, {
         language,
         code
-      });
+      }, EXEC_REQUEST);
       const isAccepted = res.data.status === 'ACCEPTED' || res.data.status === 'accepted';
       setResults({
         status: res.data.status,
@@ -430,16 +435,17 @@ export default function CodingPractice() {
     setIsReviewing(true);
     setLeftTab('ai');
     setAiReview(null);
+    setAiReviewError(null);
     try {
+      // Sends the code currently in the editor, for the language currently selected.
       const res = await api.post('/ai/coding/review', {
         code,
         language,
         problem_title: selectedProblem.title
-      });
+      }, EXEC_REQUEST);
       setAiReview(res.data);
-      toast.success('AI Code Review completed!');
     } catch (err) {
-      toast.error('AI Code Review failed');
+      setAiReviewError(describeApiError(err, 'The AI review failed. Please try again.'));
     } finally {
       setIsReviewing(false);
     }
@@ -757,56 +763,10 @@ export default function CodingPractice() {
                       <div style={styles.spinner}></div>
                       <p style={styles.loadingText}>Our AI Engine is reviewing your code structure, complexities, and potential bugs...</p>
                     </div>
+                  ) : aiReviewError ? (
+                    <ErrorState title="Review failed" description={aiReviewError} onRetry={handleAIReview} />
                   ) : aiReview ? (
-                    <div>
-                      {/* Quality Score Progress Radial */}
-                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', backgroundColor: 'var(--border-secondary)', padding: '1rem', borderRadius: '6px', marginBottom: '1.5rem' }}>
-                        <div style={{ position: 'relative', width: '60px', height: '60px', borderRadius: '50%', background: `conic-gradient(var(--accent-primary) ${aiReview.quality_score * 3.6}deg, var(--border-primary) 0deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <div style={{ position: 'absolute', width: '50px', height: '50px', borderRadius: '50%', backgroundColor: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                            {aiReview.quality_score}
-                          </div>
-                        </div>
-                        <div>
-                          <h4 style={{ margin: 0, fontSize: '0.95rem' }}>AI Quality Score</h4>
-                          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Based on best practices and design principles.</p>
-                        </div>
-                      </div>
-
-                      {/* Complexity Badges */}
-                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
-                        <div style={{ flex: 1, backgroundColor: 'var(--border-secondary)', border: '1px solid var(--border-primary)', padding: '0.75rem', borderRadius: '4px', textAlign: 'center' }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Time Complexity</span>
-                          <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--accent-primary)', marginTop: '0.25rem' }}>{aiReview.time_complexity}</div>
-                        </div>
-                        <div style={{ flex: 1, backgroundColor: 'var(--border-secondary)', border: '1px solid var(--border-primary)', padding: '0.75rem', borderRadius: '4px', textAlign: 'center' }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Space Complexity</span>
-                          <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--accent-primary)', marginTop: '0.25rem' }}>{aiReview.space_complexity}</div>
-                        </div>
-                      </div>
-
-                      {/* Bugs Found */}
-                      <h4 style={{ fontSize: '0.9rem', margin: '0 0 0.5rem 0' }}>Potential Bugs & Edge Cases</h4>
-                      {aiReview.bugs && aiReview.bugs.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
-                          {aiReview.bugs.map((bug, idx) => (
-                            <div key={idx} style={{ display: 'flex', gap: '0.5rem', backgroundColor: 'var(--color-error-bg)', borderLeft: '3px solid var(--color-error)', padding: '0.75rem', borderRadius: '4px', fontSize: '0.85rem' }}>
-                              <FiAlertCircle style={{ color: 'var(--color-error)', flexShrink: 0, marginTop: '0.1rem' }} />
-                              <span>{bug}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p style={{ fontSize: '0.85rem', color: 'var(--color-success)', marginBottom: '1.5rem' }}>✅ No major bugs detected. Great job!</p>
-                      )}
-
-                      {/* Optimizations */}
-                      <h4 style={{ fontSize: '0.9rem', margin: '0 0 0.5rem 0' }}>Optimization Suggestions</h4>
-                      <ul style={{ margin: 0, paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        {(aiReview.optimization_tips || []).map((tip, idx) => (
-                          <li key={idx}>{tip}</li>
-                        ))}
-                      </ul>
-                    </div>
+                    <CodeReviewResult review={aiReview} language={language} />
                   ) : (
                     <div style={{ ...styles.emptyState, padding: '2rem' }}>
                       <FiCpu size={36} style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }} />
@@ -1346,6 +1306,9 @@ export default function CodingPractice() {
     </div>
   );
 }
+
+// Remote execution can legitimately take longer than the default 30s API timeout.
+const EXEC_REQUEST = { timeout: 120000 };
 
 const styles = {
   workspaceWrapper: {

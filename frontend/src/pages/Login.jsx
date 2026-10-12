@@ -11,7 +11,6 @@ export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -42,7 +41,7 @@ export default function Login() {
 
     setIsLoading(true);
     try {
-      await login(email, password, rememberMe);
+      await login(email, password);
       toast.success('Successfully logged in!');
       navigate('/dashboard');
     } catch (err) {
@@ -126,16 +125,6 @@ export default function Login() {
             </button>
           </div>
         </div>
-
-        <label htmlFor="remember_me" className="checkbox-row">
-          <input
-            id="remember_me"
-            type="checkbox"
-            checked={rememberMe}
-            onChange={(e) => setRememberMe(e.target.checked)}
-          />
-          Remember me for 7 days
-        </label>
 
         <LoadingButton
           type="submit"

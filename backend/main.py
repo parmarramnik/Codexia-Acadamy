@@ -6,7 +6,7 @@ Registers all middleware, routes, and startup events.
 from fastapi import FastAPI
 import os
 
-from config import settings
+from config import settings, validate_production_settings
 from database import create_tables
 from middleware.cors import setup_cors
 from middleware.rate_limiter import setup_rate_limiter
@@ -51,11 +51,21 @@ def create_app() -> FastAPI:
     # Startup event
     @app.on_event("startup")
     def on_startup():
+        validate_production_settings()
         create_tables()
+        # Documents left PROCESSING by a restart can never finish on their own: surface them for re-indexing.
+        try:
+            from ai.rag.service import recover_interrupted_documents
+            recover_interrupted_documents()
+        except Exception as recover_err:
+            import logging
+            logging.getLogger("uvicorn.error").warning(f"RAG recovery check skipped: {recover_err}")
         # Automatically guarantee the 5 courses, RBAC, and 20 DSA coding problems are seeded on deployment
         try:
             from seed_db import seed_database
             seed_database()
+            from scripts.bootstrap import ensure_admin
+            ensure_admin()
         except Exception as seed_err:
             import logging
             logging.getLogger("uvicorn.error").warning(f"Auto-seeding check on startup: {seed_err}")
@@ -67,7 +77,7 @@ def create_app() -> FastAPI:
         """Redirect the root request directly to the Swagger API documentation."""
         return RedirectResponse(url="/api/docs")
 
-    # Health check
+    # Health check (liveness: the process is up; cheap, no dependencies)
     @app.get("/api/health", tags=["Health"])
     def health_check():
         return {
@@ -75,6 +85,38 @@ def create_app() -> FastAPI:
             "app": settings.APP_NAME,
             "version": settings.APP_VERSION,
         }
+
+    # Readiness: reports real dependency status. 503 only when a REQUIRED dependency is down.
+    @app.get("/api/health/ready", tags=["Health"])
+    def readiness():
+        from fastapi.responses import JSONResponse
+        from sqlalchemy import text
+        from database import engine
+        from utils.cache import cache_status
+        from services import code_runner
+        import importlib.util
+
+        components = {}
+        try:
+            with engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+            components["database"] = {"status": "healthy"}
+        except Exception as exc:  # noqa: BLE001
+            components["database"] = {"status": "unhealthy", "detail": type(exc).__name__}
+        components["cache"] = cache_status()
+        runner = code_runner.health() if settings.DEBUG is False or settings.JUDGE0_URL else {"status": "dev-only"}
+        components["code_execution"] = {"status": runner["status"], **({"provider": runner["provider"]} if "provider" in runner else {})}
+        packages = {name: importlib.util.find_spec(name) is not None for name in ("faiss", "sentence_transformers")}
+        components["rag"] = {"status": "configured" if settings.RAG_ENABLED and all(packages.values()) else
+                             ("disabled" if not settings.RAG_ENABLED else "unavailable"),
+                             "model": settings.EMBEDDING_MODEL, "packages_installed": packages}
+        components["ai"] = {"status": "configured" if settings.GEMINI_API_KEY else "not_configured"}
+        components["payments"] = {"status": "configured" if settings.payments_configured else "not_configured",
+                                  "webhook_secret": bool(settings.RAZORPAY_WEBHOOK_SECRET)}
+        failed = [n for n, c in components.items() if c["status"] == "unhealthy"]
+        return JSONResponse(status_code=503 if failed else 200,
+                            content={"status": "unhealthy" if failed else "ready", "failed": failed,
+                                     "components": components})
 
     return app
 
@@ -114,6 +156,10 @@ def register_routes(app: FastAPI) -> None:
     # Include Version 4.0 Routers
     from routes import v4_admin
     app.include_router(v4_admin.router, prefix=prefix)
+
+    # RAG document management (course owners/admins)
+    from routes import rag
+    app.include_router(rag.router, prefix=f"{prefix}/rag", tags=["RAG"])
 
     # Payments (Razorpay) & course pricing
     from routes import payments, pricing

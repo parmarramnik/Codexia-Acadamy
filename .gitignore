@@ -10,6 +10,7 @@
 .env.*
 *.env
 !*.env.example
+!.env.*.example
 *.pem
 *.key
 *.pfx
@@ -111,6 +112,8 @@ yarn-error.log*
 pnpm-debug.log*
 scratch/
 .scratch/
+.model-cache/
+.claude/
 
 # ------------------------------------------------------------------------------
 # 8. IDE, Editor & Operating System Files
@@ -130,3 +133,6 @@ desktop.ini
 # 9. Docker Local Overrides
 # ------------------------------------------------------------------------------
 docker-compose.override.yml
+
+# Test artefacts
+ci_test.db

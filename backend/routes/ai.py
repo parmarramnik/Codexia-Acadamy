@@ -3,8 +3,7 @@ AI routes — tutor chat, content generation, code debugging.
 """
 
 import uuid
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -17,9 +16,9 @@ from schemas.analytics import (
     AIGenerateRequest, AIDebugRequest, AIDebugResponse,
     NoteResponse, FlashcardResponse,
 )
-from ai.tutor import get_tutor_response
+from ai.tutor import get_tutor_response, prepare_course_context
 from ai.generator import generate_notes, generate_flashcards, generate_quiz_questions
-from ai.code_helper import debug_code, generate_hints
+from ai.code_helper import debug_code
 
 router = APIRouter()
 
@@ -46,22 +45,17 @@ def chat_with_tutor(
     )
     chat_history = [{"role": h.role, "content": h.content} for h in history_records]
 
-    # Get course context if course_id provided
-    course_context = None
-    course_title = None
+    # Course-grounded chat: authorization (enrollment + verified payment) runs before any retrieval.
+    # RagAccessDenied / RagUnavailable / LLMError are turned into HTTP errors by the app handlers.
+    course, retrieval = None, None
     if data.course_id:
-        from services.course_service import get_course_by_id
-        course = get_course_by_id(db, data.course_id)
-        if course:
-            course_title = course.title
-            course_context = course.description
+        course, retrieval = prepare_course_context(db, current_user, data.course_id, data.message)
 
-    # Get AI response
     result = get_tutor_response(
         user_message=data.message,
         chat_history=chat_history,
-        course_context=course_context,
-        course_title=course_title,
+        course=course,
+        retrieval=retrieval,
     )
 
     # Save user message
@@ -90,6 +84,9 @@ def chat_with_tutor(
         response=result["response"],
         session_id=session_id,
         tokens_used=result.get("tokens_used", 0),
+        truncated=result["truncated"],
+        grounded=result["grounded"],
+        sources=result["sources"],
     )
 
 

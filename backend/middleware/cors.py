@@ -1,6 +1,9 @@
 """
 CORS middleware configuration.
-Allows requests from the configured frontend origins.
+
+Production allows exactly the origins in CORS_ORIGINS plus FRONTEND_URL: no wildcard hosting domains
+(any *.vercel.app site could otherwise call the API from a visitor's browser) and no localhost.
+With DEBUG=true, local development origins are allowed as well.
 """
 
 from fastapi import FastAPI
@@ -8,44 +11,32 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 
-
-EXTRA_ORIGINS = [
-    "https://codexia-acadamy.vercel.app",
-    "https://codexia-academy.vercel.app",
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:3002",
-    "http://localhost:8000",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-]
+DEV_ORIGIN_REGEX = r"http://(localhost|127\.0\.0\.1)(:\d+)?"
+ALLOWED_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]
+ALLOWED_HEADERS = ["Authorization", "Content-Type", "Idempotency-Key", "X-Request-ID", "Range", "Accept"]
 
 
 def allowed_origins() -> list[str]:
-    origins = settings.cors_origins_list
-    for o in EXTRA_ORIGINS:
-        if o not in origins:
-            origins.append(o)
+    origins = [o.strip().rstrip("/") for o in settings.cors_origins_list if o.strip()]
+    frontend = (settings.FRONTEND_URL or "").strip().rstrip("/")
+    if frontend and frontend not in origins:
+        origins.append(frontend)
     return origins
 
 
 def trusted_origin(origin: str) -> bool:
     """Exact match against explicitly configured origins (no wildcard preview domains)."""
-    origin = (origin or "").rstrip("/")
-    return any(origin == o.rstrip("/") for o in allowed_origins() + [settings.FRONTEND_URL])
+    return (origin or "").rstrip("/") in allowed_origins()
 
 
 def setup_cors(app: FastAPI) -> None:
     """Add CORS middleware to the FastAPI application."""
-    origins = allowed_origins()
-
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins,
-        allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+|https://.*\.vercel\.app",
+        allow_origins=allowed_origins(),
+        allow_origin_regex=DEV_ORIGIN_REGEX if settings.DEBUG else None,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=ALLOWED_METHODS,
+        allow_headers=ALLOWED_HEADERS,
+        expose_headers=["Content-Range", "Accept-Ranges", "X-Request-ID"],
     )

@@ -1,83 +1,76 @@
 """
-AI Tutor — conversational learning assistant powered by Gemini.
-Provides contextual answers based on course content via RAG.
-Gracefully degrades if google-generativeai is not installed.
+AI Tutor core, shared by every tutor endpoint.
+
+Course-grounded answers go through the RAG pipeline in ai/rag. Authorization is evaluated first;
+only then is the selected course's material retrieved.
 """
 
-from typing import Optional, List
+import logging
+from typing import List, Optional
 
+from sqlalchemy.orm import Session
+
+from ai import llm
+from ai.rag import embedder, index, service
+from ai.rag.access import authorize_course_access
+from ai.rag.errors import RagUnavailable
 from config import settings
+from models.course import Course
+from models.user import User
+from prompts.tutor_prompts import build_system_prompt, format_tutor_prompt
 
-try:
-    import google.generativeai as genai
-    GEMINI_AVAILABLE = True
-except ImportError:
-    GEMINI_AVAILABLE = False
-
-from ai.embeddings import get_relevant_context
-from prompts.tutor_prompts import TUTOR_SYSTEM_PROMPT, format_tutor_prompt
+logger = logging.getLogger("codexia.tutor")
 
 
-def initialize_gemini():
-    """Initialize the Gemini API client."""
-    if GEMINI_AVAILABLE and settings.GEMINI_API_KEY:
-        genai.configure(api_key=settings.GEMINI_API_KEY)
+def prepare_course_context(db: Session, user: User, course_id: int, message: str):
+    """
+    Authorize, then retrieve. Raises RagAccessDenied before any course text is read.
+    Returns (course, Retrieval | None); None means retrieval was skipped (e.g. a greeting).
+    """
+    course = authorize_course_access(db, user, course_id)
+    if not settings.RAG_ENABLED or not service.needs_retrieval(message):
+        return course, None
+    try:
+        service.sync_course_content(db, course)
+        return course, service.retrieve(db, course.id, message)
+    except (embedder.EmbeddingUnavailable, index.IndexUnavailable) as exc:
+        raise RagUnavailable(str(exc)) from exc
+    except Exception as exc:  # extraction/ingestion failure of the outline document
+        if isinstance(exc, (ValueError, RuntimeError)):
+            raise RagUnavailable("The course material could not be indexed. Please try again later.") from exc
+        raise
 
 
 def get_tutor_response(
     user_message: str,
-    chat_history: List[dict] = None,
-    course_context: Optional[str] = None,
-    course_title: Optional[str] = None,
+    chat_history: Optional[List[dict]] = None,
+    course: Optional[Course] = None,
+    retrieval: Optional["service.Retrieval"] = None,
 ) -> dict:
     """
-    Generate an AI tutor response using Gemini.
-    Uses RAG to pull relevant course context when available.
+    Generate a tutor answer. Raises llm.LLMError on provider problems (callers turn it into an HTTP
+    error; no canned answer is ever returned in its place).
     """
-    if not GEMINI_AVAILABLE or not settings.GEMINI_API_KEY:
-        return {
-            "response": "AI Tutor is currently unavailable. Please configure GEMINI_API_KEY to enable AI features.",
-            "tokens_used": 0,
-        }
-
-    initialize_gemini()
-
-    # Retrieve relevant context via FAISS if course context exists
-    relevant_context = ""
-    if course_context:
-        try:
-            relevant_context = get_relevant_context(user_message, course_context)
-        except Exception:
-            relevant_context = course_context[:2000]
-
-    # Build the prompt
-    prompt = format_tutor_prompt(
-        user_message=user_message,
-        course_title=course_title or "General",
-        relevant_context=relevant_context,
+    if course is None:
+        grounded = None
+    else:
+        grounded = bool(retrieval and retrieval.sources)
+    prompt = format_tutor_prompt(user_message, course.title if course else None,
+                                 retrieval.context if grounded else "")
+    result = llm.generate(
+        prompt,
+        system_instruction=build_system_prompt(grounded),
+        history=(chat_history or [])[-10:],
+        temperature=0.4,
+        max_output_tokens=2048,
     )
-
-    # Build chat history for multi-turn conversation
-    history = []
-    if chat_history:
-        for msg in chat_history[-10:]:  # Keep last 10 messages for context window
-            role = "user" if msg["role"] == "user" else "model"
-            history.append({"role": role, "parts": [msg["content"]]})
-
-    try:
-        model = genai.GenerativeModel(
-            model_name=settings.GEMINI_MODEL,
-            system_instruction=TUTOR_SYSTEM_PROMPT,
-        )
-        chat = model.start_chat(history=history)
-        response = chat.send_message(prompt)
-
-        return {
-            "response": response.text,
-            "tokens_used": response.usage_metadata.total_token_count if hasattr(response, "usage_metadata") else 0,
-        }
-    except Exception as error:
-        return {
-            "response": f"I apologize, but I encountered an error processing your question. Please try again. Error: {str(error)}",
-            "tokens_used": 0,
-        }
+    answer, sources = result.text, []
+    if grounded:
+        answer, sources = service.resolve_citations(result.text, retrieval.sources)
+    return {
+        "response": answer,
+        "tokens_used": result.tokens_used,
+        "truncated": result.truncated,
+        "grounded": bool(grounded),
+        "sources": sources,
+    }

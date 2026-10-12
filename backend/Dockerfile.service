@@ -1,0 +1,42 @@
+# ==============================================================================
+# One image recipe for every backend service (gateway + 7 microservices).
+#   docker build -f Dockerfile.service \
+#       --build-arg SERVICE_MODULE=microservices.auth_service.main --build-arg PORT=8001 .
+# The AI service additionally passes REQUIREMENTS=requirements-rag.txt PRELOAD_MODEL=true so only
+# that image carries torch / sentence-transformers / faiss.
+# ==============================================================================
+FROM python:3.11-slim AS builder
+ARG REQUIREMENTS=requirements-base.txt
+ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+COPY requirements-base.txt requirements-rag.txt ./
+# requirements-rag.txt layers on top of the base set; base-only images skip it.
+RUN pip install --prefix=/install -r requirements-base.txt \
+    && if [ "$REQUIREMENTS" = "requirements-rag.txt" ]; then pip install --prefix=/install -r requirements-rag.txt; fi
+
+FROM python:3.11-slim AS runner
+ARG SERVICE_MODULE
+ARG PORT=8000
+ARG PRELOAD_MODEL=false
+ARG EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app \
+    SERVICE_MODULE=${SERVICE_MODULE} PORT=${PORT} \
+    EMBEDDING_CACHE_DIR=/opt/models HF_HOME=/opt/models
+RUN apt-get update && apt-get install -y --no-install-recommends libpq5 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -u 1001 -m appuser && mkdir -p /opt/models /app/static && chown -R appuser:appuser /opt/models /app
+COPY --from=builder /install /usr/local
+WORKDIR /app
+COPY --chown=appuser:appuser . /app
+# Bake the embedding model into the image: no download at first request, immune to Hugging Face outages.
+RUN if [ "$PRELOAD_MODEL" = "true" ]; then \
+      python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${EMBEDDING_MODEL}')" \
+      && chown -R appuser:appuser /opt/models; fi
+USER appuser
+EXPOSE ${PORT}
+HEALTHCHECK --interval=15s --timeout=4s --start-period=40s --retries=5 \
+  CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/health' % os.environ['PORT'], timeout=3)"
+# --proxy-headers: the real client IP arrives in X-Forwarded-For from our own gateway/edge (private network only).
+CMD ["sh", "-c", "exec uvicorn ${SERVICE_MODULE}:app --host 0.0.0.0 --port ${PORT} --proxy-headers --forwarded-allow-ips='*'"]

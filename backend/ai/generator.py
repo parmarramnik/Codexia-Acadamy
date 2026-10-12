@@ -1,143 +1,88 @@
 """
-Content generator — AI-powered quiz, flashcard, and note generation.
-Gracefully degrades if google-generativeai is not installed.
+Content generator — AI-powered quiz, flashcard and note generation.
+
+Failures raise ai.llm.LLMError (mapped to HTTP errors by the app). Nothing here substitutes canned
+questions, cards or notes for a failed generation, because those would be saved as real content.
 """
 
-from typing import List, Optional
 import json
+import re
+from typing import List, Optional
 
-from config import settings
+from ai import llm
+from ai.code_review import parse_json_array
+from prompts.generator_prompts import FLASHCARD_PROMPT, NOTES_PROMPT, QUIZ_PROMPT
 
-try:
-    import google.generativeai as genai
-    GEMINI_AVAILABLE = True
-except ImportError:
-    GEMINI_AVAILABLE = False
-
-from prompts.generator_prompts import (
-    NOTES_PROMPT,
-    FLASHCARD_PROMPT,
-    QUIZ_PROMPT,
-)
-
-
-def initialize_gemini():
-    """Initialize the Gemini API client."""
-    if GEMINI_AVAILABLE and settings.GEMINI_API_KEY:
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-
-
-def _check_available() -> bool:
-    """Check if AI generation is available."""
-    return GEMINI_AVAILABLE and bool(settings.GEMINI_API_KEY)
+_SYSTEM = "You write accurate educational content. Follow the requested output format exactly."
 
 
 def generate_notes(topic: str, course_title: Optional[str] = None) -> str:
-    """Generate structured markdown notes on a topic."""
-    if not _check_available():
-        return f"# {topic}\n\nAI note generation is currently unavailable. Please configure GEMINI_API_KEY."
-
-    initialize_gemini()
-    try:
-        model = genai.GenerativeModel(settings.GEMINI_MODEL)
-        prompt = NOTES_PROMPT.format(topic=topic, course_title=course_title or "General")
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as error:
-        print(f"[AI Error] generate_notes failed: {str(error)}")
-        return f"# Learning Notes: {topic}\n\n### Core Concepts\n* **Definitions**: Fundamentals of the topic are critical to programming architecture.\n* **Implementation**: Ensure clean imports, structured scopes, and error boundaries.\n* **Optimizations**: Avoid nested loops, cache results, and use proper indexing."
+    """Structured Markdown notes on a topic."""
+    prompt = NOTES_PROMPT.format(topic=topic, course_title=course_title or "General")
+    return llm.generate(prompt, system_instruction=_SYSTEM, max_output_tokens=4096).text
 
 
 def generate_flashcards(topic: str, count: int = 5) -> List[dict]:
-    """Generate flashcard Q&A pairs as a list of dicts."""
-    if not _check_available():
-        return [{"question": "AI unavailable", "answer": "Please configure GEMINI_API_KEY to enable flashcard generation."}]
-
-    initialize_gemini()
-    try:
-        model = genai.GenerativeModel(settings.GEMINI_MODEL)
-        prompt = FLASHCARD_PROMPT.format(topic=topic, count=count)
-        response = model.generate_content(prompt)
-
-        # Parse JSON response
-        text = response.text.strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1].rsplit("```", 1)[0]
-        return json.loads(text)
-    except (json.JSONDecodeError, Exception) as error:
-        print(f"[AI Error] generate_flashcards failed: {str(error)}")
-        return [
-            {"question": f"What is the primary goal of studying {topic}?", "answer": "To understand core concepts, algorithmic complexity, and structure clean implementations."},
-            {"question": f"What is a common pitfall in {topic} designs?", "answer": "Failing to account for edge cases, null checks, and boundary conditions."}
-        ]
-
-
-def generate_quiz_questions(
-    topic: str,
-    count: int = 5,
-    difficulty: str = "medium",
-) -> List[dict]:
-    """Generate quiz questions with answers."""
-    if _check_available():
-        initialize_gemini()
-        try:
-            model = genai.GenerativeModel(settings.GEMINI_MODEL)
-            prompt = QUIZ_PROMPT.format(topic=topic, count=count, difficulty=difficulty)
-            response = model.generate_content(prompt)
-
-            text = response.text.strip()
-            if text.startswith("```"):
-                text = text.split("\n", 1)[1].rsplit("```", 1)[0]
-            data = json.loads(text)
-            if isinstance(data, list) and len(data) > 0:
-                return data
-        except Exception as error:
-            print(f"[AI Error] generate_quiz_questions failed: {str(error)}")
-
-    # High quality fallback questions matching count
-    questions = []
-    topics_aspects = [
-        ("core principles", "What is a primary requirement when implementing", "It enforces proper modularity and architectural isolation."),
-        ("optimization", "Which optimization technique applies to", "Caching, asynchronous execution, and avoiding redundant queries."),
-        ("error handling", "How should boundary conditions be handled in", "By using explicit validation and fallback exception handling."),
-        ("best practices", "What is considered a best practice in", "Maintaining clear documentation, automated tests, and strict types."),
-        ("scalability", "How does system performance scale when using", "Through horizontal load distribution and efficient resource pooling.")
+    """Flashcard Q&A pairs. Raises LLMError(MALFORMED) if no usable card comes back."""
+    result = llm.generate(FLASHCARD_PROMPT.format(topic=topic, count=count), system_instruction=_SYSTEM,
+                          json_mode=True, temperature=0.5, max_output_tokens=4096)
+    cards = [
+        {"question": str(c["question"]).strip(), "answer": str(c["answer"]).strip()}
+        for c in parse_json_array(result.text)
+        if isinstance(c, dict) and str(c.get("question", "")).strip() and str(c.get("answer", "")).strip()
     ]
+    if not cards:
+        raise llm.LLMError(llm.MALFORMED)
+    return cards[:count]
 
-    for i in range(count):
-        aspect, q_prefix, exp = topics_aspects[i % len(topics_aspects)]
-        questions.append({
-            "question": f"{q_prefix} {topic} ({aspect})?",
-            "options": [
-                f"It ensures clean {aspect} and high reliability.",
-                f"It disables strict type verification in {topic}.",
-                f"It prevents asynchronous execution.",
-                f"None of the above"
-            ],
-            "correct_answer": f"It ensures clean {aspect} and high reliability.",
-            "explanation": f"Understanding {aspect} in {topic} is critical: {exp}"
-        })
 
-    return questions
+def normalize_quiz_question(raw: dict) -> Optional[dict]:
+    """
+    Validate one generated question and expose `correct_answer` (the option text) derived from the model's
+    `correct_index`. Returns None when the question is unusable (no 2+ options, or no identifiable answer).
+    """
+    if not isinstance(raw, dict):
+        return None
+    question = str(raw.get("question", "")).strip()
+    options = [str(o).strip() for o in (raw.get("options") or []) if str(o).strip()]
+    if not question or len(options) < 2:
+        return None
+    correct = None
+    index = raw.get("correct_index")
+    if isinstance(index, int) and not isinstance(index, bool) and 0 <= index < len(options):
+        correct = options[index]
+    elif raw.get("correct_answer") is not None:
+        answer = str(raw["correct_answer"]).strip()
+        match = [o for o in options if o.lower() == answer.lower()]
+        if match:
+            correct = match[0]
+        elif re.fullmatch(r"[A-Da-d]", answer) and ord(answer.upper()) - 65 < len(options):
+            correct = options[ord(answer.upper()) - 65]
+    if correct is None:
+        return None
+    return {"question": question, "options": options, "correct_answer": correct,
+            "correct_index": options.index(correct), "explanation": str(raw.get("explanation", "")).strip()}
+
+
+def generate_quiz_questions(topic: str, count: int = 5, difficulty: str = "medium") -> List[dict]:
+    """Validated multiple-choice questions. Raises LLMError(MALFORMED) if none are usable."""
+    result = llm.generate(QUIZ_PROMPT.format(topic=topic, count=count, difficulty=difficulty),
+                          system_instruction=_SYSTEM, json_mode=True, temperature=0.5, max_output_tokens=6144)
+    questions = [q for q in (normalize_quiz_question(r) for r in parse_json_array(result.text)) if q]
+    if not questions:
+        raise llm.LLMError(llm.MALFORMED)
+    return questions[:count]
 
 
 def generate_commit_message(diff_text: str) -> str:
-    """Generate a high-quality summary commit message from a note diff."""
-    if not _check_available():
-        return "Updated note content"
-
-    initialize_gemini()
+    """One-line commit message for a note diff. A generic message is a safe default here (not AI analysis)."""
+    prompt = (
+        "Summarize the changes in this note diff as a single commit-message line (max 72 characters) "
+        "starting with a verb such as Added, Updated or Fixed. Return only the line, no quotes or markdown.\n\n"
+        f"{diff_text}"
+    )
     try:
-        model = genai.GenerativeModel(settings.GEMINI_MODEL)
-        prompt = (
-            "You are a helpful Git assistant for a note taking app. Summarize the changes made in this note in a single line "
-            "suitable for a commit message (maximum 72 characters). Start with a verb like 'Added', 'Updated', 'Fixed', etc. "
-            "Be specific about what was changed, added, or deleted based on the diff.\n\n"
-            f"Here is the diff:\n{diff_text}\n\n"
-            "Return ONLY the single line commit message. Do not include markdown or quotes."
-        )
-        response = model.generate_content(prompt)
-        return response.text.strip().replace('"', '').replace("'", "")
-    except Exception as error:
-        print(f"[AI Error] generate_commit_message failed: {str(error)}")
+        line = llm.generate(prompt, max_output_tokens=60).text.strip().splitlines()[0]
+        return line.replace('"', "").replace("'", "")[:72] or "Updated note content"
+    except (llm.LLMError, IndexError):
         return "Updated note content"

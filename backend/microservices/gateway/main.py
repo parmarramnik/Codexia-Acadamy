@@ -1,220 +1,194 @@
 """
-API Gateway entrypoint for AI Learning Management System Microservices.
-Port: 8000
-Acts as a unified reverse proxy and entrypoint for all frontend API calls.
-Routes incoming calls dynamically to the target microservices (Ports 8001-8006 or container endpoints).
-"""
+API gateway: the only service reachable from outside. Port 8000.
 
-import sys
+* Routes /api/<segment>/... to the owning microservice (table below; a test asserts it covers every route).
+* Streams request and response bodies (large uploads, video Range requests) instead of buffering them.
+* Forwards the real client IP and a request id so per-service rate limits and logs are accurate.
+* Serves public static files (avatars, thumbnails, certificates). Uploaded lecture videos are NOT served
+  from here: they stream through the course service's signed, access-checked endpoint.
+* /api/health/ready aggregates every service's readiness.
+* There is deliberately no in-process fallback to the monolith: a down service is a 503, not a silent
+  second copy of the whole application.
+"""
+import asyncio
+import logging
 import os
+import sys
+from typing import Optional
+
 import httpx
-from fastapi import FastAPI, Request, Response, HTTPException, status
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, RedirectResponse, Response, StreamingResponse
+from starlette.background import BackgroundTask
 
 backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
-from config import settings
-from database import create_tables
-from middleware.cors import setup_cors
-from middleware.rate_limiter import setup_rate_limiter
-from middleware.error_handler import setup_error_handlers
-from utils.helpers import ensure_directory
+from config import settings, validate_production_settings  # noqa: E402
+from middleware.cors import setup_cors  # noqa: E402
+from middleware.request_context import RequestContextMiddleware  # noqa: E402
+from middleware.security_headers import SecurityHeadersMiddleware  # noqa: E402
+from utils.helpers import ensure_directory  # noqa: E402
+from utils.media_access import PublicStaticFiles  # noqa: E402
 
-SERVICE_PORT = 8000
+logger = logging.getLogger("codexia.gateway")
+
 SERVICE_NAME = "API Gateway"
+SERVICE_PORT = 8000
 
-# Microservice endpoints configuration with env fallbacks for Docker
-SERVICE_MAP = {
-    # Auth & Users -> Port 8001
-    "auth": os.getenv("AUTH_SERVICE_URL", "http://127.0.0.1:8001"),
-    "users": os.getenv("AUTH_SERVICE_URL", "http://127.0.0.1:8001"),
-    
-    # Courses & Content -> Port 8002
-    "courses": os.getenv("COURSE_SERVICE_URL", "http://127.0.0.1:8002"),
-    "lectures": os.getenv("COURSE_SERVICE_URL", "http://127.0.0.1:8002"),
-    "course-builder": os.getenv("COURSE_SERVICE_URL", "http://127.0.0.1:8002"),
-    "notes": os.getenv("COURSE_SERVICE_URL", "http://127.0.0.1:8002"),
-    "flashcards": os.getenv("COURSE_SERVICE_URL", "http://127.0.0.1:8002"),
-    "study-planner": os.getenv("COURSE_SERVICE_URL", "http://127.0.0.1:8002"),
-
-    # Quizzes & Certificates -> Port 8003
-    "quizzes": os.getenv("QUIZ_SERVICE_URL", "http://127.0.0.1:8003"),
-    "certificates": os.getenv("QUIZ_SERVICE_URL", "http://127.0.0.1:8003"),
-
-    # Coding & Git -> Port 8004
-    "coding": os.getenv("CODING_SERVICE_URL", "http://127.0.0.1:8004"),
-    "git": os.getenv("CODING_SERVICE_URL", "http://127.0.0.1:8004"),
-
-    # AI Tutor & Assistant -> Port 8005
-    "ai": os.getenv("AI_SERVICE_URL", "http://127.0.0.1:8005"),
-
-    # Analytics, Admin, Logs & Comms & Search -> Port 8006
-    "analytics": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
-    "admin": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
-    "logs": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
-    "comms": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
-    "search": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
+# First path segment after /api  ->  name of the Settings attribute holding the owning service's URL.
+ROUTES = {
+    "auth": "AUTH_SERVICE_URL", "users": "AUTH_SERVICE_URL",
+    "courses": "COURSE_SERVICE_URL", "lectures": "COURSE_SERVICE_URL", "course-builder": "COURSE_SERVICE_URL",
+    "notes": "COURSE_SERVICE_URL", "flashcards": "COURSE_SERVICE_URL", "study-planner": "COURSE_SERVICE_URL",
+    "quizzes": "QUIZ_SERVICE_URL", "certificates": "QUIZ_SERVICE_URL",
+    "coding": "CODING_SERVICE_URL", "git": "CODING_SERVICE_URL",
+    "ai": "AI_SERVICE_URL", "rag": "AI_SERVICE_URL",
+    "analytics": "ANALYTICS_SERVICE_URL", "admin": "ANALYTICS_SERVICE_URL", "logs": "ANALYTICS_SERVICE_URL",
+    "comms": "ANALYTICS_SERVICE_URL", "search": "ANALYTICS_SERVICE_URL",
+    "payments": "PAYMENT_SERVICE_URL", "pricing": "PAYMENT_SERVICE_URL",
 }
+SERVICE_ATTRS = sorted(set(ROUTES.values()))
 
-# Version 3 & 4 routing rules
-SPECIAL_PATH_MAP = {
-    "/api/search": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
-    "/api/v3/search": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
-    "/api/v3/comms": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
-    "/api/v3/analytics": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
-    "/api/v3/certificates": os.getenv("QUIZ_SERVICE_URL", "http://127.0.0.1:8003"),
-    "/api/v3/ai": os.getenv("AI_SERVICE_URL", "http://127.0.0.1:8005"),
-    "/api/v3/coding": os.getenv("CODING_SERVICE_URL", "http://127.0.0.1:8004"),
-    "/api/v4/admin": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
-}
+# Per-segment read timeouts (seconds): AI calls and code runs legitimately take long.
+READ_TIMEOUTS = {"ai": 120.0, "rag": 120.0, "coding": 120.0, "lectures": 600.0, "courses": 600.0}
+DEFAULT_READ_TIMEOUT = 60.0
 
+HOP_BY_HOP = {"connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailers",
+              "transfer-encoding", "upgrade", "host"}
+
+
+def resolve(path: str) -> Optional[str]:
+    """Base URL of the service owning `/api/<segment>/...`, or None."""
+    parts = path.strip("/").split("/")
+    if len(parts) < 2 or parts[0] != "api":
+        return None
+    attr = ROUTES.get(parts[1])
+    return getattr(settings, attr).rstrip("/") if attr else None
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
 
 
 def create_app() -> FastAPI:
     app = FastAPI(
         title=f"{settings.APP_NAME} - {SERVICE_NAME}",
         version=settings.APP_VERSION,
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
-        openapi_url="/api/openapi.json",
+        docs_url=None, redoc_url=None, openapi_url=None,
+    )
+    setup_cors(app)
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RequestContextMiddleware, service="gateway")
+
+    static_dir = os.path.join(backend_dir, settings.UPLOAD_DIR)
+    for sub in ("", "thumbnails", "certificates", "avatars", "videos"):
+        ensure_directory(os.path.join(static_dir, sub))
+    app.mount("/static", PublicStaticFiles(directory=static_dir), name="static")
+
+    client = httpx.AsyncClient(
+        timeout=httpx.Timeout(connect=5.0, read=DEFAULT_READ_TIMEOUT, write=300.0, pool=10.0),
+        limits=httpx.Limits(max_keepalive_connections=50, max_connections=300, keepalive_expiry=30.0),
+        follow_redirects=False,
     )
 
-    setup_cors(app)
-    setup_rate_limiter(app)
-    setup_error_handlers(app)
-    
-    from starlette.middleware.gzip import GZipMiddleware
-    app.add_middleware(GZipMiddleware, minimum_size=500)
-    
-    from middleware.security_headers import SecurityHeadersMiddleware
-    app.add_middleware(SecurityHeadersMiddleware)
-
-    # Static file serving across microservices
-    static_dir = os.path.join(backend_dir, settings.UPLOAD_DIR)
-    ensure_directory(static_dir)
-    ensure_directory(os.path.join(static_dir, "videos"))
-    ensure_directory(os.path.join(static_dir, "thumbnails"))
-    ensure_directory(os.path.join(static_dir, "certificates"))
-    ensure_directory(os.path.join(static_dir, "avatars"))
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
-
-    # Persistent HTTP connection pool for high-throughput, low-latency microservice proxying
-    limits = httpx.Limits(max_keepalive_connections=30, max_connections=150, keepalive_expiry=30.0)
-    http_client = httpx.AsyncClient(timeout=60.0, limits=limits, headers={"accept-encoding": "identity"})
-
     @app.on_event("startup")
-    def on_startup():
-        create_tables()
+    def _startup():
+        validate_production_settings()
+        logger.info("Gateway routing: %s", {a: getattr(settings, a) for a in SERVICE_ATTRS})
 
     @app.on_event("shutdown")
-    async def on_shutdown():
-        await http_client.aclose()
+    async def _shutdown():
+        await client.aclose()
 
-    @app.get("/", tags=["Root"])
-    @app.get("/docs", include_in_schema=False)
-    def root():
-        return RedirectResponse(url="/api/docs")
+    @app.get("/", include_in_schema=False)
+    def _root():
+        return RedirectResponse(url="/api/health")
 
     @app.get("/health", tags=["Health"])
     @app.get("/api/health", tags=["Health"])
-    def health_check():
-        return {
-            "status": "healthy",
-            "service": SERVICE_NAME,
-            "port": SERVICE_PORT,
-            "version": settings.APP_VERSION,
-            "microservices": {
-                "auth_service": os.getenv("AUTH_SERVICE_URL", "http://127.0.0.1:8001"),
-                "course_service": os.getenv("COURSE_SERVICE_URL", "http://127.0.0.1:8002"),
-                "quiz_service": os.getenv("QUIZ_SERVICE_URL", "http://127.0.0.1:8003"),
-                "coding_service": os.getenv("CODING_SERVICE_URL", "http://127.0.0.1:8004"),
-                "ai_service": os.getenv("AI_SERVICE_URL", "http://127.0.0.1:8005"),
-                "analytics_service": os.getenv("ANALYTICS_SERVICE_URL", "http://127.0.0.1:8006"),
-            }
-        }
+    def health():
+        """Liveness of the gateway itself."""
+        return {"status": "healthy", "service": SERVICE_NAME, "version": settings.APP_VERSION}
 
-    # Reverse proxy dispatcher
+    @app.get("/api/health/ready", tags=["Health"])
+    async def ready():
+        """Readiness of the whole platform: every service's /health/ready, merged."""
+        async def probe(attr: str):
+            url = getattr(settings, attr).rstrip("/")
+            try:
+                res = await client.get(f"{url}/health/ready", timeout=4.0)
+                return attr, res.status_code, res.json()
+            except Exception as exc:  # noqa: BLE001
+                return attr, 0, {"status": "unreachable", "detail": type(exc).__name__}
+
+        results = await asyncio.gather(*(probe(a) for a in SERVICE_ATTRS))
+        services, components, failed = {}, {}, []
+        for attr, code, body in results:
+            name = body.get("service") or attr.replace("_URL", "").replace("_SERVICE", "").lower()
+            ok = code == 200
+            services[name] = {"status": "ready" if ok else body.get("status", "unhealthy")}
+            if not ok:
+                failed.append(name)
+            for comp, info in (body.get("components") or {}).items():
+                prior = components.get(comp)
+                # keep the worst status when several services report the same component (database, cache)
+                if prior is None or info.get("status") == "unhealthy":
+                    components[comp] = info
+        return JSONResponse(status_code=503 if failed else 200,
+                            content={"status": "unhealthy" if failed else "ready", "failed": failed,
+                                     "services": services, "components": components})
+
     @app.options("/api/{path:path}", include_in_schema=False)
-    async def handle_preflight_options(path: str):
-        return Response(status_code=200)
+    async def _preflight(path: str):
+        return Response(status_code=204)  # CORSMiddleware answers real preflights; this is a safety net
 
-    @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"])
-    async def proxy_gateway(request: Request, path: str):
-        target_base_url = None
-        full_path = f"/api/{path}"
+    @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"])
+    async def proxy(request: Request, path: str):
+        base = resolve(request.url.path)
+        request_id = getattr(request.state, "request_id", "-")
+        if base is None:
+            return JSONResponse(status_code=404, content={"detail": f"No service handles '/api/{path}'"})
 
-        # 1. Check special version paths
-        for prefix, base_url in SPECIAL_PATH_MAP.items():
-            if full_path.startswith(prefix):
-                target_base_url = base_url
-                break
+        max_body = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+        declared = request.headers.get("content-length")
+        if declared and declared.isdigit() and int(declared) > max_body:
+            return JSONResponse(status_code=413, content={"detail": f"Request body exceeds {settings.MAX_UPLOAD_SIZE_MB} MB"})
 
-        # 2. Check standard domain prefix
-        if not target_base_url:
-            path_segments = path.strip("/").split("/")
-            domain = path_segments[0] if path_segments else ""
-            target_base_url = SERVICE_MAP.get(domain)
+        headers = {k: v for k, v in request.headers.items() if k.lower() not in HOP_BY_HOP}
+        headers["accept-encoding"] = "identity"   # upstream bodies stay byte-exact; compression is the edge's job
+        headers["x-forwarded-for"] = _client_ip(request)
+        headers["x-forwarded-proto"] = request.headers.get("x-forwarded-proto", request.url.scheme)
+        headers["x-forwarded-host"] = request.headers.get("x-forwarded-host", request.headers.get("host", ""))
+        headers["x-request-id"] = request_id
 
-        # Fallback to monolithic app routes if microservice is offline or local fallback enabled
-        if not target_base_url:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No target microservice found for route '/api/{path}'"
-            )
-
-        target_url = f"{target_base_url}{request.url.path}"
-        if request.url.query:
-            target_url += f"?{request.url.query}"
-
-        req_headers = dict(request.headers)
-        req_headers.pop("host", None)
-        req_headers["accept-encoding"] = "identity"
-
-        body = await request.body()
-
+        segment = request.url.path.split("/")[2]
+        timeout = httpx.Timeout(connect=5.0, read=READ_TIMEOUTS.get(segment, DEFAULT_READ_TIMEOUT), write=300.0, pool=10.0)
+        has_body = request.method in ("POST", "PUT", "PATCH", "DELETE") and (
+            declared not in (None, "0") or "transfer-encoding" in request.headers)
+        url = base + request.url.path + (f"?{request.url.query}" if request.url.query else "")
         try:
-            proxy_res = await http_client.request(
-                method=request.method,
-                url=target_url,
-                headers=req_headers,
-                content=body,
-                follow_redirects=True,
-            )
-
-            # Strip encoding and transport headers case-insensitively
-            excluded_headers = {"content-encoding", "content-length", "transfer-encoding", "connection", "keep-alive"}
-            res_headers = {k: v for k, v in proxy_res.headers.items() if k.lower() not in excluded_headers}
-
-            return Response(
-                content=proxy_res.content,
-                status_code=proxy_res.status_code,
-                headers=res_headers,
-                media_type=proxy_res.headers.get("content-type"),
+            upstream = await client.send(
+                client.build_request(request.method, url, headers=headers, timeout=timeout,
+                                     content=request.stream() if has_body else None),
+                stream=True,
             )
         except httpx.ConnectError:
-            # If standalone microservice port is not actively running, fallback to monolithic router in local dev mode
-            from main import app as monolith_app
-            from fastapi.testclient import TestClient
-            with TestClient(monolith_app) as test_client:
-                mono_res = test_client.request(
-                    method=request.method,
-                    url=request.url.path + ("?" + request.url.query if request.url.query else ""),
-                    headers=dict(request.headers),
-                    content=body,
-                )
-                return Response(
-                    content=mono_res.content,
-                    status_code=mono_res.status_code,
-                    headers=dict(mono_res.headers),
-                )
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Gateway routing error to '{target_url}': {str(e)}"
-            )
+            logger.error("rid=%s upstream %s unreachable", request_id, base)
+            return JSONResponse(status_code=503, content={"detail": "This service is temporarily unavailable.", "request_id": request_id},
+                                headers={"Retry-After": "5"})
+        except httpx.TimeoutException:
+            logger.error("rid=%s upstream %s timed out", request_id, base)
+            return JSONResponse(status_code=504, content={"detail": "The service took too long to respond.", "request_id": request_id})
+        except httpx.HTTPError as exc:
+            logger.error("rid=%s upstream error %s", request_id, type(exc).__name__)
+            return JSONResponse(status_code=502, content={"detail": "Bad gateway.", "request_id": request_id})
+
+        response_headers = {k: v for k, v in upstream.headers.items()
+                            if k.lower() not in HOP_BY_HOP and k.lower() != "content-encoding"}
+        return StreamingResponse(upstream.aiter_raw(), status_code=upstream.status_code,
+                                 headers=response_headers, background=BackgroundTask(upstream.aclose))
 
     return app
 
@@ -223,4 +197,4 @@ app = create_app()
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=SERVICE_PORT, reload=settings.DEBUG)
+    uvicorn.run("main:app", host="0.0.0.0", port=SERVICE_PORT)

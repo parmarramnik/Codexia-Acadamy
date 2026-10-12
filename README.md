@@ -359,3 +359,7 @@ Distributed under the MIT License. See [LICENSE](LICENSE) for details.
 ---
 
 Built by [Ramnik Parmar](https://github.com/parmarramnik). If you find this project useful, consider giving it a ⭐.
+
+## Production deployment
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for required services (Judge0 code execution, embeddings/RAG, Redis, Razorpay), environment variables, and verification steps.

@@ -18,6 +18,7 @@ import {
 export default function AdminPortal() {
   const [stats, setStats] = useState(null);
   const [health, setHealth] = useState(null);
+  const [readiness, setReadiness] = useState(null);
   
   // User Management
   const [users, setUsers] = useState([]);
@@ -36,6 +37,13 @@ export default function AdminPortal() {
   
   // Loading state
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Real dependency status from the backend (database, cache, code execution, RAG, AI, payments).
+    api.get('/health/ready', { validateStatus: () => true })
+      .then((res) => setReadiness(res.data?.components ? res.data : { components: {} }))
+      .catch(() => setReadiness({ components: { backend: { status: 'unreachable' } } }));
+  }, []);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -339,30 +347,25 @@ export default function AdminPortal() {
         <div style={styles.panel}>
           <h3 style={styles.panelTitle}><FiActivity /> Server Diagnostics</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-            <div style={styles.healthItem}>
-              <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                <span>Database Cluster Connection</span>
-                <span style={{ color: 'var(--color-success)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <FiCheckCircle /> CONNECTED
-                </span>
-              </div>
-            </div>
-            <div style={styles.healthItem}>
-              <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                <span>Redis Caching Ring</span>
-                <span style={{ color: 'var(--color-success)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <FiCheckCircle /> ACTIVE
-                </span>
-              </div>
-            </div>
-            <div style={styles.healthItem}>
-              <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                <span>Celery Task Queue Worker</span>
-                <span style={{ color: 'var(--color-success)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <FiCheckCircle /> RUNNING
-                </span>
-              </div>
-            </div>
+            {readiness === null ? (
+              <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Checking services…</div>
+            ) : (
+              Object.entries(readiness.components || {}).map(([name, info]) => {
+                const tone = ['healthy', 'configured'].includes(info.status) ? 'var(--color-success)'
+                  : ['degraded', 'dev-only', 'disabled', 'not_configured'].includes(info.status) ? 'var(--color-warning)'
+                  : 'var(--color-error)';
+                return (
+                  <div key={name} style={styles.healthItem}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', fontSize: '0.9rem' }}>
+                      <span style={{ textTransform: 'capitalize' }}>{name.replace('_', ' ')}{info.backend ? ` (${info.backend})` : ''}</span>
+                      <span style={{ color: tone, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {tone === 'var(--color-success)' ? <FiCheckCircle /> : <FiAlertTriangle />} {String(info.status).replace('_', ' ').toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 

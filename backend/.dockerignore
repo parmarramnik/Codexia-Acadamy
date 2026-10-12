@@ -8,6 +8,7 @@
 .env.*
 *.env
 !*.env.example
+!.env.*.example
 *.pem
 *.key
 *.pfx
@@ -77,3 +78,5 @@ desktop.ini
 scratch/
 .scratch/
 run_smoke.py
+
+.model-cache/

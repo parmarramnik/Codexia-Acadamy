@@ -3,15 +3,30 @@ Database seeding script.
 Populates roles, default test users, course syllabus, and coding practice problems.
 """
 
-from datetime import datetime, timezone
 from database import SessionLocal, create_tables
 from models.user import User, UserRole, Role, Permission, RolePermission
 from models.course import Course, Module, Lecture, CourseCategory, CourseDifficulty
 from models.content import Video
-from models.coding import CodingProblem, TestCase, ProblemDifficulty
 from auth.password import hash_password
 
-def seed_database():
+def _seed_problems():
+    # Reference content (no accounts): the standard DSA problem library with multi-language templates.
+    print("Ensuring comprehensive 20 DSA coding problem library is seeded...")
+    try:
+        from seed_scratch_problems import seed_scratch_problems
+        seed_scratch_problems(force=False)
+    except Exception as dsa_err:
+        print(f"Warning: error running seed_scratch_problems: {dsa_err}")
+
+
+def seed_database(demo_data=None):
+    """
+    Create tables and reference data (roles, permissions, problem library).
+    Demo accounts and sample courses are created only when demo_data is true; by default that is
+    settings.seed_demo_data (DEBUG only), because the demo accounts share a well-known password.
+    """
+    from config import settings
+    demo_data = settings.seed_demo_data if demo_data is None else demo_data
     print("Ensuring database tables are created...")
     create_tables()
 
@@ -51,7 +66,12 @@ def seed_database():
                         db.add(RolePermission(role_id=r_obj.id, permission_id=p_obj.id))
         db.commit()
 
-        # Seed default users
+        if not demo_data:
+            _seed_problems()
+            print("Reference data ready (demo accounts and sample courses skipped).")
+            return
+
+        # Seed default users (demo/development only)
         print("Seeding default users...")
         default_users_data = [
             ("student@gmail.com", "student", "Student Account", UserRole.STUDENT, None, None),
@@ -76,13 +96,10 @@ def seed_database():
                 )
                 db.add(u)
             else:
-                existing.full_name = full_name
-                existing.bio = bio
-                existing.avatar_url = avatar_url
-                existing.password_hash = hash_password("123456")
-                existing.role = role
-                existing.is_active = True
-                existing.is_verified = True
+                # Never reset an existing account's password, role or status; only fill in profile gaps.
+                existing.full_name = existing.full_name or full_name
+                existing.bio = existing.bio or bio
+                existing.avatar_url = existing.avatar_url or avatar_url
         db.commit()
 
         # Retrieve instructor ID for course creation
@@ -529,13 +546,7 @@ def seed_database():
                             video.duration_seconds = l_data["duration_seconds"]
             db.commit()
 
-        # Ensure all 20 standard DSA coding problems with clean multi-language scratch templates are seeded
-        print("Ensuring comprehensive 20 DSA coding problem library is seeded...")
-        try:
-            from seed_scratch_problems import seed_scratch_problems
-            seed_scratch_problems(force=False)
-        except Exception as dsa_err:
-            print(f"Warning: error running seed_scratch_problems: {dsa_err}")
+        _seed_problems()
 
         print("Database seeded successfully with users, courses, and coding problems!")
 

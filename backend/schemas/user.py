@@ -52,7 +52,6 @@ class UserLogin(BaseModel):
     email: Optional[str] = None
     username: Optional[str] = None
     password: str
-    remember_me: Optional[bool] = False
 
     @model_validator(mode="before")
     @classmethod

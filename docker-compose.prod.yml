@@ -1,226 +1,72 @@
-# ==============================================================================
-# Codexia LMS - Production Compose Configuration
-# Zero-Trust Network Isolation & Strict Security Policy
-# ==============================================================================
+# Production overrides. Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.production up -d --build
+# Differences from the local stack: DEBUG off, no demo data, secrets REQUIRED (compose refuses to start
+# without them), nothing but the TLS edge is published, memory limits, 2 workers per service.
+
+x-prod-env: &prod-env
+  DEBUG: "false"
+  SEED_DEMO_DATA: "false"
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY (>= 32 random chars) in .env.production}
+  FRONTEND_URL: ${FRONTEND_URL:?set FRONTEND_URL, e.g. https://app.example.com}
+  CORS_ORIGINS: ${CORS_ORIGINS:?set CORS_ORIGINS, e.g. https://app.example.com}
+  WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+  REDIS_REQUIRED: ${REDIS_REQUIRED:-true}
 
 services:
   postgres:
-    image: postgres:15-alpine
-    container_name: codexia_prod_db
-    restart: always
+    ports: !reset []
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-codexia_lms}
-      POSTGRES_USER: ${POSTGRES_USER:-codexia_admin}
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Error POSTGRES_PASSWORD environment variable must be set in production}"
-    # Security: No ports exposed to host. Internal communication only.
-    volumes:
-      - postgres_prod_data:/var/lib/postgresql/data
-    networks:
-      - codexia_prod_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-codexia_admin} -d ${POSTGRES_DB:-codexia_lms}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
   redis:
-    image: redis:7-alpine
-    container_name: codexia_prod_cache
-    restart: always
-    # Security: No ports exposed to host. Internal communication only.
-    volumes:
-      - redis_prod_data:/data
-    networks:
-      - codexia_prod_network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  auth_service:
-    build:
-      context: ./backend
-      dockerfile: microservices/auth_service/Dockerfile
-    container_name: codexia_prod_auth
-    restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    # Security: Internal microservice - no host port binding
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-codexia_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-codexia_lms}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - APP_NAME=Codexia Auth Service
-      - DEBUG=false
-      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - FROM_EMAIL=${FROM_EMAIL:-noreply@codexia.com}
-      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
-      - INSTRUCTOR_EMAIL=${INSTRUCTOR_EMAIL:-}
-    networks:
-      - codexia_prod_network
-
-  course_service:
-    build:
-      context: ./backend
-      dockerfile: microservices/course_service/Dockerfile
-    container_name: codexia_prod_course
-    restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    # Security: Internal microservice - no host port binding
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-codexia_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-codexia_lms}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - APP_NAME=Codexia Course Service
-      - DEBUG=false
-    volumes:
-      - static_prod_data:/app/static
-    networks:
-      - codexia_prod_network
-
-  quiz_service:
-    build:
-      context: ./backend
-      dockerfile: microservices/quiz_service/Dockerfile
-    container_name: codexia_prod_quiz
-    restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    # Security: Internal microservice - no host port binding
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-codexia_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-codexia_lms}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - APP_NAME=Codexia Quiz Service
-      - DEBUG=false
-    volumes:
-      - static_prod_data:/app/static
-    networks:
-      - codexia_prod_network
-
-  coding_service:
-    build:
-      context: ./backend
-      dockerfile: microservices/coding_service/Dockerfile
-    container_name: codexia_prod_coding
-    restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    # Security: Internal microservice - no host port binding
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-codexia_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-codexia_lms}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - APP_NAME=Codexia Coding Service
-      - DEBUG=false
-    networks:
-      - codexia_prod_network
-
-  ai_service:
-    build:
-      context: ./backend
-      dockerfile: microservices/ai_service/Dockerfile
-    container_name: codexia_prod_ai
-    restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    # Security: Internal microservice - no host port binding
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-codexia_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-codexia_lms}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - APP_NAME=Codexia AI Service
-      - DEBUG=false
-      - GEMINI_API_KEY="${GEMINI_API_KEY:?Error GEMINI_API_KEY must be set in production}"
-    networks:
-      - codexia_prod_network
-
-  analytics_service:
-    build:
-      context: ./backend
-      dockerfile: microservices/analytics_service/Dockerfile
-    container_name: codexia_prod_analytics
-    restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    # Security: Internal microservice - no host port binding
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-codexia_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-codexia_lms}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - APP_NAME=Codexia Analytics Service
-      - DEBUG=false
-    networks:
-      - codexia_prod_network
-
+    ports: !reset []
   gateway:
-    build:
-      context: ./backend
-      dockerfile: microservices/gateway/Dockerfile
-    container_name: codexia_prod_gateway
-    restart: always
-    depends_on:
-      - auth_service
-      - course_service
-      - quiz_service
-      - coding_service
-      - ai_service
-      - analytics_service
-    # Security: Internal gateway. Only frontend reverse-proxies to it.
-    # If host access is needed for administration, bind strictly to 127.0.0.1.
-    ports:
-      - "127.0.0.1:8000:8000"
-    environment:
-      - AUTH_SERVICE_URL=http://auth_service:8001
-      - COURSE_SERVICE_URL=http://course_service:8002
-      - QUIZ_SERVICE_URL=http://quiz_service:8003
-      - CODING_SERVICE_URL=http://coding_service:8004
-      - AI_SERVICE_URL=http://ai_service:8005
-      - ANALYTICS_SERVICE_URL=http://analytics_service:8006
-      - APP_NAME=Codexia API Gateway
-      - DEBUG=false
-    volumes:
-      - static_prod_data:/app/static
-    networks:
-      - codexia_prod_network
-
+    ports: !reset []
+    environment: *prod-env
+    mem_limit: 512m
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: codexia_prod_frontend
-    restart: always
+    ports: !reset []
+    mem_limit: 128m
+  migrate:
+    environment: *prod-env
+  auth_service:
+    environment: *prod-env
+    mem_limit: 512m
+  course_service:
+    environment: *prod-env
+    mem_limit: 512m
+  quiz_service:
+    environment: *prod-env
+    mem_limit: 512m
+  coding_service:
+    environment: *prod-env
+    mem_limit: 512m
+  analytics_service:
+    environment: *prod-env
+    mem_limit: 512m
+  payment_service:
+    environment: *prod-env
+    mem_limit: 512m
+  ai_service:
+    environment:
+      <<: *prod-env
+      WEB_CONCURRENCY: "1"
+    mem_limit: 2g
+
+  edge:                                  # automatic HTTPS (Let's Encrypt) in front of everything
+    image: caddy:2-alpine
+    container_name: codexia_edge
+    restart: unless-stopped
     depends_on:
-      - gateway
-    # Public web ingress ports for production traffic
-    ports:
-      - "80:80"
-      - "443:443"
-    networks:
-      - codexia_prod_network
+      frontend: {condition: service_healthy}
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN, e.g. app.example.com}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL for certificate notices}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
 
 volumes:
-  postgres_prod_data:
-  redis_prod_data:
-  static_prod_data:
-
-networks:
-  codexia_prod_network:
-    driver: bridge
+  caddy_data:
+  caddy_config:

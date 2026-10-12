@@ -74,7 +74,7 @@ def login(request: Request, data: UserLogin = Body(...), db: Session = Depends(g
     try:
         ip = request.client.host if (request and request.client) else None
         user_agent = request.headers.get("user-agent") if request else None
-        result = auth_service.login_user(db, data.email, data.password, data.remember_me, ip, user_agent)
+        result = auth_service.login_user(db, data.email, data.password, ip, user_agent)
         
         user = result["user"]
         if not user.is_verified:

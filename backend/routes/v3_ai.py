@@ -2,15 +2,15 @@
 Enterprise AI Platform routes v3.0
 """
 
-from typing import Optional, List
+from typing import Optional
 import json
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from database import get_db
 from auth.oauth2 import get_current_user
 from models.user import User
-from models.v3_models import AIConversation, ResumeReview
+from models.v3_models import AIConversation
 from config import settings
 
 try:
@@ -44,60 +44,43 @@ def get_ai_response(prompt: str, system_instruction: str = None) -> str:
 
 @router.post("/tutor/chat")
 def tutor_chat(
-    message: str,
-    session_token: str = Query(..., description="Context session token"),
+    message: str = Query(..., min_length=1, max_length=5000),
+    session_token: str = Query(..., max_length=100, description="Context session token"),
+    course_id: Optional[int] = Query(None, ge=1),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Personalized AI tutor conversation route preserving session memory context.
+    Personalized AI tutor conversation preserving session memory. Uses the same tutor core as
+    /ai/chat; with course_id the answer is grounded in that course's material (authorization first).
     """
-    # Load previous conversation memory for context
+    from ai.tutor import get_tutor_response, prepare_course_context
+
     history = db.query(AIConversation).filter(
         AIConversation.user_id == current_user.id,
         AIConversation.session_token == session_token
-    ).order_by(AIConversation.created_at.asc()).all()
+    ).order_by(AIConversation.created_at.asc()).limit(20).all()
+    chat_history = [{"role": h.role, "content": h.content} for h in history]
 
-    # Save user message
-    user_conv = AIConversation(
-        user_id=current_user.id,
-        session_token=session_token,
-        role="user",
-        content=message
-    )
-    db.add(user_conv)
-    db.commit()
+    course, retrieval = None, None
+    if course_id:
+        course, retrieval = prepare_course_context(db, current_user, course_id, message)
 
-    # Build context prompt
-    context_str = "You are an intelligent tutor teaching computer science. Keep explanations clear.\n"
-    for h in history:
-        context_str += f"{h.role.capitalize()}: {h.content}\n"
-    context_str += f"User: {message}\nAssistant:"
+    # Errors (LLMError, RagAccessDenied, RagUnavailable) propagate to the app handlers as HTTP errors;
+    # nothing is stored for a failed turn and no canned reply is invented.
+    result = get_tutor_response(message, chat_history, course=course, retrieval=retrieval)
 
-    # Call AI
-    ai_reply = get_ai_response(context_str)
-    if not ai_reply:
-        # Smart simulated tutor reply if Gemini is not configured
-        if "recursion" in message.lower():
-            ai_reply = "Recursion is a programming technique where a function calls itself to solve a smaller instance of the same problem. A crucial part is the *base case*, which stops the loop. Do you want to see an example in Python?"
-        elif "complexity" in message.lower() or "big o" in message.lower():
-            ai_reply = "Big-O notation describes the performance or complexity of an algorithm. O(1) is constant time, O(n) is linear time (proportional to input size), and O(n^2) is quadratic time. Would you like to analyze a specific code block?"
-        else:
-            ai_reply = f"That is a great question about computer science! Let's break this down. Could you clarify if you want an conceptual overview, code examples, or test cases?"
-
-    # Save assistant message
-    assist_conv = AIConversation(
-        user_id=current_user.id,
-        session_token=session_token,
-        role="assistant",
-        content=ai_reply
-    )
-    db.add(assist_conv)
+    db.add(AIConversation(user_id=current_user.id, session_token=session_token, role="user", content=message))
+    db.add(AIConversation(user_id=current_user.id, session_token=session_token, role="assistant",
+                          content=result["response"]))
     db.commit()
 
     return {
-        "reply": ai_reply,
-        "session_token": session_token
+        "reply": result["response"],
+        "session_token": session_token,
+        "grounded": result["grounded"],
+        "sources": result["sources"],
+        "truncated": result["truncated"],
     }
 
 
@@ -154,12 +137,13 @@ def generate_study_planner(
     return plan
 
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
 
 class CodeReviewRequest(BaseModel):
-    code: str
-    language: str
-    problem_title: str = "Algorithm challenge"
+    code: str = Field(..., min_length=1, max_length=50000)
+    language: str = Field(..., max_length=30)
+    problem_title: str = Field("Algorithm challenge", max_length=300)
 
 
 @router.post("/coding/review")
@@ -168,36 +152,10 @@ def review_code(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Performs full static AI code review, complexity analysis, and quality grading.
+    AI code review of exactly the code in the request. Returns validated, structured findings
+    (summary, categorised issues vs suggestions with real line numbers, recommendations, corrected
+    code). A provider failure or unparseable reply is an HTTP error, never an invented review.
     """
-    prompt = f"""
-    Review the following {payload.language} code for the problem '{payload.problem_title}':
-    {payload.code}
-    Provide a code review. Return a JSON containing keys:
-    - quality_score: integer 0-100
-    - time_complexity: string (Big O)
-    - space_complexity: string (Big O)
-    - bugs: list of strings
-    - optimization_tips: list of strings
-    """
-    ai_reply = get_ai_response(prompt)
-    
-    try:
-        if "```json" in ai_reply:
-            ai_reply = ai_reply.split("```json")[1].split("```")[0].strip()
-        review = json.loads(ai_reply)
-    except:
-        review = {
-            "quality_score": 85,
-            "time_complexity": "O(N)",
-            "space_complexity": "O(1)",
-            "bugs": ["No edge cases validation for null/empty lists."],
-            "optimization_tips": [
-                "Consider replacing nested checks with guard clauses.",
-                "Use list comprehension where possible for cleaner code."
-            ]
-        }
-    return review
+    from ai.code_review import review_code as run_review
 
-
-
+    return run_review(payload.code, payload.language, payload.problem_title)

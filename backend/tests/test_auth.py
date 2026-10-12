@@ -194,10 +194,34 @@ def test_session_rotation(db_session):
         role="student",
     )
     user = create_user(db_session, user_data)
-    login_user(db_session, test_email, "Password123!", remember_me=True, ip_address="192.168.1.5", user_agent="Firefox")
+    login_user(db_session, test_email, "Password123!", ip_address="192.168.1.5", user_agent="Firefox")
 
     sessions = get_active_sessions(db_session, user.id)
     assert len(sessions) == 1
     assert sessions[0].ip_address == "192.168.1.5"
     assert sessions[0].user_agent == "Firefox"
 
+
+
+def test_login_uses_one_session_policy_and_ignores_legacy_remember_me(db_session):
+    """The 7-day 'remember me' option is gone: a stale client sending it gets the standard 1-day session."""
+    import inspect
+    from datetime import datetime, timedelta, timezone
+    from schemas.user import UserCreate, UserLogin
+    from services.auth_service import login_user, SESSION_LIFETIME_DAYS
+    from services.session_service import get_active_sessions
+    from services.user_service import create_user
+
+    assert "remember_me" not in inspect.signature(login_user).parameters
+    assert "remember_me" not in UserLogin.model_fields
+    legacy_payload = UserLogin(email="a@b.co", password="Password123!", remember_me=True)  # extra field ignored
+    assert not hasattr(legacy_payload, "remember_me")
+
+    user = create_user(db_session, UserCreate(email="one_policy@example.com", username="one_policy",
+                                              full_name="One Policy", password="Password123!", role="student"))
+    login_user(db_session, "one_policy@example.com", "Password123!", ip_address="10.0.0.1", user_agent="UA")
+    (session,) = get_active_sessions(db_session, user.id)
+    expires = session.expires_at if session.expires_at.tzinfo else session.expires_at.replace(tzinfo=timezone.utc)
+    remaining = expires - datetime.now(timezone.utc)
+    assert SESSION_LIFETIME_DAYS == 1
+    assert timedelta(hours=23) < remaining <= timedelta(days=1, minutes=1)

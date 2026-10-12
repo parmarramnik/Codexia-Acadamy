@@ -1,8 +1,8 @@
 import api from './api';
 
 const authService = {
-  login: (email, password, rememberMe = false) =>
-    api.post('/auth/login', { email, password, remember_me: rememberMe }),
+  login: (email, password) =>
+    api.post('/auth/login', { email, password }),
 
   signup: (userData) =>
     api.post('/auth/signup', userData),

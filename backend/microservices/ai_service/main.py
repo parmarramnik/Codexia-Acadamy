@@ -1,70 +1,48 @@
 """
-AI Microservice entrypoint.
+AI Service entrypoint.
 Port: 8005
-Routes: /api/ai, v3_ai
+Owns: /ai, v3_ai, /rag
 """
-
-import sys
 import os
+import sys
 
 backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
-from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
-
+from routes import ai, v3_ai, rag
 from config import settings
-from database import create_tables
-from middleware.cors import setup_cors
-from middleware.rate_limiter import setup_rate_limiter
-from middleware.error_handler import setup_error_handlers
-from routes import ai, v3_ai
+from microservices.shared.factory import create_service_app
 
+SERVICE_NAME = "AI Service"
 SERVICE_PORT = 8005
-SERVICE_NAME = "AI Microservice"
+
+def _checks() -> dict:
+    import importlib.util
+    packages = {n: importlib.util.find_spec(n) is not None for n in ("faiss", "sentence_transformers")}
+    ok = not settings.RAG_ENABLED or all(packages.values())
+    return {
+        "ai": {"status": "healthy" if settings.GEMINI_API_KEY else "degraded", "configured": bool(settings.GEMINI_API_KEY)},
+        "rag": {"status": "healthy" if ok else "degraded", "enabled": settings.RAG_ENABLED, "packages_installed": packages},
+    }
 
 
-def create_app() -> FastAPI:
-    app = FastAPI(
-        title=f"{settings.APP_NAME} - {SERVICE_NAME}",
-        version=settings.APP_VERSION,
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
-        openapi_url="/api/openapi.json",
-    )
+def _recover() -> None:
+    from ai.rag.service import recover_interrupted_documents
+    recover_interrupted_documents()
 
-    setup_cors(app)
-    setup_rate_limiter(app)
-    setup_error_handlers(app)
-
-    prefix = settings.API_PREFIX
-    app.include_router(ai.router, prefix=f"{prefix}/ai", tags=["AI"])
-    app.include_router(v3_ai.router, prefix=prefix)
-
-    @app.on_event("startup")
-    def on_startup():
-        create_tables()
-
-    @app.get("/", tags=["Root"])
-    def root():
-        return RedirectResponse(url="/api/docs")
-
-    @app.get("/health", tags=["Health"])
-    @app.get("/api/ai/health", tags=["Health"])
-    def health_check():
-        return {
-            "status": "healthy",
-            "service": SERVICE_NAME,
-            "port": SERVICE_PORT,
-            "version": settings.APP_VERSION,
-        }
-
-    return app
-
-
-app = create_app()
+app = create_service_app(
+    SERVICE_NAME,
+    SERVICE_PORT,
+    [
+        (ai.router, "/ai"),
+        (v3_ai.router, ""),
+        (rag.router, "/rag"),
+    ],
+    extra_checks=_checks,
+    on_startup=_recover,
+)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=SERVICE_PORT, reload=settings.DEBUG)
+    uvicorn.run("main:app", host="0.0.0.0", port=SERVICE_PORT)

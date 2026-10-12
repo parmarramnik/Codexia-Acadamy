@@ -1,260 +1,226 @@
+# =============================================================================
+# Codexia Academy - microservices stack
+#
+#   Local:       docker compose up -d --build            (http://localhost:3000)
+#   Production:  docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+#                  --env-file .env.production up -d --build        (see DEPLOYMENT.md)
+#
+# Topology (only `frontend` [and `edge` in production] is reachable from outside):
+#   browser -> frontend (nginx) -> gateway -> auth | course | quiz | coding | ai | analytics | payment
+#                                             \-> postgres, redis (private network)
+# `migrate` is a one-shot job (tables, roles, reference data, first admin) that must succeed first.
+# =============================================================================
+
+x-env: &env
+  DEBUG: ${DEBUG:-true}
+  DATABASE_URL: ${EXTERNAL_DATABASE_URL:-postgresql://${POSTGRES_USER:-codexia_admin}:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/${POSTGRES_DB:-codexia_lms}}
+  REDIS_URL: ${EXTERNAL_REDIS_URL:-redis://redis:6379/0}
+  RATE_LIMIT_STORAGE_URI: ${EXTERNAL_REDIS_URL:-redis://redis:6379/0}
+  REDIS_REQUIRED: ${REDIS_REQUIRED:-false}
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-only-secret-change-me-dev-only-secret-change-me}
+  JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+  ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+  REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+  FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+  CERTIFICATE_SIGNING_KEY: ${CERTIFICATE_SIGNING_KEY:-}
+  SEED_DEMO_DATA: ${SEED_DEMO_DATA:-}
+  DB_POOL_SIZE: ${DB_POOL_SIZE:-3}
+  DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-3}
+  WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
+  MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-500}
+  # mail (used by auth and by notification code in several services)
+  BREVO_API_KEY: ${BREVO_API_KEY:-}
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  FROM_EMAIL: ${FROM_EMAIL:-noreply@codexia.com}
+  ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@codexia.com}
+  INSTRUCTOR_EMAIL: ${INSTRUCTOR_EMAIL:-instructor@codexia.com}
+
+x-service: &service
+  restart: unless-stopped
+  depends_on:
+    migrate: {condition: service_completed_successfully}
+    redis: {condition: service_healthy}
+  volumes:
+    - static:/app/static          # uploads (videos, avatars, thumbnails, certificates) shared by all services
+
 services:
   postgres:
     image: postgres:15-alpine
     container_name: codexia_db
+    restart: unless-stopped
+    command: ["postgres", "-c", "max_connections=200"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-codexia_lms}
       POSTGRES_USER: ${POSTGRES_USER:-codexia_admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin_secure_pwd}
-    # Security: Bind database strictly to localhost (127.0.0.1) to avoid exposure to LAN/public
-    ports:
-      - "127.0.0.1:5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - codexia_network
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: [postgres_data:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-codexia_admin} -d ${POSTGRES_DB:-codexia_lms}"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 20
 
   redis:
     image: redis:7-alpine
     container_name: codexia_cache
-    # Security: Bind Redis strictly to localhost (127.0.0.1) to prevent unauthenticated access
-    ports:
-      - "127.0.0.1:6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - codexia_network
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    ports: ["127.0.0.1:6379:6379"]
+    volumes: [redis_data:/data]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
-  elasticsearch:
+  elasticsearch:                      # optional full-text search: docker compose --profile search up
+    profiles: ["search"]
     image: elasticsearch:8.11.0
     container_name: codexia_search
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms256m -Xmx512m"
-    # Security: Bind Elasticsearch strictly to localhost (127.0.0.1)
-    ports:
-      - "127.0.0.1:9200:9200"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    networks:
-      - codexia_network
+    restart: unless-stopped
+    environment: ["discovery.type=single-node", "xpack.security.enabled=false", "ES_JAVA_OPTS=-Xms256m -Xmx512m"]
+    volumes: [elasticsearch_data:/usr/share/elasticsearch/data]
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cat/health | grep -q 'green\\|yellow'"]
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cat/health | grep -qE 'green|yellow'"]
       interval: 10s
       timeout: 5s
-      retries: 8
+      retries: 12
+
+  migrate:
+    build: {context: ./backend, dockerfile: Dockerfile.service, args: {SERVICE_MODULE: microservices.auth_service.main, PORT: "8001"}}
+    container_name: codexia_migrate
+    restart: "no"
+    command: ["python", "scripts/bootstrap.py"]
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      <<: *env
+      ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-}
+      ADMIN_BOOTSTRAP_USERNAME: ${ADMIN_BOOTSTRAP_USERNAME:-admin}
+      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-}
+    healthcheck: {disable: true}
 
   auth_service:
-    build:
-      context: ./backend
-      dockerfile: microservices/auth_service/Dockerfile
-    container_name: codexia_auth_service
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    ports:
-      - "127.0.0.1:8001:8001"
-    environment:
-      - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-ff81703f3b275c0b1cd741673ba64134}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
-      - APP_NAME=Codexia Auth Service
-      - DEBUG=${DEBUG:-true}
-      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - FROM_EMAIL=${FROM_EMAIL:-noreply@codexia.com}
-      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@codexia.com}
-      - INSTRUCTOR_EMAIL=${INSTRUCTOR_EMAIL:-instructor@codexia.com}
-    volumes:
-      - ./backend:/app
-    networks:
-      - codexia_network
+    <<: *service
+    build: {context: ./backend, dockerfile: Dockerfile.service, args: {SERVICE_MODULE: microservices.auth_service.main, PORT: "8001"}}
+    container_name: codexia_auth
+    environment: *env
 
   course_service:
-    build:
-      context: ./backend
-      dockerfile: microservices/course_service/Dockerfile
-    container_name: codexia_course_service
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    ports:
-      - "127.0.0.1:8002:8002"
-    environment:
-      - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-ff81703f3b275c0b1cd741673ba64134}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
-      - APP_NAME=Codexia Course Service
-      - DEBUG=${DEBUG:-true}
-    volumes:
-      - ./backend:/app
-    networks:
-      - codexia_network
+    <<: *service
+    build: {context: ./backend, dockerfile: Dockerfile.service, args: {SERVICE_MODULE: microservices.course_service.main, PORT: "8002"}}
+    container_name: codexia_course
+    environment: *env
 
   quiz_service:
-    build:
-      context: ./backend
-      dockerfile: microservices/quiz_service/Dockerfile
-    container_name: codexia_quiz_service
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    ports:
-      - "127.0.0.1:8003:8003"
+    <<: *service
+    build: {context: ./backend, dockerfile: Dockerfile.service, args: {SERVICE_MODULE: microservices.quiz_service.main, PORT: "8003"}}
+    container_name: codexia_quiz
     environment:
-      - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-ff81703f3b275c0b1cd741673ba64134}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
-      - APP_NAME=Codexia Quiz Service
-      - DEBUG=${DEBUG:-true}
-    volumes:
-      - ./backend:/app
-    networks:
-      - codexia_network
+      <<: *env
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}          # AI quiz generation
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
 
   coding_service:
-    build:
-      context: ./backend
-      dockerfile: microservices/coding_service/Dockerfile
-    container_name: codexia_coding_service
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    ports:
-      - "127.0.0.1:8004:8004"
+    <<: *service
+    build: {context: ./backend, dockerfile: Dockerfile.service, args: {SERVICE_MODULE: microservices.coding_service.main, PORT: "8004"}}
+    container_name: codexia_coding
     environment:
-      - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-ff81703f3b275c0b1cd741673ba64134}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
-      - APP_NAME=Codexia Coding Service
-      - DEBUG=${DEBUG:-true}
-    volumes:
-      - ./backend:/app
-    networks:
-      - codexia_network
+      <<: *env
+      CODE_EXEC_PROVIDER: ${CODE_EXEC_PROVIDER:-auto}
+      JUDGE0_URL: ${JUDGE0_URL:-}
+      JUDGE0_API_KEY: ${JUDGE0_API_KEY:-}
+      JUDGE0_AUTH_HEADER: ${JUDGE0_AUTH_HEADER:-X-Auth-Token}
+      JUDGE0_RAPIDAPI_HOST: ${JUDGE0_RAPIDAPI_HOST:-}
+      JUDGE0_LANGUAGE_IDS: ${JUDGE0_LANGUAGE_IDS:-}
+      CODE_EXEC_MAX_CONCURRENCY: ${CODE_EXEC_MAX_CONCURRENCY:-4}
 
   ai_service:
+    <<: *service
     build:
       context: ./backend
-      dockerfile: microservices/ai_service/Dockerfile
-    container_name: codexia_ai_service
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    ports:
-      - "127.0.0.1:8005:8005"
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_MODULE: microservices.ai_service.main
+        PORT: "8005"
+        REQUIREMENTS: requirements-rag.txt     # only this image carries torch / FAISS / sentence-transformers
+        PRELOAD_MODEL: "${PRELOAD_EMBEDDING_MODEL:-true}"
+        EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+    container_name: codexia_ai
     environment:
-      - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-ff81703f3b275c0b1cd741673ba64134}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
-      - APP_NAME=Codexia AI Service
-      - DEBUG=${DEBUG:-true}
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-    volumes:
-      - ./backend:/app
-    networks:
-      - codexia_network
+      <<: *env
+      WEB_CONCURRENCY: "1"                         # one copy of the embedding model in memory
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      RAG_ENABLED: ${RAG_ENABLED:-true}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      RAG_TOP_K: ${RAG_TOP_K:-5}
+      RAG_MIN_SCORE: ${RAG_MIN_SCORE:-0.30}
 
   analytics_service:
-    build:
-      context: ./backend
-      dockerfile: microservices/analytics_service/Dockerfile
-    container_name: codexia_analytics_service
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    ports:
-      - "127.0.0.1:8006:8006"
+    <<: *service
+    build: {context: ./backend, dockerfile: Dockerfile.service, args: {SERVICE_MODULE: microservices.analytics_service.main, PORT: "8006"}}
+    container_name: codexia_analytics
     environment:
-      - DATABASE_URL=postgresql://codexia_admin:${POSTGRES_PASSWORD:-admin_secure_pwd}@postgres:5432/codexia_lms
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-ff81703f3b275c0b1cd741673ba64134}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
-      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elasticsearch:9200}
-      - APP_NAME=Codexia Analytics Service
-      - DEBUG=${DEBUG:-true}
-    volumes:
-      - ./backend:/app
-    networks:
-      - codexia_network
+      <<: *env
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
+
+  payment_service:
+    <<: *service
+    build: {context: ./backend, dockerfile: Dockerfile.service, args: {SERVICE_MODULE: microservices.payment_service.main, PORT: "8007"}}
+    container_name: codexia_payment
+    environment:
+      <<: *env
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
 
   gateway:
-    build:
-      context: ./backend
-      dockerfile: microservices/gateway/Dockerfile
-    container_name: codexia_api_gateway
+    <<: *service
+    build: {context: ./backend, dockerfile: Dockerfile.service, args: {SERVICE_MODULE: microservices.gateway.main, PORT: "8000"}}
+    container_name: codexia_gateway
     depends_on:
-      - auth_service
-      - course_service
-      - quiz_service
-      - coding_service
-      - ai_service
-      - analytics_service
-    ports:
-      - "127.0.0.1:8000:8000"
+      migrate: {condition: service_completed_successfully}
+      auth_service: {condition: service_healthy}
+      course_service: {condition: service_healthy}
+      quiz_service: {condition: service_healthy}
+      coding_service: {condition: service_healthy}
+      ai_service: {condition: service_healthy}
+      analytics_service: {condition: service_healthy}
+      payment_service: {condition: service_healthy}
+    ports: ["127.0.0.1:8000:8000"]          # local debugging only; removed in production
     environment:
-      - AUTH_SERVICE_URL=http://auth_service:8001
-      - COURSE_SERVICE_URL=http://course_service:8002
-      - QUIZ_SERVICE_URL=http://quiz_service:8003
-      - CODING_SERVICE_URL=http://coding_service:8004
-      - AI_SERVICE_URL=http://ai_service:8005
-      - ANALYTICS_SERVICE_URL=http://analytics_service:8006
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-ff81703f3b275c0b1cd741673ba64134}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
-      - APP_NAME=Codexia API Gateway
-      - DEBUG=true
-    volumes:
-      - ./backend:/app
-    networks:
-      - codexia_network
+      <<: *env
+      AUTH_SERVICE_URL: http://auth_service:8001
+      COURSE_SERVICE_URL: http://course_service:8002
+      QUIZ_SERVICE_URL: http://quiz_service:8003
+      CODING_SERVICE_URL: http://coding_service:8004
+      AI_SERVICE_URL: http://ai_service:8005
+      ANALYTICS_SERVICE_URL: http://analytics_service:8006
+      PAYMENT_SERVICE_URL: http://payment_service:8007
 
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      args: {VITE_API_URL: "${VITE_API_URL:-/api}"}
     container_name: codexia_frontend
+    restart: unless-stopped
     depends_on:
-      - gateway
-    ports:
-      - "3000:3000"
-    networks:
-      - codexia_network
+      gateway: {condition: service_healthy}
+    ports: ["3000:3000"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 15s
+      timeout: 4s
+      retries: 5
 
 volumes:
   postgres_data:
   redis_data:
   elasticsearch_data:
-
-networks:
-  codexia_network:
-    driver: bridge
+  static:

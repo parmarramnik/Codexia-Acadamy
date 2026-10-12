@@ -10,6 +10,7 @@
 .env.*
 *.env
 !*.env.example
+!.env.*.example
 *.pem
 *.key
 *.pfx
@@ -111,6 +112,9 @@ yarn-error.log*
 pnpm-debug.log*
 scratch/
 .scratch/
+.model-cache/
+deploy/
+.claude/
 
 # ------------------------------------------------------------------------------
 # 8. IDE & Operating System Files

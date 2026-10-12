@@ -1,77 +1,38 @@
 """
-Coding & Execution Microservice entrypoint.
+Coding Service entrypoint.
 Port: 8004
-Routes: /api/coding, /api/git, v3_coding
+Owns: v3_coding, /coding, /git
 """
-
-import sys
 import os
+import sys
 
 backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
-from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
-
-from config import settings
-from database import create_tables
-from middleware.cors import setup_cors
-from middleware.rate_limiter import setup_rate_limiter
-from middleware.error_handler import setup_error_handlers
 from routes import coding, v3_coding, git
+from services import code_runner
+from microservices.shared.factory import create_service_app
 
+SERVICE_NAME = "Coding Service"
 SERVICE_PORT = 8004
-SERVICE_NAME = "Coding & Execution Microservice"
 
+def _checks() -> dict:
+    status = code_runner.health()
+    # No provider is "degraded" (feature unavailable), not "unhealthy": the rest of the API still works.
+    return {"code_execution": {**status, "status": "degraded" if status["status"] == "unavailable" else status["status"]}}
 
-def create_app() -> FastAPI:
-    app = FastAPI(
-        title=f"{settings.APP_NAME} - {SERVICE_NAME}",
-        version=settings.APP_VERSION,
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
-        openapi_url="/api/openapi.json",
-    )
-
-    setup_cors(app)
-    setup_rate_limiter(app)
-    setup_error_handlers(app)
-
-    prefix = settings.API_PREFIX
-    app.include_router(v3_coding.router, prefix=prefix)
-    app.include_router(coding.router, prefix=f"{prefix}/coding", tags=["Coding Practice"])
-    app.include_router(git.router, prefix=f"{prefix}/git", tags=["Git Version Control"])
-
-    @app.on_event("startup")
-    def on_startup():
-        create_tables()
-        try:
-            from seed_scratch_problems import seed_scratch_problems
-            seed_scratch_problems(force=False)
-        except Exception as seed_err:
-            import logging
-            logging.getLogger("uvicorn.error").warning(f"Coding problems auto-seeding check: {seed_err}")
-
-    @app.get("/", tags=["Root"])
-    def root():
-        return RedirectResponse(url="/api/docs")
-
-    @app.get("/health", tags=["Health"])
-    @app.get("/api/coding/health", tags=["Health"])
-    def health_check():
-        return {
-            "status": "healthy",
-            "service": SERVICE_NAME,
-            "port": SERVICE_PORT,
-            "version": settings.APP_VERSION,
-        }
-
-    return app
-
-
-app = create_app()
+app = create_service_app(
+    SERVICE_NAME,
+    SERVICE_PORT,
+    [
+        (v3_coding.router, ""),
+        (coding.router, "/coding"),
+        (git.router, "/git"),
+    ],
+    extra_checks=_checks,
+)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=SERVICE_PORT, reload=settings.DEBUG)
+    uvicorn.run("main:app", host="0.0.0.0", port=SERVICE_PORT)

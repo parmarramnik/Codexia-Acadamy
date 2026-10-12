@@ -6,9 +6,12 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY . .
+# Same-origin by default: nginx proxies /api to the gateway. Set to a full URL if the API lives elsewhere.
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 # ==========================================

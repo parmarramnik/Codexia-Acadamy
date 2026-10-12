@@ -1,7 +1,8 @@
 import json
 from datetime import datetime, timezone
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Query
+import hashlib
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -16,18 +17,28 @@ from schemas.coding import (
     TestCaseResponse,
 )
 from schemas.user import MessageResponse
+from middleware.rate_limiter import limiter
 from services import coding_service
+from services.code_runner import user_run_guard
 from utils.cache import cache_get, cache_set, cache_invalidate_prefix
 
 router = APIRouter()
 
 
-from pydantic import BaseModel
+def _per_user_key(request: Request) -> str:
+    """Rate-limit code runs per account (many students can share one proxy IP)."""
+    auth = request.headers.get("authorization", "")
+    if auth:
+        return "u:" + hashlib.sha256(auth.encode("utf-8")).hexdigest()[:24]
+    return request.client.host if request.client else "anon"
+
+
+from pydantic import BaseModel, Field
 
 class CustomRunRequest(BaseModel):
-    code: str
-    language: str
-    custom_input: str = ""
+    code: str = Field(..., min_length=1, max_length=65536)
+    language: str = Field(..., max_length=20)
+    custom_input: str = Field("", max_length=65536)
 
 class DailyChallengeSetRequest(BaseModel):
     problem_id: int
@@ -216,14 +227,17 @@ def toggle_favorite_problem(
 
 
 @router.post("/problems/{problem_id}/custom-run")
+@limiter.limit("30/minute", key_func=_per_user_key)
 def run_custom_code(
+    request: Request,
     problem_id: int,
     data: CustomRunRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Run code against custom standard input."""
-    return coding_service.custom_run_code(db, problem_id, data.code, data.language, data.custom_input)
+    with user_run_guard(current_user.id):
+        return coding_service.custom_run_code(db, problem_id, data.code, data.language, data.custom_input)
 
 
 @router.get("/problems/random")
@@ -308,25 +322,31 @@ def create_problem(
 
 
 @router.post("/problems/{problem_id}/run")
+@limiter.limit("30/minute", key_func=_per_user_key)
 def run_code(
+    request: Request,
     problem_id: int,
     data: CodeRunRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Run code against sample test cases."""
-    return coding_service.run_code(db, problem_id, data.code, data.language)
+    with user_run_guard(current_user.id):
+        return coding_service.run_code(db, problem_id, data.code, data.language)
 
 
 @router.post("/problems/{problem_id}/submit", response_model=SubmissionResponse)
+@limiter.limit("15/minute", key_func=_per_user_key)
 def submit_code(
+    request: Request,
     problem_id: int,
     data: CodeSubmitRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Submit code for full evaluation."""
-    submission = coding_service.submit_code(db, problem_id, current_user.id, data.code, data.language)
+    with user_run_guard(current_user.id):
+        submission = coding_service.submit_code(db, problem_id, current_user.id, data.code, data.language)
     
     # Check if submission is accepted to credit the student
     from models.coding import SubmissionStatus

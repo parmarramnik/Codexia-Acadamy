@@ -14,6 +14,9 @@ from auth.password import hash_password, verify_password
 from services.user_service import get_user_by_email, get_user_by_username, create_user
 from schemas.user import UserCreate
 
+# Single session policy for every user and role: a login session lasts one day.
+SESSION_LIFETIME_DAYS = 1
+
 
 def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
     """Validate a user's credentials and return the user if valid."""
@@ -39,7 +42,6 @@ def login_user(
     db: Session,
     email: str,
     password: str,
-    remember_me: bool = False,
     ip_address: Optional[str] = None,
     user_agent: Optional[str] = None,
 ) -> dict:
@@ -85,7 +87,7 @@ def login_user(
     })
 
     # Store refresh token / session mapping on database
-    create_user_session(db, authenticated_user.id, refresh_token, ip_address, user_agent, expires_in_days=7 if remember_me else 1)
+    create_user_session(db, authenticated_user.id, refresh_token, ip_address, user_agent, expires_in_days=SESSION_LIFETIME_DAYS)
     record_login_attempt(db, email, "success", ip_address, user_agent)
 
     # Store refresh token hash on user (backward compatibility)
