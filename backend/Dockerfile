@@ -15,8 +15,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+# requirements.txt includes the other files, so all three must be copied.
+# Default image = API without the ML stack (small, fits Render's free 512 MB plan; set RAG_ENABLED=false).
+# Build with --build-arg INSTALL_RAG=true to add torch / FAISS / sentence-transformers for course RAG.
+ARG INSTALL_RAG=false
+COPY requirements-base.txt requirements-rag.txt ./
+RUN pip install --no-cache-dir --prefix=/install -r requirements-base.txt     && if [ "$INSTALL_RAG" = "true" ]; then pip install --no-cache-dir --prefix=/install -r requirements-rag.txt; fi
 
 # Final stage
 FROM python:3.11-slim AS runner
@@ -45,4 +49,4 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]
