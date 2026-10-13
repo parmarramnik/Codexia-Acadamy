@@ -36,7 +36,6 @@ open http://localhost:3000          # API docs at http://localhost:8000 are disa
 Local mode uses DEBUG=true: demo accounts (`student@gmail.com`, `instructor@gmail.com`, `admin@gmail.com`, `sadmin@gmail.com`,
 password `123456`) and sample courses are created. **These accounts never exist in production.**
 Optional search: `docker compose --profile search up -d`. Stop: `docker compose down` (add `-v` to wipe all data).
-Single-process alternative (everything in one backend container): `docker compose -f docker-compose.full.yml up -d --build`.
 
 ## 3. Deploy to a server (VPS / any Docker host)
 

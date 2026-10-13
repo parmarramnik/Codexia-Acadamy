@@ -77,6 +77,5 @@ desktop.ini
 *.log
 scratch/
 .scratch/
-run_smoke.py
 
 .model-cache/

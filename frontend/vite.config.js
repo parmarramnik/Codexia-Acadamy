@@ -26,7 +26,6 @@ export default defineConfig({
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-editor': ['@monaco-editor/react'],
-          'vendor-charts': ['recharts'],
           'vendor-markdown': ['react-markdown', 'react-syntax-highlighter'],
           'vendor-icons': ['react-icons'],
         },
