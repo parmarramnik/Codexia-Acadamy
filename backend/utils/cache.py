@@ -74,7 +74,6 @@ def get_redis_client():
             retry_on_timeout=True,
             health_check_interval=30,
             max_connections=settings.REDIS_MAX_CONNECTIONS,
-            client_name="codexia",
         )
         client.ping()
         _redis_client = client
