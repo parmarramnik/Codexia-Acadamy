@@ -158,6 +158,8 @@ def test_legacy_record_is_backfilled(client, db_session):
 
 def test_qr_ignores_untrusted_referer(client, db_session, monkeypatch):
     monkeypatch.setattr(settings, "FRONTEND_URL", "http://localhost:3000")
+    # Trusted origins come only from configuration, so pin it instead of relying on a developer's .env.
+    monkeypatch.setattr(settings, "CORS_ORIGINS", "http://localhost:3000,https://codexia-acadamy.vercel.app")
     _, course, auth = _seed(db_session)
     uid = client.post(f"/api/certificates/{course.id}/generate", headers=auth).json()["certificate_uid"]
 
