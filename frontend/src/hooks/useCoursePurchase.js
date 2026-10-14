@@ -62,6 +62,12 @@ export default function useCoursePurchase({ course, onEnrolled }) {
 
   const applyStatus = useCallback((data) => {
     if (!mountedRef.current || !data) return 'unknown';
+    if (data.refund_reason && !data.enrolled) {
+      // Paid, but access can't be granted (e.g. the course was removed): the backend refunds it.
+      setPhase('failed');
+      setMessage(data.refund_reason);
+      return 'done';
+    }
     if (data.status === 'SUCCESS' && data.enrolled) {
       setPhase('success');
       setMessage('');

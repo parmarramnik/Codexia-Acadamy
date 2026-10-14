@@ -135,6 +135,10 @@ class Settings(BaseSettings):
     RAZORPAY_WEBHOOK_SECRET: Optional[str] = None
     RAZORPAY_API_BASE: str = "https://api.razorpay.com/v1"
     RAZORPAY_TIMEOUT_SECONDS: float = 15.0
+    # Background safety net: how often open payments are re-checked with Razorpay so a payment
+    # whose checkout callback and webhook were both lost still grants access or gets refunded.
+    # 0 disables it.
+    PAYMENT_RECONCILE_INTERVAL_SECONDS: int = 600
 
     @field_validator("SEED_DEMO_DATA", mode="before")
     @classmethod

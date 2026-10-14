@@ -4,6 +4,7 @@ import { FiAlertCircle, FiCheckCircle, FiClock, FiRefreshCw, FiXCircle } from 'r
 import paymentService, { paymentErrorMessage } from '../services/paymentService';
 import { formatMinor } from '../utils/money';
 import PageLoader from '../components/common/PageLoader';
+import { DEBIT_REASSURANCE, REFUND_TIMING } from '../components/payments/refundCopy';
 
 const POLL_MS = 4000;
 
@@ -37,7 +38,8 @@ export default function PaymentStatus() {
     let cancelled = false;
     const tick = async () => {
       const d = await load();
-      const open = d && (d.status === 'CREATED' || d.status === 'PENDING' || (d.status === 'SUCCESS' && !d.enrolled));
+      const open = d && (d.status === 'CREATED' || d.status === 'PENDING'
+        || (d.status === 'SUCCESS' && !d.enrolled && !d.refund_reason));
       if (!cancelled && open) timer.current = setTimeout(tick, POLL_MS);
     };
     tick();
@@ -62,16 +64,25 @@ export default function PaymentStatus() {
       body: `You are now enrolled in ${data.course_title || 'your course'}.`,
       actions: <Link to={courseLink} className="btn btn-primary">Start Learning</Link>,
     };
+  } else if (data.status === 'SUCCESS' && data.refund_reason) {
+    view = {
+      icon: <FiRefreshCw size={28} />, tone: 'neutral', title: 'Payment is being refunded',
+      body: `${data.refund_reason} ${REFUND_TIMING}`,
+      actions: <Link to="/courses" className="btn btn-secondary">Browse courses</Link>,
+    };
   } else if (data.status === 'FAILED') {
     view = {
       icon: <FiXCircle size={28} />, tone: 'danger', title: 'Payment could not be completed',
-      body: `No course access was granted.${data.failure_reason ? ` ${data.failure_reason}` : ''}`,
+      body: `No course access was granted.${data.failure_reason ? ` ${data.failure_reason}` : ''} ${DEBIT_REASSURANCE}`,
       actions: <Link to={courseLink} className="btn btn-primary"><FiRefreshCw size={14} /> Try Again</Link>,
     };
   } else if (data.status === 'REFUNDED') {
     view = {
       icon: <FiRefreshCw size={28} />, tone: 'neutral', title: 'Payment refunded',
-      body: 'This payment was refunded and course access has been removed.',
+      // A refunded duplicate leaves access in place through the learner's earlier payment.
+      body: data.enrolled
+        ? `${data.refund_reason || 'This payment was refunded.'} You still have full access to this course.`
+        : 'This payment was refunded and course access has been removed.',
       actions: <Link to={courseLink} className="btn btn-secondary">View course</Link>,
     };
   } else if (data.status === 'CREATED') {

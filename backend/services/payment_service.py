@@ -36,7 +36,7 @@ from models.payment import Payment, PaymentEvent, PaymentIdempotencyKey, Payment
 from models.user import User
 from services import razorpay_client as rzp
 from utils.cache import cache_invalidate_prefix, invalidate_learner_cache
-from utils.money import MoneyError, normalize_currency, validate_paid_amount
+from utils.money import MoneyError, normalize_currency, to_major_display, validate_paid_amount
 
 logger = logging.getLogger("codexia.payments")
 
@@ -338,9 +338,15 @@ def _release_idempotency_key(db: Session, record_pk: int) -> None:
 
 # --------------------------------------------------------------------------- fulfillment
 
+class _CannotFulfill(Exception):
+    """The paid-for user or course no longer exists, so access can never be granted."""
+
+
 def _grant_enrollment(db: Session, user_id: Optional[int], course_id: Optional[int]) -> Enrollment:
-    if user_id is None or course_id is None:
-        raise RuntimeError("payment is no longer linked to a user or course")
+    if (user_id is None or course_id is None
+            or not db.query(User.id).filter(User.id == user_id).first()
+            or not db.query(Course.id).filter(Course.id == course_id).first()):
+        raise _CannotFulfill()
     enrollment = db.query(Enrollment).filter(Enrollment.user_id == user_id, Enrollment.course_id == course_id).first()
     if enrollment:
         if not enrollment.is_active:
@@ -372,12 +378,12 @@ def fulfill_payment(db: Session, payment: Payment, razorpay_payment_id: Optional
         if payment.status == PaymentStatus.REFUNDED.value:
             db.commit()
             return payment
-        if payment.status == PaymentStatus.SUCCESS.value and payment.fulfilled_at:
-            if razorpay_payment_id and payment.razorpay_payment_id not in (None, razorpay_payment_id):
-                logger.critical("Order %s received a second captured payment %s — review and refund manually",
-                                payment.razorpay_order_id, razorpay_payment_id)
+        if payment.status == PaymentStatus.SUCCESS.value and (payment.fulfilled_at or payment.auto_refund_reason):
+            stray = razorpay_payment_id and payment.razorpay_payment_id not in (None, razorpay_payment_id)
             db.commit()
-            return payment
+            if stray:
+                _refund_stray_capture(payment, razorpay_payment_id)
+            return _issue_auto_refund(db, payment)
 
         newly_succeeded = payment.status != PaymentStatus.SUCCESS.value
         _mark_success_fields(payment, razorpay_payment_id, method, via)
@@ -394,6 +400,13 @@ def fulfill_payment(db: Session, payment: Payment, razorpay_payment_id: Optional
             if attempt == 0:
                 continue
             return _persist_unfulfilled_success(db, payment_pk, razorpay_payment_id, method, via)
+        except _CannotFulfill:
+            db.rollback()
+            logger.error("Payment #%s can never grant access (user or course gone) — refunding automatically",
+                         payment_pk)
+            payment = _persist_unfulfilled_success(db, payment_pk, razorpay_payment_id, method, via,
+                                                   auto_refund_reason="This course is no longer available.")
+            return _issue_auto_refund(db, payment)
         except Exception as exc:
             db.rollback()
             logger.error("Enrollment grant failed for payment #%s: %s", payment_pk, type(exc).__name__)
@@ -401,12 +414,12 @@ def fulfill_payment(db: Session, payment: Payment, razorpay_payment_id: Optional
 
         logger.info("Payment #%s SUCCESS via %s — enrollment #%s granted", payment.id, via, payment.enrollment_id)
         _after_access_granted(db, payment, notify=newly_succeeded)
-        return payment
+        return _issue_auto_refund(db, payment)
     return payment
 
 
 def _flag_duplicate_purchase(db: Session, payment: Payment) -> None:
-    """Two separate orders both captured for the same learner + course: keep both records, flag for refund."""
+    """Two separate orders both captured for the same learner + course: keep the first, refund the later one."""
     earlier = (
         db.query(Payment)
         .filter(Payment.user_id == payment.user_id, Payment.course_id == payment.course_id,
@@ -415,19 +428,99 @@ def _flag_duplicate_purchase(db: Session, payment: Payment) -> None:
         .first()
     )
     if earlier and earlier.id < payment.id:
-        payment.admin_note = f"Duplicate purchase: already paid via order {earlier.razorpay_order_id}. Refund this payment."
-        logger.warning("Duplicate purchase on payment #%s (earlier #%s) — flagged for refund", payment.id, earlier.id)
+        payment.admin_note = (f"Duplicate purchase: already paid via order {earlier.razorpay_order_id}. "
+                              "Refunded automatically.")
+        payment.auto_refund_reason = "You had already paid for this course, so this extra payment was refunded."
+        logger.warning("Duplicate purchase on payment #%s (earlier #%s) — refunding automatically",
+                       payment.id, earlier.id)
 
 
-def _persist_unfulfilled_success(db: Session, payment_pk: int, razorpay_payment_id, method, via) -> Payment:
-    """Never lose a verified payment: record SUCCESS without access so reconciliation can retry."""
+def _persist_unfulfilled_success(db: Session, payment_pk: int, razorpay_payment_id, method, via,
+                                 auto_refund_reason: Optional[str] = None) -> Payment:
+    """Never lose a verified payment: record SUCCESS without access so reconciliation can retry (or refund)."""
     payment = _lock_payment(db, payment_pk)
     if payment.status != PaymentStatus.REFUNDED.value:
         _mark_success_fields(payment, razorpay_payment_id, method, via)
-        payment.fulfillment_error = "Course access could not be granted yet; it will be retried automatically."
+        if auto_refund_reason:
+            payment.auto_refund_reason = auto_refund_reason
+            payment.fulfillment_error = "Course access cannot be granted; the payment is refunded automatically."
+        else:
+            payment.fulfillment_error = "Course access could not be granted yet; it will be retried automatically."
     db.commit()
     logger.error("Payment #%s recorded as SUCCESS but enrollment is pending reconciliation", payment_pk)
     return payment
+
+
+# --------------------------------------------------------------------------- automatic refunds
+
+MAX_AUTO_REFUND_ATTEMPTS = 3
+
+
+def _auto_refund_due(payment: Payment) -> bool:
+    if not (payment.auto_refund_reason and payment.status == PaymentStatus.SUCCESS.value
+            and payment.razorpay_payment_id):
+        return False
+    if payment.refund_status is None:
+        return True
+    # A new attempt only after Razorpay confirmed the previous one failed; then an admin takes over.
+    return (payment.refund_status == RefundStatus.FAILED.value
+            and int(payment.refund_attempt or 0) + 1 < MAX_AUTO_REFUND_ATTEMPTS)
+
+
+def _issue_auto_refund(db: Session, payment: Payment) -> Payment:
+    """Send back money for a payment flagged with auto_refund_reason. Safe to call any number of times."""
+    if not _auto_refund_due(payment):
+        return payment
+    payment_pk = payment.id
+    try:
+        payment = refund_payment(db, payment_pk, None, payment.auto_refund_reason)
+    except PaymentFlowError as exc:
+        logger.error("Automatic refund for payment #%s not issued yet (%s) — reconciliation will retry",
+                     payment_pk, exc.code)
+        return db.query(Payment).filter(Payment.id == payment_pk).populate_existing().one()
+    _notify_refund(db, payment)
+    return payment
+
+
+def _notify_refund(db: Session, payment: Payment) -> None:
+    try:
+        from services import analytics_service
+        amount = f"{payment.currency} {to_major_display(payment.amount, payment.currency):.2f}"
+        analytics_service.create_notification(
+            db=db,
+            user_id=payment.user_id,
+            title="Refund started",
+            message=(f"{payment.auto_refund_reason} {amount} is on its way back to your original payment "
+                     "method and usually arrives within 5–7 working days."),
+            notification_type="course_update",
+            link=f"/payments/{payment.razorpay_order_id}",
+        )
+    except Exception:
+        db.rollback()
+
+
+def _refund_stray_capture(payment: Payment, pay_id: str) -> None:
+    """
+    A second payment captured on an order that is already paid (e.g. a bank confirming an earlier
+    attempt late). The record keeps one payment per order, so the extra one is refunded directly;
+    its fixed receipt makes repeated attempts (webhook retries) safe.
+    """
+    receipt = f"stray_{pay_id}"
+    try:
+        entity = rzp.fetch_payment(pay_id)
+        if entity.get("order_id") != payment.razorpay_order_id or entity.get("status") != "captured":
+            return
+        rzp.create_refund(pay_id, int(entity.get("amount") or 0), receipt,
+                          notes={"reason": "Extra payment on an already paid order", "payment_ref": str(payment.id)})
+        logger.warning("Order %s: extra captured payment %s refunded automatically", payment.razorpay_order_id, pay_id)
+    except rzp.RazorpayError:
+        try:
+            if any(r.get("receipt") == receipt for r in rzp.fetch_payment_refunds(pay_id)):
+                return  # Refunded by an earlier attempt
+        except rzp.RazorpayError:
+            pass
+        logger.critical("Order %s: extra captured payment %s could NOT be refunded automatically — "
+                        "refund it from the Razorpay dashboard", payment.razorpay_order_id, pay_id)
 
 
 def _after_access_granted(db: Session, payment: Payment, notify: bool) -> None:
@@ -587,7 +680,10 @@ def verify_checkout(db: Session, user: User, order_id: str, payment_id: str, sig
 
 def reconcile_payment(db: Session, payment: Payment, force: bool = False) -> Payment:
     """Bring a local payment in line with Razorpay. Safe to call any number of times."""
-    if payment.status == PaymentStatus.SUCCESS.value and not payment.fulfilled_at:
+    if _auto_refund_due(payment):
+        return _issue_auto_refund(db, payment)
+    if (payment.status == PaymentStatus.SUCCESS.value and not payment.fulfilled_at
+            and not payment.auto_refund_reason):
         return fulfill_payment(db, payment, via="reconcile")
 
     refund_open = payment.refund_status in (RefundStatus.PENDING.value, RefundStatus.REQUESTED.value)
@@ -632,17 +728,30 @@ def reconcile_payment(db: Session, payment: Payment, force: bool = False) -> Pay
 
 def reconcile_open_payments(db: Session, days: int = 7, limit: int = 100) -> dict:
     cutoff = (_now() - timedelta(days=days)).replace(tzinfo=None)
-    candidates = (
+    # Money already held comes first, so a pile of abandoned orders can never crowd it out.
+    money_held = (
         db.query(Payment)
         .filter(or_(
-            Payment.status.in_((PaymentStatus.CREATED.value, PaymentStatus.PENDING.value)) & (Payment.created_at >= cutoff),
             (Payment.status == PaymentStatus.SUCCESS.value) & (Payment.fulfilled_at == None),
+            (Payment.status == PaymentStatus.SUCCESS.value) & (Payment.auto_refund_reason != None)
+            & or_(Payment.refund_status == None, Payment.refund_status == RefundStatus.FAILED.value),
             Payment.refund_status.in_((RefundStatus.PENDING.value, RefundStatus.REQUESTED.value)),
         ))
+        .order_by(Payment.created_at.asc())
+        .limit(limit)
+        .all()
+    )
+    # FAILED is included: a bank can confirm a payment after Razorpay first reported it failed.
+    open_orders = (
+        db.query(Payment)
+        .filter(Payment.status.in_((PaymentStatus.CREATED.value, PaymentStatus.PENDING.value,
+                                    PaymentStatus.FAILED.value)),
+                Payment.created_at >= cutoff)
         .order_by(Payment.created_at.desc())
         .limit(limit)
         .all()
     )
+    candidates = money_held + [p for p in open_orders if p not in money_held]
     changed = 0
     for p in candidates:
         before = (p.status, p.fulfilled_at, p.refund_status)
@@ -655,6 +764,46 @@ def reconcile_open_payments(db: Session, days: int = 7, limit: int = 100) -> dic
         if (p.status, p.fulfilled_at, p.refund_status) != before:
             changed += 1
     return {"checked": len(candidates), "updated": changed}
+
+
+_reconciler_started = False
+RECONCILER_FIRST_RUN_SECONDS = 60
+
+
+def start_background_reconciler() -> None:
+    """
+    Re-check open payments periodically. Covers a learner who paid and then lost both the checkout
+    callback and the webhook: they still get access (or their refund) without anyone clicking
+    anything. Every step is idempotent, so several app processes running this at once is safe.
+    """
+    global _reconciler_started
+    interval = settings.PAYMENT_RECONCILE_INTERVAL_SECONDS
+    if _reconciler_started or interval <= 0:
+        return
+    _reconciler_started = True
+
+    def run():
+        from database import SessionLocal
+        # A short first delay catches up quickly after a restart (e.g. Render waking from sleep).
+        delay = min(RECONCILER_FIRST_RUN_SECONDS, interval)
+        while True:
+            time.sleep(delay)
+            delay = interval
+            if not settings.payments_configured:
+                continue
+            db = SessionLocal()
+            try:
+                result = reconcile_open_payments(db)
+                if result["updated"]:
+                    logger.info("Background reconciliation updated %s of %s payment(s)",
+                                result["updated"], result["checked"])
+            except Exception as exc:
+                db.rollback()
+                logger.error("Background payment reconciliation failed: %s", type(exc).__name__)
+            finally:
+                db.close()
+
+    threading.Thread(target=run, name="payment-reconciler", daemon=True).start()
 
 
 # --------------------------------------------------------------------------- refunds
@@ -674,6 +823,9 @@ def _apply_refund(db: Session, payment: Payment, refund: dict) -> None:
             payment.refunded_at = _now()
             _revoke_access_if_unpaid(db, payment)
     elif status == "failed":
+        if payment.refund_status != RefundStatus.FAILED.value and payment.auto_refund_reason:
+            logger.critical("Automatic refund for payment #%s failed at Razorpay (attempt %s)",
+                            payment.id, int(payment.refund_attempt or 0) + 1)
         payment.refund_status = RefundStatus.FAILED.value
     elif payment.refund_status != RefundStatus.PROCESSED.value:
         payment.refund_status = RefundStatus.PENDING.value
@@ -719,7 +871,8 @@ def _sync_refund_from_gateway(db: Session, payment_pk: int) -> Optional[Payment]
     return payment
 
 
-def refund_payment(db: Session, payment_pk: int, admin: User, reason: Optional[str] = None) -> Payment:
+def refund_payment(db: Session, payment_pk: int, admin: Optional[User], reason: Optional[str] = None) -> Payment:
+    """Full refund through Razorpay. `admin` is None for automatic refunds."""
     payment = _lock_payment(db, payment_pk)
     if payment.status != PaymentStatus.SUCCESS.value or not payment.razorpay_payment_id:
         db.commit()
@@ -734,7 +887,7 @@ def refund_payment(db: Session, payment_pk: int, admin: User, reason: Optional[s
         payment.refund_id = None
     # Commit the marker before calling Razorpay so a double click cannot issue two refunds.
     payment.refund_status = RefundStatus.REQUESTED.value
-    payment.refunded_by = admin.id
+    payment.refunded_by = admin.id if admin else None
     db.commit()
 
     try:
@@ -759,8 +912,8 @@ def refund_payment(db: Session, payment_pk: int, admin: User, reason: Optional[s
     payment = _lock_payment(db, payment_pk)
     _apply_refund(db, payment, refund)
     db.commit()
-    logger.info("Refund %s for payment #%s requested by admin %s (status=%s)",
-                payment.refund_id, payment.id, admin.id, payment.refund_status)
+    logger.info("Refund %s for payment #%s requested by %s (status=%s)", payment.refund_id, payment.id,
+                f"admin {admin.id}" if admin else "automatic refund", payment.refund_status)
     return payment
 
 
@@ -866,7 +1019,7 @@ def course_purchase_state(db: Session, user: User, course: Course) -> dict:
     enrolled = get_active_enrollment(db, user.id, course.id) is not None
     latest = latest_payment_for(db, user.id, course.id)
     if latest and not enrolled and (
-        latest.status in (PaymentStatus.CREATED.value, PaymentStatus.PENDING.value)
+        latest.status in (PaymentStatus.CREATED.value, PaymentStatus.PENDING.value, PaymentStatus.FAILED.value)
         or (latest.status == PaymentStatus.SUCCESS.value and not latest.fulfilled_at)
     ):
         # Covers "paid, then closed the browser before the callback" when the webhook is late.
@@ -893,7 +1046,10 @@ def serialize_payment_for_user(p: Payment, enrolled: Optional[bool] = None) -> d
         "course_slug": p.course.slug if p.course else None,
         "course_title": p.course_title or (p.course.title if p.course else None),
         "enrolled": enrolled if enrolled is not None else bool(p.fulfilled_at and p.status == PaymentStatus.SUCCESS.value),
-        "access_pending": p.status == PaymentStatus.SUCCESS.value and not p.fulfilled_at,
+        "access_pending": p.status == PaymentStatus.SUCCESS.value and not p.fulfilled_at and not p.auto_refund_reason,
+        # Why this payment is being (or was) sent back automatically, e.g. a duplicate purchase.
+        "refund_reason": p.auto_refund_reason,
+        "refund_status": p.refund_status,
         "failure_reason": p.failure_reason if p.status in (PaymentStatus.FAILED.value, PaymentStatus.PENDING.value) else None,
         "paid_at": p.paid_at.isoformat() if p.paid_at else None,
         "created_at": p.created_at.isoformat() if p.created_at else None,

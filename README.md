@@ -312,7 +312,7 @@ Start with **Test Mode** keys (`rzp_test_…`); no real money moves.
 3. **Set prices** — Admin Panel → Course Pricing. Every course starts as free. The tables and pricing columns are created automatically on startup.
 4. **Test** — run through: a successful payment, a failed payment, a cancelled checkout, a page refresh during payment, a duplicate webhook (Dashboard → Resend), an already-enrolled user, and an admin refund. In **Admin Panel → Payments**, check that each successful payment granted access exactly once.
 
-Webhook deliveries in the Razorpay Dashboard should return **200**. A **401** means the webhook secret doesn't match; a **503** means `RAZORPAY_WEBHOOK_SECRET` isn't set on the server.
+Webhook deliveries in the Razorpay Dashboard should return **200**. A **400** ("Invalid signature") means the webhook secret doesn't match; a **503** means `RAZORPAY_WEBHOOK_SECRET` isn't set on the server.
 
 Switch to Live keys (`rzp_live_…`) and a Live Mode webhook only after the test checklist passes.
 

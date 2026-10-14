@@ -260,6 +260,7 @@ def create_tables():
             payment_cols = {col["name"] for col in inspector.get_columns("payments")}
             for col_name, col_type in [
                 ("razorpay_key_id", "VARCHAR(64)"),
+                ("auto_refund_reason", "VARCHAR(255)"),
             ]:
                 if col_name not in payment_cols:
                     try:

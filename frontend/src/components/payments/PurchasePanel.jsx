@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { FiAlertCircle, FiInfo, FiLock, FiRefreshCw, FiShoppingCart, FiXCircle } from 'react-icons/fi';
 import LoadingButton from '../common/LoadingButton';
 import { formatMinor } from '../../utils/money';
+import { DEBIT_REASSURANCE } from './refundCopy';
 
 const LOADING_TEXT = {
   creating: 'Starting secure checkout…',
@@ -61,6 +62,7 @@ export default function PurchasePanel({
           <div>
             <strong style={styles.alertTitle}>Payment could not be completed.</strong>
             <div>No course access was granted.{message ? ` ${message}` : ''}</div>
+            <div style={styles.refundNote}>{DEBIT_REASSURANCE}</div>
           </div>
         </div>
       )}
@@ -102,6 +104,7 @@ const styles = {
   alertTitle: { display: 'block', fontWeight: 'var(--fw-semibold)', marginBottom: 2 },
   spinner: { width: 14, height: 14, borderWidth: 2, marginTop: 3, flexShrink: 0 },
   cancelLink: { alignSelf: 'center', fontSize: '0.78rem' },
+  refundNote: { marginTop: 4, fontSize: '0.78rem', opacity: 0.85 },
   secureNote: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
     fontSize: '0.72rem', color: 'var(--text-muted)', margin: 0, textAlign: 'center',

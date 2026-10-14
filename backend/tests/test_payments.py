@@ -46,6 +46,7 @@ class FakeRazorpay:
         self.fail_fetch = False
         self.fail_refund_response = False
         self.keys_revoked = False  # Razorpay answers 401, mapped by the client to a 503 RazorpayError
+        self.refunds_down = False  # Refund API unreachable: nothing is created at Razorpay
 
     def _id(self, prefix):
         return f"{prefix}_{next(self.seq):014d}"
@@ -93,6 +94,8 @@ class FakeRazorpay:
         return dict(self.payments[pid])
 
     def create_refund(self, pid, amount, receipt, notes=None):
+        if self.refunds_down:
+            raise razorpay_client.RazorpayError()
         if any(r["receipt"] == receipt for r in self.refunds.values()):
             raise razorpay_client.RazorpayError(status_code=400, code="BAD_REQUEST_ERROR")  # duplicate receipt
         rid = self._id("rfnd")
@@ -1039,22 +1042,120 @@ def test_late_authorized_webhook_after_success_is_a_noop(client, gateway, world,
     assert db_session.query(Payment).one().status == "SUCCESS"
 
 
-def test_second_paid_order_for_same_course_is_flagged_for_refund(client, gateway, world, db_session):
-    student, course = world["student"], world["paid"]
+def _pay_twice(client, gateway, student, course, db_session):
     first = _buy(client, gateway, student, course)
     course.price_amount = 89900  # price changed -> the open order can't be reused, a second one is created
     db_session.commit()
     second = _buy(client, gateway, student, course)
     assert first["order_id"] != second["order_id"]
+    pids = []
     for order in (first, second):  # learner paid in two tabs
         pid = gateway.pay(order["order_id"])
+        pids.append(pid)
         client.post("/api/payments/razorpay/verify", headers=_auth(student), json={
             "razorpay_order_id": order["order_id"], "razorpay_payment_id": pid,
             "razorpay_signature": checkout_signature(order["order_id"], pid)})
+    return first, second, pids
+
+
+def test_second_paid_order_for_same_course_is_refunded_automatically(client, gateway, world, db_session):
+    student, course = world["student"], world["paid"]
+    first, second, (pid1, pid2) = _pay_twice(client, gateway, student, course, db_session)
     assert len(_enrollments(db_session, student, course)) == 1
+    # Exactly one refund, for the later payment's full amount; the first payment is untouched.
+    assert [(r["payment_id"], r["amount"]) for r in gateway.refunds.values()] == [(pid2, 89900)]
     rows = client.get("/api/payments/admin/list?status=SUCCESS", headers=_auth(world["admin"])).json()["items"]
     flagged = [r for r in rows if r["admin_note"]]
     assert len(rows) == 2 and len(flagged) == 1 and flagged[0]["razorpay_order_id"] == second["order_id"]
+
+    # Razorpay confirms the refund: the duplicate is REFUNDED, but access stays (first payment holds).
+    rid = next(iter(gateway.refunds))
+    gateway.refunds[rid]["status"] = "processed"
+    body = webhook_body("refund.processed", refund=gateway.refunds[rid])
+    client.post("/api/payments/razorpay/webhook", content=body, headers=webhook_headers(body, "evt_dup_r"))
+    db_session.expire_all()
+    dup = db_session.query(Payment).filter(Payment.razorpay_order_id == second["order_id"]).one()
+    assert dup.status == "REFUNDED" and dup.refunded_by is None
+    assert _enrollments(db_session, student, course)[0].is_active is True
+    status = client.get(f"/api/payments/orders/{second['order_id']}/status", headers=_auth(student)).json()
+    assert status["status"] == "REFUNDED" and status["enrolled"] is True and status["refund_reason"]
+
+    # Replays (verify again, captured webhook, reconcile) never issue a second refund.
+    client.post("/api/payments/razorpay/verify", headers=_auth(student), json={
+        "razorpay_order_id": second["order_id"], "razorpay_payment_id": pid2,
+        "razorpay_signature": checkout_signature(second["order_id"], pid2)})
+    body = webhook_body("payment.captured", payment=gateway.payments[pid2])
+    client.post("/api/payments/razorpay/webhook", content=body, headers=webhook_headers(body, "evt_dup_c"))
+    client.post("/api/payments/admin/reconcile", headers=_auth(world["admin"]))
+    assert len(gateway.refunds) == 1
+
+
+def test_automatic_refund_is_retried_until_razorpay_accepts_it(client, gateway, world, db_session):
+    gateway.refunds_down = True
+    student, course = world["student"], world["paid"]
+    _, second, (_, pid2) = _pay_twice(client, gateway, student, course, db_session)
+    assert gateway.refunds == {}
+    dup = db_session.query(Payment).filter(Payment.razorpay_order_id == second["order_id"]).one()
+    assert dup.auto_refund_reason and dup.refund_status is None  # marker released, nothing reached Razorpay
+
+    gateway.refunds_down = False
+    assert payment_service.reconcile_open_payments(db_session)["updated"] >= 1
+    assert [r["payment_id"] for r in gateway.refunds.values()] == [pid2]
+    payment_service.reconcile_open_payments(db_session)
+    assert len(gateway.refunds) == 1
+
+
+def test_lost_refund_response_is_not_refunded_twice(client, gateway, world, db_session):
+    # Razorpay created the refund but the response never arrived: the receipt finds it later.
+    gateway.fail_refund_response = True
+    _, second, (_, pid2) = _pay_twice(client, gateway, world["student"], world["paid"], db_session)
+    gateway.fail_refund_response = False
+    payment_service.reconcile_open_payments(db_session)
+    payment_service.reconcile_open_payments(db_session)
+    assert [r["payment_id"] for r in gateway.refunds.values()] == [pid2]
+
+
+def test_extra_capture_on_an_already_paid_order_is_refunded(client, gateway, world, db_session):
+    order, _ = _purchase(client, gateway, world["student"], world["paid"])
+    late = gateway.pay(order["order_id"])  # a bank confirmed an earlier attempt late
+    for event_id in ("evt_late_1", "evt_late_2"):  # Razorpay retries the webhook
+        body = webhook_body("payment.captured", payment=gateway.payments[late])
+        client.post("/api/payments/razorpay/webhook", content=body, headers=webhook_headers(body, event_id))
+    assert [(r["payment_id"], r["amount"]) for r in gateway.refunds.values()] == [(late, 99900)]
+    assert len(_enrollments(db_session, world["student"], world["paid"])) == 1
+
+
+def test_payment_for_a_course_that_no_longer_exists_is_refunded(client, gateway, world, db_session):
+    student = world["student"]
+    order = _buy(client, gateway, student, world["paid"])
+    db_session.query(Payment).update({Payment.course_id: None})  # course deleted mid-payment (FK SET NULL)
+    db_session.commit()
+    pid = gateway.pay(order["order_id"])
+    res = client.post("/api/payments/razorpay/verify", headers=_auth(student), json={
+        "razorpay_order_id": order["order_id"], "razorpay_payment_id": pid,
+        "razorpay_signature": checkout_signature(order["order_id"], pid)})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["status"] == "SUCCESS" and body["access_pending"] is False and body["refund_reason"]
+    assert [(r["payment_id"], r["amount"]) for r in gateway.refunds.values()] == [(pid, 99900)]
+    payment_service.reconcile_open_payments(db_session)
+    assert len(gateway.refunds) == 1
+
+
+def test_payment_confirmed_late_after_failing_is_recovered(client, gateway, world, db_session):
+    student, course = world["student"], world["paid"]
+    order = _buy(client, gateway, student, course)
+    failed = gateway.pay(order["order_id"], status="failed", error="Payment timed out")
+    body = webhook_body("payment.failed", payment=gateway.payments[failed])
+    client.post("/api/payments/razorpay/webhook", content=body, headers=webhook_headers(body, "evt_f"))
+    db_session.expire_all()
+    assert db_session.query(Payment).one().status == "FAILED"
+    # The bank later confirms the money; neither the callback nor a webhook reaches us.
+    gateway.payments[failed]["status"] = "captured"
+    payment_service.reconcile_open_payments(db_session)
+    db_session.expire_all()
+    assert db_session.query(Payment).one().status == "SUCCESS"
+    assert len(_enrollments(db_session, student, course)) == 1
 
 
 def test_paid_learner_without_access_is_repaired_not_recharged(client, gateway, world, db_session):

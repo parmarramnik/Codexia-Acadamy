@@ -79,6 +79,9 @@ class Payment(Base):
     fulfillment_error = Column(String(500), nullable=True)
     # Operational flag for admins (e.g. a duplicate purchase that should be refunded).
     admin_note = Column(String(255), nullable=True)
+    # Set when captured money must go back to the learner without an admin (duplicate purchase,
+    # course no longer available). Reconciliation keeps retrying until Razorpay accepts the refund.
+    auto_refund_reason = Column(String(255), nullable=True)
 
     refund_id = Column(String(64), nullable=True, unique=True)
     refund_status = Column(String(16), nullable=True)

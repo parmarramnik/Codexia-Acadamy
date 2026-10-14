@@ -53,6 +53,8 @@ def create_app() -> FastAPI:
     def on_startup():
         validate_production_settings()
         create_tables()
+        from services.payment_service import start_background_reconciler
+        start_background_reconciler()
         # Documents left PROCESSING by a restart can never finish on their own: surface them for re-indexing.
         try:
             from ai.rag.service import recover_interrupted_documents
