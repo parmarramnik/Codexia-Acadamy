@@ -39,7 +39,7 @@ def search_health():
 
 @router.post("/reindex")
 def reindex_all(
-    current_user: User = Depends(require_role([UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value])),
+    current_user: User = Depends(require_role(UserRole.ADMIN, UserRole.SUPER_ADMIN)),
     db: Session = Depends(get_db)
 ):
     """Triggers a full reindexing of all database records into Elasticsearch."""
@@ -151,7 +151,7 @@ def search_discussions_endpoint(
 def search_users_endpoint(
     q: str = Query("", description="User search query"),
     limit: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(require_role([UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value])),
+    current_user: User = Depends(require_role(UserRole.ADMIN, UserRole.SUPER_ADMIN)),
     db: Session = Depends(get_db),
 ):
     """Dedicated user search for Admin portal."""

@@ -567,7 +567,8 @@ def get_commit_history(
 
 
 def compute_word_diff(line_a: str, line_b: str) -> Tuple[str, str]:
-    """Calculates word-level difference within a modified line and wraps changes in span tags."""
+    """Calculates word-level difference within a modified line and wraps changes in span tags.
+    Expects already HTML-escaped lines (see compute_side_by_side_diff)."""
     import difflib
     words_a = line_a.split(" ")
     words_b = line_b.split(" ")
@@ -596,10 +597,15 @@ def compute_word_diff(line_a: str, line_b: str) -> Tuple[str, str]:
 
 
 def compute_side_by_side_diff(text_a: str, text_b: str) -> List[Dict[str, Any]]:
-    """Aligns two texts line-by-line using SequenceMatcher and highlights word changes."""
+    """
+    Aligns two texts line-by-line using SequenceMatcher and highlights word changes.
+    Every `left`/`right` value is HTML (the Notes diff view renders it as markup), so note text is
+    escaped here and only the diff <span> tags are real markup.
+    """
     import difflib
-    lines_a = text_a.splitlines()
-    lines_b = text_b.splitlines()
+    import html
+    lines_a = [html.escape(line) for line in text_a.splitlines()]
+    lines_b = [html.escape(line) for line in text_b.splitlines()]
 
     sm = difflib.SequenceMatcher(None, lines_a, lines_b)
     diff_blocks = []
