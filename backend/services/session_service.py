@@ -135,8 +135,8 @@ def record_login_attempt(
     failure_reason: Optional[str] = None,
 ) -> LoginHistory:
     """Logs login history event and evaluates lockouts on consecutive failures."""
-    # Find user
-    user = db.query(User).filter(User.email == email).first()
+    # `email` is the login identifier, which may be a username (see auth_service.login_user)
+    user = db.query(User).filter((User.email == email) | (User.username == email)).first()
     user_id = user.id if user else None
 
     # Track locked out or password history status

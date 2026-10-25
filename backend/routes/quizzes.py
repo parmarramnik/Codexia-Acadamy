@@ -21,6 +21,13 @@ from utils.cache import cache_get, cache_set, cache_invalidate_prefix
 router = APIRouter()
 
 
+def _ensure_can_manage_quiz(quiz, user: User) -> None:
+    """Only the owner of the quiz's course or an admin may change it (course-less quizzes: admins only)."""
+    owner_id = quiz.course.instructor_id if quiz.course else None
+    if not is_owner_or_admin(owner_id, user):
+        raise HTTPException(status_code=403, detail="You can only manage quizzes in your own courses")
+
+
 @router.get("", response_model=list)
 def list_all_quizzes(
     current_user: User = Depends(get_current_user),
@@ -283,6 +290,7 @@ def update_quiz(
     quiz = quiz_service.get_quiz_by_id(db, quiz_id)
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
+    _ensure_can_manage_quiz(quiz, current_user)
 
     update_dict = data.model_dump(exclude_unset=True)
     for field, value in update_dict.items():
@@ -306,6 +314,7 @@ def delete_quiz(
     quiz = quiz_service.get_quiz_by_id(db, quiz_id)
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
+    _ensure_can_manage_quiz(quiz, current_user)
 
     # Clean up associated questions, answers, and attempts first
     questions = db.query(Question).filter(Question.quiz_id == quiz_id).all()
