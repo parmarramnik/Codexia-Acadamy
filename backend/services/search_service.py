@@ -14,7 +14,7 @@ Features transparent PostgreSQL fallback resilience if Elasticsearch is offline 
 import logging
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import String, cast, or_
 
 from utils.elasticsearch_client import (
     get_es_client, is_es_available, init_indices,
@@ -655,7 +655,7 @@ def search_users(
                 User.full_name.ilike(pattern),
                 User.username.ilike(pattern),
                 User.email.ilike(pattern),
-                User.role.ilike(pattern)
+                cast(User.role, String).ilike(pattern)  # role is a native enum on PostgreSQL; ILIKE needs text
             )
         )
     results = query.limit(limit).all()

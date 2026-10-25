@@ -115,12 +115,16 @@ def submit_quiz_attempt(
     db.add(attempt)
     db.flush()
 
-    # Score each response
+    # Score each response. Only this quiz's questions count, each at most once: otherwise a
+    # repeated (or foreign) question_id would add marks beyond the quiz's total.
+    questions_by_id = {q.id: q for q in quiz.questions}
+    scored_ids: set[int] = set()
     total_score = 0.0
     for response_data in data.responses:
-        question = db.query(Question).filter(Question.id == response_data.question_id).first()
-        if not question:
+        question = questions_by_id.get(response_data.question_id)
+        if question is None or question.id in scored_ids:
             continue
+        scored_ids.add(question.id)
 
         correct_answer_ids = {
             a.id for a in question.answers if a.is_correct

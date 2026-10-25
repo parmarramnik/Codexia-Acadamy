@@ -2,6 +2,7 @@
 Analytics service — dashboard stats, study sessions, progress tracking.
 """
 
+import math
 from typing import Optional, List, Union
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
@@ -127,6 +128,11 @@ def update_lecture_progress(
         .filter(Progress.user_id == user_id, Progress.lecture_id == lecture_id)
         .first()
     )
+    watched_minutes = _watched_minutes(
+        progress.last_position_seconds if progress else 0,
+        last_position_seconds,
+        progress.updated_at if progress else None,
+    )
 
     if not progress:
         progress = Progress(
@@ -152,10 +158,29 @@ def update_lecture_progress(
     # Update enrollment completion percentage
     _update_enrollment_completion(db, user_id, lecture_id)
 
-    # Record study session
-    log_study_activity(db, user_id, duration_delta_minutes=2, watched_lecture=watched_completed)
+    # Record study session: only time actually spent watching counts (a paused player still pings every 10s)
+    if watched_minutes or watched_completed:
+        log_study_activity(db, user_id, duration_delta_minutes=watched_minutes, watched_lecture=watched_completed)
 
     return progress
+
+
+def _watched_minutes(previous_seconds: int, current_seconds: int, previous_update: Optional[datetime]) -> int:
+    """
+    Whole minutes of video newly watched since the last progress update.
+
+    Counts the minute boundaries the playback position moved forward across, capped by the wall-clock
+    time since that update, so pausing earns nothing and seeking ahead cannot claim time not spent.
+    """
+    forward = (max(current_seconds, 0) // 60) - (max(previous_seconds or 0, 0) // 60)
+    if forward <= 0:
+        return 0
+    if previous_update is None:
+        return 1  # first update for this lecture: no reference time, so credit at most one minute
+    if previous_update.tzinfo is None:
+        previous_update = previous_update.replace(tzinfo=timezone.utc)
+    elapsed = (datetime.now(timezone.utc) - previous_update).total_seconds()
+    return min(forward, max(1, math.ceil(elapsed / 60)))
 
 
 def _update_enrollment_completion(db: Session, user_id: int, lecture_id: int) -> None:
