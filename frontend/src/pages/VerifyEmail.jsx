@@ -158,7 +158,11 @@ export default function VerifyEmail() {
         }, 1500);
       }
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Invalid or expired OTP code.');
+      const detail = err.response?.data?.detail;
+      toast.error(detail || 'Invalid or expired OTP code.');
+      if (typeof detail === 'string' && detail.includes('already verified')) {
+        navigate('/login');
+      }
     } finally {
       setIsVerifying(false);
     }

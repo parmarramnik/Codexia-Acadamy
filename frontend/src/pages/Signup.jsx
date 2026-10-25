@@ -142,8 +142,6 @@ export default function Signup() {
           >
             <option value="student">Student (Learn with AI)</option>
             <option value="instructor">Instructor (Create Courses)</option>
-            <option value="admin">Admin (Manage Platform)</option>
-            <option value="super_admin">Super Admin (Full System Control)</option>
           </select>
         </div>
 

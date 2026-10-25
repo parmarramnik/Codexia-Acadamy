@@ -17,6 +17,10 @@ from schemas.user import UserCreate
 # Single session policy for every user and role: a login session lasts one day.
 SESSION_LIFETIME_DAYS = 1
 
+# Roles a visitor may request at signup. Admin roles are granted only by a super admin
+# (PATCH /api/users/{id}/role) or by the bootstrap job (scripts/bootstrap.py).
+SELF_SERVICE_ROLES = {"student", "instructor"}
+
 
 def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
     """Validate a user's credentials and return the user if valid."""
@@ -104,28 +108,31 @@ def login_user(
 
 def signup_user(db: Session, user_data: UserCreate) -> User:
     """Register a new user and create initial OTP."""
+    if (user_data.role or "student") not in SELF_SERVICE_ROLES:
+        raise ValueError("Administrator accounts cannot be created through signup.")
     user = create_user(db, user_data)
     return user
 
 
-def verify_account_otp(db: Session, email: str, otp: str) -> dict:
+def verify_account_otp(
+    db: Session,
+    email: str,
+    otp: str,
+    ip_address: Optional[str] = None,
+    user_agent: Optional[str] = None,
+) -> dict:
     """Verify 6-digit OTP for user account activation within 60 seconds."""
     from datetime import datetime, timezone
     from models.session import Session as UserSession
+    from services.session_service import create_user_session
     email_clean = email.strip().lower()
     user = db.query(User).filter(User.email == email_clean).first()
     if not user:
         raise ValueError("No account found with this email address.")
 
     if user.is_verified:
-        # Already verified, return login tokens with single-device enforcement
-        db.query(UserSession).filter(UserSession.user_id == user.id, UserSession.is_active == True).update({"is_active": False})
-        user.token_version = (user.token_version or 0) + 1
-        db.commit()
-
-        access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value, "ver": user.token_version})
-        refresh_token = create_refresh_token(data={"sub": str(user.id), "ver": user.token_version})
-        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "user": user}
+        # The OTP proves nothing once the account is verified: the user must log in with their password.
+        raise ValueError("This account is already verified. Please log in.")
 
     if user.verification_otp_expires:
         expires = user.verification_otp_expires
@@ -140,15 +147,20 @@ def verify_account_otp(db: Session, email: str, otp: str) -> dict:
     if not user.verification_otp or user.verification_otp.strip() != otp.strip():
         raise ValueError("Invalid verification OTP code. Please check your email inbox for the 6-digit OTP code.")
 
-    # Verification successful
+    # Verification successful: sign the user in with the same single-session policy as login_user
     user.is_verified = True
     user.verification_otp = None
     user.verification_otp_expires = None
+    db.query(UserSession).filter(UserSession.user_id == user.id, UserSession.is_active == True).update({"is_active": False})
     user.token_version = (user.token_version or 0) + 1
-    db.commit()
+    user.last_login = datetime.now(timezone.utc)
 
     access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value, "ver": user.token_version})
     refresh_token = create_refresh_token(data={"sub": str(user.id), "ver": user.token_version})
+    # Without a session row the refresh token could never be rotated, ending the session after 15 minutes.
+    create_user_session(db, user.id, refresh_token, ip_address, user_agent, expires_in_days=SESSION_LIFETIME_DAYS)
+    user.refresh_token = refresh_token
+    db.commit()
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -248,8 +260,7 @@ def request_password_reset(db: Session, email: str) -> Optional[str]:
     if not user:
         return None  # Don't reveal existence
 
-    import random
-    otp = f"{random.randint(100000, 999999)}"
+    otp = f"{secrets.randbelow(1000000):06d}"
     user.reset_token = otp
     user.reset_token_expires = datetime.now(timezone.utc) + timedelta(minutes=15)
     db.commit()
@@ -271,9 +282,13 @@ def reset_password(db: Session, email: str, otp: str, new_password: str) -> bool
     if not user:
         raise ValueError("Invalid or expired reset code")
 
+    from models.session import Session as UserSession
     user.password_hash = hash_password(new_password)
     user.reset_token = None
     user.reset_token_expires = None
-    user.refresh_token = None  # Invalidate sessions
+    # Sign out every device: deactivate sessions and reject access/refresh tokens issued before the reset.
+    db.query(UserSession).filter(UserSession.user_id == user.id).update({"is_active": False})
+    user.token_version = (user.token_version or 0) + 1
+    user.refresh_token = None
     db.commit()
     return True

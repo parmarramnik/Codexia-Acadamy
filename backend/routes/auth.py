@@ -39,10 +39,12 @@ def signup(request: Request, data: UserCreate = Body(...), db: Session = Depends
 
 
 @router.post("/verify-otp", response_model=TokenResponse)
+@limiter.limit("10/minute")
 def verify_otp(request: Request, data: VerifyOTPRequest = Body(...), db: Session = Depends(get_db)):
     """Verify 6-digit OTP code for user account activation within 60 seconds."""
     try:
-        result = auth_service.verify_account_otp(db, data.email, data.otp)
+        ip = request.client.host if request.client else None
+        result = auth_service.verify_account_otp(db, data.email, data.otp, ip, request.headers.get("user-agent"))
         log_security_event(db, result["user"].id, "otp_verification_success", f"Email: {data.email}", request=request)
         return result
     except ValueError as e:
@@ -129,6 +131,7 @@ def logout(
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
+@limiter.limit("3/minute")
 def forgot_password(request: Request, data: PasswordReset = Body(...), db: Session = Depends(get_db)):
     """
     Request a password reset.
@@ -143,6 +146,7 @@ def forgot_password(request: Request, data: PasswordReset = Body(...), db: Sessi
 
 
 @router.post("/reset-password", response_model=MessageResponse)
+@limiter.limit("5/minute")
 def reset_password(request: Request, data: PasswordResetConfirm = Body(...), db: Session = Depends(get_db)):
     """Reset password using email and 6-digit OTP code."""
     try:
@@ -222,8 +226,8 @@ def resend_verification(request: Request, data: ResendVerificationRequest = Body
     user.last_verification_sent_at = datetime.now(timezone.utc)
     db.commit()
 
-    # Send verification email
-    sent = send_verification_email(user.email, token)
+    # Pass the role so a privileged account's token goes to its approver, exactly like the signup OTP.
+    sent = send_verification_email(user.email, token, user.role.value, user.email)
     if not sent:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send verification email. Please try again.")
 

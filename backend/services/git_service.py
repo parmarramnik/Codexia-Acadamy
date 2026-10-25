@@ -348,8 +348,9 @@ def merge_branches(
     If fast-forward is possible, automatically updates target branch.
     If conflicts exist and no strategy is provided, returns conflict state details.
     """
-    source_branch = db.query(GitBranch).filter(GitBranch.id == source_branch_id).first()
-    target_branch = db.query(GitBranch).filter(GitBranch.id == target_branch_id).first()
+    # Both branches must belong to this note; branch IDs are sequential and would otherwise reach other users' notes.
+    source_branch = db.query(GitBranch).filter(GitBranch.id == source_branch_id, GitBranch.note_id == note.id).first()
+    target_branch = db.query(GitBranch).filter(GitBranch.id == target_branch_id, GitBranch.note_id == note.id).first()
 
     if not source_branch or not target_branch:
         raise HTTPException(status_code=404, detail="Branch not found.")
@@ -486,7 +487,7 @@ def cherry_pick_commit_action(db: Session, note: Note, commit_id: str, user_id: 
     active_branch = db.query(GitBranch).filter(GitBranch.id == note.current_branch_id).first()
     head_commit = db.query(GitCommit).filter(GitCommit.id == active_branch.head_commit_id).first()
 
-    cherry_commit = db.query(GitCommit).filter(GitCommit.id == commit_id).first()
+    cherry_commit = db.query(GitCommit).filter(GitCommit.id == commit_id, GitCommit.note_id == note.id).first()
     if not cherry_commit:
         raise HTTPException(status_code=404, detail="Cherry-pick commit not found.")
 

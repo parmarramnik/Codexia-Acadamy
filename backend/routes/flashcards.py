@@ -85,7 +85,9 @@ def update_flashcard(
     db: Session = Depends(get_db),
 ):
     """Update a flashcard (mark learned, favorite, etc.)."""
-    flashcard = db.query(Flashcard).filter(Flashcard.id == flashcard_id).first()
+    flashcard = db.query(Flashcard).filter(
+        Flashcard.id == flashcard_id, Flashcard.user_id == current_user.id
+    ).first()
     if not flashcard:
         raise HTTPException(status_code=404, detail="Flashcard not found")
     update_dict = data.model_dump(exclude_unset=True)
