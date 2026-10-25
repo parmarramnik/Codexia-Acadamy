@@ -2,7 +2,7 @@
 
 A full-stack learning platform that combines video courses, an AI tutor, a multi-language coding practice environment, Git-style versioned notes, verifiable certificates, and paid courses — built with **FastAPI**, **React**, **PostgreSQL**, and the **Google Gemini API**.
 
-**[Live Demo](https://codexia-acadamy.vercel.app)** · **[API Docs](https://codexia-backend-wrvr.onrender.com/api/docs)** · **[Report an Issue](https://github.com/parmarramnik/Codexia-Acadamy/issues)**
+**[Live Demo](https://codexia-academy.vercel.app)** · **[API Docs](https://codexia-backend-wrvr.onrender.com/api/docs)** · **[Report an Issue](https://github.com/parmarramnik/Codexia-Acadamy/issues)**
 
 [![Python](https://img.shields.io/badge/Python_3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
